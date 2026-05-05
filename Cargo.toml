@@ -18,15 +18,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # DBus
 zbus = "5"
 
-# Wayland
-wayland-client = "0.31"
-wayland-protocols = { version = "0.32", features = ["client"] }
-
-# Clipboard
-wl-clipboard-rs = "0.9"
-
-# PipeWire
-pipewire = "0.8"
-
 # Local socket
 uuid = { version = "1", features = ["v4"] }

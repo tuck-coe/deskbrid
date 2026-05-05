@@ -1,45 +1,325 @@
 //! DBus hub — watches GNOME Shell, Notifications, IdleMonitor, and more.
-//!
-//! Uses zbus to connect to the session bus and subscribe to signals
-//! from various org.gnome.* and org.freedesktop.* services.
 
 use crate::events::EventBus;
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
+use tokio::time::{self, Duration};
+use tracing::{debug, warn};
 
-/// Hub manages DBus connections to all desktop services.
+const SHELL_DEST: &str = "org.gnome.Shell";
+const SHELL_PATH: &str = "/org/gnome/Shell";
+const SHELL_IFACE: &str = "org.gnome.Shell";
+
 #[derive(Clone)]
 pub struct Hub {
-    // connection held for lifetime
-    _conn: zbus::Connection,
+    conn: zbus::Connection,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash)]
+pub struct WindowInfo {
+    pub title: String,
+    pub app_id: String,
+    pub pid: i64,
+    #[serde(default)]
+    pub workspace: i64,
+    #[serde(default)]
+    pub focused: bool,
+    #[serde(default)]
+    pub geometry: [i64; 4],
+    #[serde(default)]
+    pub wm_class: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+struct FocusWindow {
+    title: String,
+    app_id: String,
+    pid: i64,
+    workspace: i64,
+    geometry: [i64; 4],
+    wm_class: String,
 }
 
 impl Hub {
-    /// Connect to the session bus.
-    pub async fn new(_event_bus: EventBus) -> Self {
+    pub async fn new(_event_bus: EventBus) -> Result<Self> {
         let conn = zbus::Connection::session()
             .await
-            .expect("failed to connect to session bus");
-        Self { _conn: conn }
+            .context("connecting to session bus")?;
+        Ok(Self { conn })
     }
 
-    /// Watch for window focus/open/close events via GNOME Shell.
-    pub async fn watch_windows(self, _event_bus: EventBus) -> Result<()> {
-        // TODO: Subscribe to Shell.Introspect.WindowsChanged signal
-        // TODO: Poll GetWindows() periodically or use Eval() for focus tracking
-        // Current blocker: GetWindows() returns AccessDenied from outside
-        // Solution: Use Shell.Eval() with JS: global.display.focus_window.get_title()
+    pub async fn list_windows(&self) -> Result<Vec<WindowInfo>> {
+        let script = r#"
+            JSON.stringify(
+              global.get_window_actors().map(w => {
+                const m = w.meta_window;
+                const rect = m.get_frame_rect();
+                return {
+                  title: m.get_title() || "",
+                  app_id: m.get_wm_class() || "",
+                  pid: m.get_pid() || 0,
+                  workspace: m.get_workspace() ? m.get_workspace().index() : 0,
+                  focused: global.display.focus_window === m,
+                  geometry: [rect.x, rect.y, rect.width, rect.height],
+                  wm_class: m.get_wm_class() || ""
+                };
+              })
+            )
+        "#;
+        self.eval_json(script).await
+    }
+
+    pub async fn focus_window(
+        &self,
+        app_id: Option<&str>,
+        title: Option<&str>,
+        exact: bool,
+    ) -> Result<()> {
+        if app_id.is_none() && title.is_none() {
+            return Err(anyhow!("window:focus requires app_id or title"));
+        }
+
+        let app_id = serde_json::to_string(&app_id.unwrap_or_default())
+            .context("encoding app_id filter")?;
+        let title =
+            serde_json::to_string(&title.unwrap_or_default()).context("encoding title filter")?;
+        let script = format!(
+            r#"
+            (() => {{
+              const appId = {app_id};
+              const title = {title};
+              const exact = {exact};
+              const windows = global.get_window_actors().map(w => w.meta_window);
+              const matches = value => exact ? value === title || value === appId : value.toLowerCase().includes(title.toLowerCase()) || value.toLowerCase().includes(appId.toLowerCase());
+              const found = windows.find(w => {{
+                const wmClass = w.get_wm_class() || "";
+                const windowTitle = w.get_title() || "";
+                if (appId && matches(wmClass)) return true;
+                if (title && matches(windowTitle)) return true;
+                return false;
+              }});
+              if (!found) return JSON.stringify({{ ok: false }});
+              found.activate(global.get_current_time());
+              return JSON.stringify({{ ok: true }});
+            }})()
+            "#
+        );
+
+        let result: serde_json::Value = self.eval_json(&script).await?;
+        if result
+            .get("ok")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false)
+        {
+            Ok(())
+        } else {
+            Err(anyhow!("no matching window found"))
+        }
+    }
+
+    pub async fn send_notification(&self, summary: &str, body: &str, urgency: &str) -> Result<u32> {
+        let proxy = zbus::Proxy::new(
+            &self.conn,
+            "org.freedesktop.Notifications",
+            "/org/freedesktop/Notifications",
+            "org.freedesktop.Notifications",
+        )
+        .await
+        .context("creating notifications proxy")?;
+
+        let urgency_byte = match urgency {
+            "low" => 0_u8,
+            "critical" => 2_u8,
+            _ => 1_u8,
+        };
+        let hints =
+            std::collections::HashMap::<&str, zbus::zvariant::Value<'_>>::from([(
+                "urgency",
+                zbus::zvariant::Value::from(urgency_byte),
+            )]);
+        let actions: Vec<&str> = Vec::new();
+
+        proxy
+            .call(
+                "Notify",
+                &("deskbrid", 0_u32, "", summary, body, actions, hints, -1_i32),
+            )
+            .await
+            .context("sending notification")
+    }
+
+    pub async fn watch_windows(self, event_bus: EventBus) -> Result<()> {
+        let mut ticker = time::interval(Duration::from_millis(500));
+        let mut last_focus: Option<FocusWindow> = None;
+        let mut previous_windows: HashSet<WindowInfo> = HashSet::new();
+
+        loop {
+            ticker.tick().await;
+
+            match self.poll_focus().await {
+                Ok(Some(focus)) if last_focus.as_ref() != Some(&focus) => {
+                    event_bus.emit(
+                        "window:focus",
+                        serde_json::json!({
+                            "title": focus.title,
+                            "app_id": focus.app_id,
+                            "pid": focus.pid,
+                            "workspace": focus.workspace,
+                            "geometry": focus.geometry,
+                            "wm_class": focus.wm_class,
+                        }),
+                    );
+                    last_focus = Some(focus);
+                }
+                Ok(_) => {}
+                Err(error) => warn!("window focus poll failed: {error:#}"),
+            }
+
+            match self.list_windows().await {
+                Ok(current) => {
+                    let current_set: HashSet<_> = current.iter().cloned().collect();
+
+                    for opened in current_set.difference(&previous_windows) {
+                        event_bus.emit(
+                            "window:open",
+                            serde_json::json!({
+                                "title": opened.title,
+                                "app_id": opened.app_id,
+                                "pid": opened.pid,
+                                "workspace": opened.workspace,
+                                "geometry": opened.geometry,
+                            }),
+                        );
+                    }
+
+                    for closed in previous_windows.difference(&current_set) {
+                        event_bus.emit(
+                            "window:close",
+                            serde_json::json!({
+                                "app_id": closed.app_id,
+                                "pid": closed.pid,
+                            }),
+                        );
+                    }
+
+                    previous_windows = current_set;
+                }
+                Err(error) => warn!("window list poll failed: {error:#}"),
+            }
+        }
+    }
+
+    pub async fn watch_notifications(self, event_bus: EventBus) -> Result<()> {
+        let mut child = Command::new("dbus-monitor")
+            .args([
+                "--session",
+                "interface='org.freedesktop.Notifications',member='Notify'",
+            ])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .context("spawning dbus-monitor for notifications")?;
+
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| anyhow!("dbus-monitor stdout unavailable"))?;
+        let mut lines = BufReader::new(stdout).lines();
+        let mut block: Vec<String> = Vec::new();
+
+        while let Some(line) = lines.next_line().await.context("reading dbus-monitor output")? {
+            if line.trim().is_empty() {
+                if let Some(event) = parse_notification_block(&block) {
+                    event_bus.emit("notifications", event);
+                }
+                block.clear();
+                continue;
+            }
+            block.push(line);
+        }
+
+        warn!("notification monitor exited");
         Ok(())
     }
 
-    /// Watch for desktop notifications.
-    pub async fn watch_notifications(self, _event_bus: EventBus) -> Result<()> {
-        // TODO: Subscribe to org.freedesktop.Notifications.Notify signal
-        Ok(())
-    }
-
-    /// Watch for user idle state changes.
     pub async fn watch_idle(self, _event_bus: EventBus) -> Result<()> {
-        // TODO: Subscribe to org.gnome.Mutter.IdleMonitor signals
+        debug!("idle monitor not implemented in phase 1");
+        std::future::pending::<()>().await;
+        #[allow(unreachable_code)]
         Ok(())
     }
+
+    async fn poll_focus(&self) -> Result<Option<FocusWindow>> {
+        let script = r#"
+            (() => {
+              const m = global.display.focus_window;
+              if (!m) return "null";
+              const rect = m.get_frame_rect();
+              return JSON.stringify({
+                title: m.get_title() || "",
+                app_id: m.get_wm_class() || "",
+                pid: m.get_pid() || 0,
+                workspace: m.get_workspace() ? m.get_workspace().index() : 0,
+                geometry: [rect.x, rect.y, rect.width, rect.height],
+                wm_class: m.get_wm_class() || ""
+              });
+            })()
+        "#;
+        self.eval_json(script).await
+    }
+
+    async fn eval_json<T>(&self, script: &str) -> Result<T>
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        let proxy = zbus::Proxy::new(&self.conn, SHELL_DEST, SHELL_PATH, SHELL_IFACE)
+            .await
+            .context("creating gnome shell proxy")?;
+        let (success, result): (bool, String) = proxy
+            .call("Eval", &(script))
+            .await
+            .context("calling org.gnome.Shell.Eval")?;
+
+        if !success {
+            return Err(anyhow!("shell eval returned unsuccessful result"));
+        }
+
+        serde_json::from_str(&result).with_context(|| format!("parsing shell eval json: {result}"))
+    }
+}
+
+fn parse_notification_block(block: &[String]) -> Option<serde_json::Value> {
+    if !block.iter().any(|line| line.contains("member=Notify")) {
+        return None;
+    }
+
+    let strings: Vec<String> = block
+        .iter()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            trimmed
+                .strip_prefix("string ")
+                .map(|value| value.trim_matches('"').to_string())
+        })
+        .collect();
+    let uints: Vec<u64> = block
+        .iter()
+        .filter_map(|line| line.trim().strip_prefix("uint32 ")?.parse::<u64>().ok())
+        .collect();
+
+    if strings.len() < 4 {
+        return None;
+    }
+
+    Some(serde_json::json!({
+        "app": strings.first().cloned().unwrap_or_default(),
+        "app_icon": strings.get(1).cloned().unwrap_or_default(),
+        "summary": strings.get(2).cloned().unwrap_or_default(),
+        "body": strings.get(3).cloned().unwrap_or_default(),
+        "urgency": "normal",
+        "id": uints.first().copied().unwrap_or(0),
+    }))
 }
