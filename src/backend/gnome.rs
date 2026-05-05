@@ -25,10 +25,15 @@ const DISPLAY_CONFIG_IFACE: &str = "org.gnome.Mutter.DisplayConfig";
 const MUTTER_DEST: &str = "org.gnome.Mutter.RemoteDesktop";
 const MUTTER_PATH: &str = "/org/gnome/Mutter/RemoteDesktop";
 const MUTTER_IFACE: &str = "org.gnome.Mutter.RemoteDesktop";
+
+// deskbrid GNOME Shell extension for window management
+const WM_DEST: &str = "org.deskbrid.WindowManager";
+const WM_PATH: &str = "/org/deskbrid/WindowManager";
+const WM_IFACE: &str = "org.deskbrid.WindowManager";
 const SESSION_IFACE: &str = "org.gnome.Mutter.RemoteDesktop.Session";
 const DEVICE_TYPES_ALL: u32 = 7;
-const KEY_RELEASED: u32 = 0;
-const KEY_PRESSED: u32 = 1;
+const KEY_RELEASED: bool = false;
+const KEY_PRESSED: bool = true;
 const BUTTON_RELEASED: bool = false;
 const BUTTON_PRESSED: bool = true;
 
@@ -312,24 +317,15 @@ impl GnomeBackend {
 #[async_trait]
 impl DesktopBackend for GnomeBackend {
     async fn list_windows(&self) -> Result<Vec<WindowInfo>> {
-        let script = r#"
-            JSON.stringify(
-              global.get_window_actors().map(w => {
-                const m = w.meta_window;
-                const rect = m.get_frame_rect();
-                return {
-                  title: m.get_title() || "",
-                  app_id: m.get_wm_class() || "",
-                  pid: m.get_pid() || 0,
-                  workspace: m.get_workspace() ? m.get_workspace().index() : 0,
-                  focused: global.display.focus_window === m,
-                  geometry: [rect.x, rect.y, rect.width, rect.height],
-                  wm_class: m.get_wm_class() || ""
-                };
-              })
-            )
-        "#;
-        self.eval_json(script).await
+        let proxy = zbus::Proxy::new(&self.conn, WM_DEST, WM_PATH, WM_IFACE)
+            .await
+            .context("creating deskbrid window manager proxy")?;
+        let result: String = proxy
+            .call("ListWindows", &())
+            .await
+            .context("calling ListWindows on deskbrid extension")?;
+        serde_json::from_str(&result)
+            .with_context(|| format!("parsing window list json: {result}"))
     }
 
     async fn focus_window(
@@ -342,38 +338,15 @@ impl DesktopBackend for GnomeBackend {
             return Err(anyhow!("window:focus requires app_id or title"));
         }
 
-        let app_id =
-            serde_json::to_string(&app_id.unwrap_or_default()).context("encoding app_id filter")?;
-        let title =
-            serde_json::to_string(&title.unwrap_or_default()).context("encoding title filter")?;
-        let script = format!(
-            r#"
-            (() => {{
-              const appId = {app_id};
-              const title = {title};
-              const exact = {exact};
-              const windows = global.get_window_actors().map(w => w.meta_window);
-              const matches = (needle, value) => exact ? value === needle : value.toLowerCase().includes(needle.toLowerCase());
-              const found = windows.find(w => {{
-                const wmClass = w.get_wm_class() || "";
-                const windowTitle = w.get_title() || "";
-                if (appId && matches(appId, wmClass)) return true;
-                if (title && matches(title, windowTitle)) return true;
-                return false;
-              }});
-              if (!found) return JSON.stringify({{ ok: false }});
-              found.activate(global.get_current_time());
-              return JSON.stringify({{ ok: true }});
-            }})()
-            "#
-        );
+        let proxy = zbus::Proxy::new(&self.conn, WM_DEST, WM_PATH, WM_IFACE)
+            .await
+            .context("creating deskbrid window manager proxy")?;
+        let success: bool = proxy
+            .call("FocusWindow", &(app_id.unwrap_or_default(), title.unwrap_or_default(), exact))
+            .await
+            .context("calling FocusWindow on deskbrid extension")?;
 
-        let result: serde_json::Value = self.eval_json(&script).await?;
-        if result
-            .get("ok")
-            .and_then(serde_json::Value::as_bool)
-            .unwrap_or(false)
-        {
+        if success {
             Ok(())
         } else {
             Err(anyhow!("no matching window found"))
@@ -381,23 +354,20 @@ impl DesktopBackend for GnomeBackend {
     }
 
     async fn focused_window(&self) -> Result<Option<WindowInfo>> {
-        let script = r#"
-            (() => {
-              const m = global.display.focus_window;
-              if (!m) return "null";
-              const rect = m.get_frame_rect();
-              return JSON.stringify({
-                title: m.get_title() || "",
-                app_id: m.get_wm_class() || "",
-                pid: m.get_pid() || 0,
-                workspace: m.get_workspace() ? m.get_workspace().index() : 0,
-                focused: true,
-                geometry: [rect.x, rect.y, rect.width, rect.height],
-                wm_class: m.get_wm_class() || ""
-              });
-            })()
-        "#;
-        self.eval_json(script).await
+        let proxy = zbus::Proxy::new(&self.conn, WM_DEST, WM_PATH, WM_IFACE)
+            .await
+            .context("creating deskbrid window manager proxy")?;
+        let result: String = proxy
+            .call("FocusedWindow", &())
+            .await
+            .context("calling FocusedWindow on deskbrid extension")?;
+        if result == "null" {
+            Ok(None)
+        } else {
+            serde_json::from_str(&result)
+                .map(Some)
+                .with_context(|| format!("parsing focused window json: {result}"))
+        }
     }
 
     async fn list_displays(&self) -> Result<Vec<MonitorInfo>> {
@@ -644,10 +614,10 @@ impl GnomeInputSession {
         Ok(())
     }
 
-    async fn notify_keyboard(&self, keystate: u32, keycode: u32) -> Result<()> {
+async fn notify_keyboard(&self, keystate: bool, keycode: u32) -> Result<()> {
         let proxy = self.session_proxy().await?;
         let _: () = proxy
-            .call("NotifyKeyboard", &(keystate, keycode))
+            .call("NotifyKeyboardKeycode", &(keycode, keystate))
             .await
             .with_context(|| {
                 format!("injecting keyboard event keystate={keystate} keycode={keycode}")
@@ -856,11 +826,45 @@ fn pointer_button_code(button: &str) -> Result<u32> {
 }
 
 fn key_sequence_for_char(character: char) -> Option<Vec<(u32, bool)>> {
-    let lowercase = character.to_ascii_lowercase();
-    let mut key_name = [0_u8; 4];
-    let key = lowercase.encode_utf8(&mut key_name);
-    let keycode = keycode_for_name(key)?;
-    Some(vec![(keycode, character.is_ascii_uppercase())])
+    // Direct punctuation mappings
+    let (keycode, shifted) = match character {
+        '.' => (52, true),
+        ',' => (51, false),
+        '-' => (12, false),
+        '_' => (12, true),
+        '/' => (53, false),
+        '?' => (53, true),
+        '!' => (2, true),
+        '@' => (3, true),
+        '#' => (4, true),
+        '$' => (5, true),
+        '%' => (6, true),
+        '^' => (7, true),
+        '&' => (8, true),
+        '*' => (9, true),
+        '(' => (10, true),
+        ')' => (11, true),
+        '\'' => (40, false),
+        '"' => (40, true),
+        ':' => (39, true),
+        ';' => (39, false),
+        '<' => (51, true),
+        '>' => (52, true),
+        '=' => (13, false),
+        '+' => (13, true),
+        '~' => (41, true),
+        '`' => (41, false),
+        '|' => (43, true),
+        '\\' => (43, false),
+        ch => {
+            let lowercase = ch.to_ascii_lowercase();
+            let mut key_name = [0_u8; 4];
+            let key = lowercase.encode_utf8(&mut key_name);
+            let kc = keycode_for_name(key)?;
+            (kc, ch.is_ascii_uppercase())
+        }
+    };
+    Some(vec![(keycode, shifted)])
 }
 
 fn keycode_for_name(name: &str) -> Option<u32> {

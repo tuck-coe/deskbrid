@@ -23,6 +23,18 @@ pub enum Command {
         params_json: Option<String>,
     },
     Info,
+    Extension {
+        #[command(subcommand)]
+        command: ExtensionCommand,
+    },
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum ExtensionCommand {
+    /// Check if the deskbrid GNOME Shell extension is installed and enabled
+    Status,
+    /// Install the deskbrid GNOME Shell extension
+    Install,
 }
 
 pub async fn run(command: Option<Command>, socket_path: PathBuf) -> Result<()> {
@@ -34,6 +46,7 @@ pub async fn run(command: Option<Command>, socket_path: PathBuf) -> Result<()> {
             params_json,
         } => run_action(&socket_path, &action, params_json.as_deref()).await,
         Command::Info => run_info(&socket_path).await,
+        Command::Extension { command } => run_extension(command).await,
     }
 }
 
@@ -144,6 +157,72 @@ async fn run_info(socket_path: &Path) -> Result<()> {
         )?
     );
     Ok(())
+}
+
+async fn run_extension(command: ExtensionCommand) -> Result<()> {
+    const EXT_UUID: &str = "deskbrid@deskbrid";
+
+    fn ext_dir() -> Result<std::path::PathBuf> {
+        let home = std::env::var("HOME").map_err(|_| anyhow!("$HOME not set"))?;
+        Ok(std::path::PathBuf::from(home)
+            .join(".local/share/gnome-shell/extensions/deskbrid@deskbrid"))
+    }
+
+    match command {
+        ExtensionCommand::Status => {
+            let dir = ext_dir()?;
+            let installed = dir.join("extension.js").exists();
+            if !installed {
+                println!("❌ deskbrid extension NOT installed");
+                println!("   Run `deskbrid extension install` to install it, then restart GNOME Shell (Alt+F2, type 'r', Enter, or log out/back in)");
+                return Ok(());
+            }
+
+            // Check if it's enabled via gnome-extensions
+            let output = std::process::Command::new("gnome-extensions")
+                .arg("info")
+                .arg(EXT_UUID)
+                .output()
+                .map_err(|e| anyhow!("failed to run gnome-extensions: {e}"))?;
+
+            let info = String::from_utf8_lossy(&output.stdout);
+            if output.status.success() && info.contains("STATE: enabled") {
+                println!("✅ deskbrid extension is installed and enabled");
+                println!("   Location: {}", dir.display());
+            } else if output.status.success() && info.contains("STATE: disabled") {
+                println!("⚠️  deskbrid extension is installed but DISABLED");
+                println!("   Run: gnome-extensions enable {EXT_UUID}");
+                println!("   Then restart GNOME Shell (Alt+F2, type 'r', Enter)");
+            } else if output.status.success() {
+                println!("⚠️  deskbrid extension installed (unknown state)");
+                println!("   {info}");
+            } else {
+                println!("⚠️  Could not check extension state via gnome-extensions");
+                println!("   The files are at {}", dir.display());
+                println!("   Run `gnome-extensions enable {EXT_UUID}` and restart the shell");
+            }
+            Ok(())
+        }
+        ExtensionCommand::Install => {
+            let dir = ext_dir()?;
+            if dir.join("extension.js").exists() {
+                println!("✅ deskbrid extension already installed at {}", dir.display());
+            } else {
+                return Err(anyhow!(
+                    "Extension files not found at {}. Rebuild deskbrid with `cargo build` first.",
+                    dir.display()
+                ));
+            }
+            println!("");
+            println!("Next steps:");
+            println!("  1. Enable the extension: gnome-extensions enable {EXT_UUID}");
+            println!("  2. Restart GNOME Shell: Alt+F2 → type 'r' → Enter");
+            println!("     (or log out and back in on Wayland)");
+            println!("  3. Verify: gnome-extensions info {EXT_UUID}");
+            println!("  4. Start deskbrid daemon and run: deskbrid action window:list '{{}}'");
+            Ok(())
+        }
+    }
 }
 
 fn ensure_ok_result(result: Value) -> Result<()> {
