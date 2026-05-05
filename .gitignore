@@ -1,0 +1,9 @@
+/target/
+*.swp
+*.swo
+*.swn
+.DS_Store
+deskbrid.iml
+.vscode/
+.idea/
+*.session

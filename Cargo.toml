@@ -1,0 +1,32 @@
+[package]
+name = "deskbrid"
+version = "0.1.0"
+edition = "2021"
+description = "The HAL your Linux desktop agents are missing"
+license = "MIT"
+repository = "https://github.com/coe0718/deskbrid"
+
+[dependencies]
+# Core
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# DBus
+zbus = "5"
+
+# Wayland
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client"] }
+
+# Clipboard
+wl-clipboard-rs = "0.9"
+
+# PipeWire
+pipewire = "0.8"
+
+# Local socket
+uuid = { version = "1", features = ["v4"] }
