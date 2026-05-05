@@ -15,20 +15,44 @@ use anyhow::{anyhow, Context, Result};
 use std::path::PathBuf;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
+use tokio::sync::watch;
 use tracing::{debug, info, warn};
 
 /// Default socket path: $XDG_RUNTIME_DIR/deskbrid/socket
 pub fn default_socket_path() -> PathBuf {
-    let runtime =
-        std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+    let runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
     PathBuf::from(runtime).join("deskbrid").join("socket")
 }
 
 /// Version of the running daemon
 pub const VERSION: &str = "0.1.0";
 
+#[derive(Clone, Default)]
+struct RuntimeState {
+    input_session: Option<input::InputSession>,
+    clipboard_monitor: Option<clipboard::Monitor>,
+    dbus_hub: Option<dbus::Hub>,
+}
+
+impl RuntimeState {
+    fn capabilities(&self) -> Vec<&'static str> {
+        let mut capabilities = vec!["screenshot", "screencast"];
+        if self.dbus_hub.is_some() {
+            capabilities.extend(["window", "notifications", "display", "idle"]);
+        }
+        if self.input_session.is_some() {
+            capabilities.push("inject");
+        }
+        if self.clipboard_monitor.is_some() {
+            capabilities.push("clipboard");
+        }
+        capabilities.push("audio");
+        capabilities
+    }
+}
+
 /// Main daemon entry point.
-pub async fn run(config: config::Config) -> Result<()> {
+pub async fn run(config: config::Config, shutdown: watch::Receiver<bool>) -> Result<()> {
     let socket_path = config.socket_path.unwrap_or_else(default_socket_path);
 
     if let Some(parent) = socket_path.parent() {
@@ -44,36 +68,77 @@ pub async fn run(config: config::Config) -> Result<()> {
     info!("listening on {}", socket_path.display());
 
     let event_bus = events::EventBus::new();
-    let input_session = input::InputSession::new().await?;
-    let clipboard_monitor = clipboard::Monitor::new(event_bus.clone());
-    let dbus_hub = dbus::Hub::new(event_bus.clone()).await?;
+    let input_session = match input::InputSession::new().await {
+        Ok(session) => Some(session),
+        Err(error) => {
+            warn!("input injection unavailable: {error:#}");
+            None
+        }
+    };
+    let clipboard_monitor = match clipboard::Monitor::new(event_bus.clone(), shutdown.clone()).await
+    {
+        Ok(monitor) => Some(monitor),
+        Err(error) => {
+            warn!("clipboard unavailable: {error:#}");
+            None
+        }
+    };
+    let dbus_hub = match dbus::Hub::new(event_bus.clone()).await {
+        Ok(hub) => Some(hub),
+        Err(error) => {
+            warn!("dbus hub unavailable: {error:#}");
+            None
+        }
+    };
 
-    tokio::spawn(dbus_hub.clone().watch_windows(event_bus.clone()));
-    tokio::spawn(dbus_hub.clone().watch_notifications(event_bus.clone()));
-    tokio::spawn(dbus_hub.clone().watch_idle(event_bus.clone()));
+    let state = RuntimeState {
+        input_session,
+        clipboard_monitor,
+        dbus_hub,
+    };
 
-    loop {
-        let (stream, addr) = listener.accept().await.context("accepting client")?;
-        let eb = event_bus.clone();
-        let inp = input_session.clone();
-        let cb = clipboard_monitor.clone();
-        let dh = dbus_hub.clone();
-
-        tokio::spawn(async move {
-            debug!("client connected: {:?}", addr);
-            if let Err(error) = handle_client(stream, eb, inp, cb, dh).await {
-                warn!("client error: {error:#}");
-            }
-        });
+    if let Some(dbus_hub) = state.dbus_hub.clone() {
+        tokio::spawn(
+            dbus_hub
+                .clone()
+                .watch_windows(event_bus.clone(), shutdown.clone()),
+        );
+        tokio::spawn(
+            dbus_hub
+                .clone()
+                .watch_notifications(event_bus.clone(), shutdown.clone()),
+        );
+        tokio::spawn(dbus_hub.watch_idle(event_bus.clone(), shutdown.clone()));
     }
+
+    let mut shutdown = shutdown;
+    loop {
+        tokio::select! {
+            _ = shutdown.changed() => break,
+            accept_result = listener.accept() => {
+                let (stream, addr) = accept_result.context("accepting client")?;
+                let eb = event_bus.clone();
+                let client_state = state.clone();
+                let client_shutdown = shutdown.clone();
+
+                tokio::spawn(async move {
+                    debug!("client connected: {:?}", addr);
+                    if let Err(error) = handle_client(stream, eb, client_state, client_shutdown).await {
+                        warn!("client error: {error:#}");
+                    }
+                });
+            }
+        }
+    }
+
+    Ok(())
 }
 
 async fn handle_client(
     stream: UnixStream,
     event_bus: events::EventBus,
-    input_session: input::InputSession,
-    clipboard_monitor: clipboard::Monitor,
-    dbus_hub: dbus::Hub,
+    state: RuntimeState,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
@@ -135,7 +200,7 @@ async fn handle_client(
                         write_server_message(&mut writer, &response).await?;
                     }
                     Ok(protocol::ClientMessage::Action { id, action, params }) => {
-                        let response = match dispatch_action(&action, params, &input_session, &clipboard_monitor, &dbus_hub).await {
+                        let response = match dispatch_action(&action, params, &state).await {
                             Ok(data) => protocol::ServerMessage::Result {
                                 id,
                                 ok: true,
@@ -143,13 +208,16 @@ async fn handle_client(
                                 error: None,
                                 message: None,
                             },
-                            Err(error) => protocol::ServerMessage::Result {
-                                id,
-                                ok: false,
-                                data: None,
-                                error: Some("internal_error".to_string()),
-                                message: Some(error.to_string()),
-                            },
+                            Err(error) => {
+                                let (code, message) = action_error(&error);
+                                protocol::ServerMessage::Result {
+                                    id,
+                                    ok: false,
+                                    data: None,
+                                    error: Some(code.to_string()),
+                                    message: Some(message),
+                                }
+                            }
                         };
                         write_server_message(&mut writer, &response).await?;
                     }
@@ -181,6 +249,7 @@ async fn handle_client(
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
+            _ = shutdown.changed() => break,
         }
     }
 
@@ -203,9 +272,7 @@ async fn write_server_message(
 async fn dispatch_action(
     action: &str,
     params: serde_json::Value,
-    input_session: &input::InputSession,
-    clipboard: &clipboard::Monitor,
-    dbus: &dbus::Hub,
+    state: &RuntimeState,
 ) -> Result<serde_json::Value> {
     match action {
         "inject:type" => {
@@ -213,7 +280,9 @@ async fn dispatch_action(
                 .get("text")
                 .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| anyhow!("missing 'text' param"))?;
-            input_session.type_text(text).await?;
+            require_subsystem(&state.input_session, "inject")?
+                .type_text(text)
+                .await?;
             Ok(serde_json::json!({}))
         }
         "inject:key" => {
@@ -224,16 +293,28 @@ async fn dispatch_action(
                     .ok_or_else(|| anyhow!("missing 'keys' param"))?,
             )
             .context("invalid 'keys' param")?;
-            input_session.send_keys(&keys).await?;
+            require_subsystem(&state.input_session, "inject")?
+                .send_keys(&keys)
+                .await?;
             Ok(serde_json::json!({}))
         }
         "inject:mouse" => {
-            input_session.mouse_action(&params).await?;
+            require_subsystem(&state.input_session, "inject")?
+                .mouse_action(&params)
+                .await?;
             Ok(serde_json::json!({}))
         }
         "window:list" => {
-            let windows = dbus.list_windows().await?;
+            let windows = require_subsystem(&state.dbus_hub, "window")?
+                .list_windows()
+                .await?;
             Ok(serde_json::json!({ "windows": windows }))
+        }
+        "display:list" => {
+            let monitors = require_subsystem(&state.dbus_hub, "display")?
+                .list_monitors()
+                .await?;
+            Ok(serde_json::json!({ "monitors": monitors }))
         }
         "window:focus" => {
             let app_id = params.get("app_id").and_then(serde_json::Value::as_str);
@@ -242,11 +323,15 @@ async fn dispatch_action(
                 .get("exact")
                 .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
-            dbus.focus_window(app_id, title, exact).await?;
+            require_subsystem(&state.dbus_hub, "window")?
+                .focus_window(app_id, title, exact)
+                .await?;
             Ok(serde_json::json!({}))
         }
         "clipboard:read" => {
-            let text = clipboard.read().await?;
+            let text = require_subsystem(&state.clipboard_monitor, "clipboard")?
+                .read()
+                .await?;
             Ok(serde_json::json!({
                 "text": text,
                 "mime_types": ["text/plain"],
@@ -257,7 +342,9 @@ async fn dispatch_action(
                 .get("text")
                 .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| anyhow!("missing 'text' param"))?;
-            clipboard.write(text).await?;
+            require_subsystem(&state.clipboard_monitor, "clipboard")?
+                .write(text)
+                .await?;
             Ok(serde_json::json!({}))
         }
         "notification:send" => {
@@ -273,7 +360,9 @@ async fn dispatch_action(
                 .get("urgency")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("normal");
-            let id = dbus.send_notification(summary, body, urgency).await?;
+            let id = require_subsystem(&state.dbus_hub, "notifications")?
+                .send_notification(summary, body, urgency)
+                .await?;
             Ok(serde_json::json!({ "id": id }))
         }
         "screenshot" => {
@@ -300,7 +389,8 @@ async fn dispatch_action(
             let node_id = params
                 .get("node_id")
                 .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| anyhow!("missing 'node_id' param"))? as u32;
+                .ok_or_else(|| anyhow!("missing 'node_id' param"))?
+                as u32;
             capture::stop_screencast(node_id).await?;
             Ok(serde_json::json!({}))
         }
@@ -308,18 +398,23 @@ async fn dispatch_action(
             "deskbrid_version": VERSION,
             "desktop": "GNOME",
             "session_type": "wayland",
-            "capabilities": [
-                "window",
-                "inject",
-                "clipboard",
-                "screenshot",
-                "screencast",
-                "notifications",
-                "display",
-                "idle",
-                "audio"
-            ]
+            "capabilities": state.capabilities()
         })),
         other => Err(anyhow!("unknown action: {other}")),
     }
+}
+
+fn action_error(error: &anyhow::Error) -> (&'static str, String) {
+    let message = error.to_string();
+    if let Some(capability) = message.strip_prefix("not_supported: ") {
+        ("not_supported", capability.to_string())
+    } else {
+        ("internal_error", message)
+    }
+}
+
+fn require_subsystem<'a, T>(subsystem: &'a Option<T>, capability: &str) -> Result<&'a T> {
+    subsystem
+        .as_ref()
+        .ok_or_else(|| anyhow!("not_supported: {capability} capability unavailable"))
 }

@@ -161,7 +161,9 @@ impl InputSession {
         let _: () = proxy
             .call("NotifyKeyboard", &(keystate, keycode))
             .await
-            .with_context(|| format!("injecting keyboard event keystate={keystate} keycode={keycode}"))?;
+            .with_context(|| {
+                format!("injecting keyboard event keystate={keystate} keycode={keycode}")
+            })?;
         Ok(())
     }
 

@@ -2,10 +2,9 @@ use deskbrid::protocol::{ClientMessage, ServerMessage, Session};
 
 #[test]
 fn action_message_defaults_id() {
-    let message: ClientMessage = serde_json::from_str(
-        r#"{"type":"action","action":"clipboard:read","params":{}}"#,
-    )
-    .expect("client message should deserialize");
+    let message: ClientMessage =
+        serde_json::from_str(r#"{"type":"action","action":"clipboard:read","params":{}}"#)
+            .expect("client message should deserialize");
 
     match message {
         ClientMessage::Action { id, action, .. } => {

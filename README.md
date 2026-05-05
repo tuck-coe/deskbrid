@@ -30,6 +30,12 @@ nc -U "$XDG_RUNTIME_DIR/deskbrid/socket"
 {"type":"subscribe","events":["window:focus","clipboard","notifications"]}
 ```
 
+## Prerequisites
+
+- `wl-clipboard` for clipboard read/write support
+- `gnome-screenshot` or `grim` for screenshots
+- `systemd` for the user service
+
 ## Protocol
 
 See [PROTOCOL.md](PROTOCOL.md) for the full spec.

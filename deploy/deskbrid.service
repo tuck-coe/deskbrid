@@ -1,0 +1,12 @@
+[Unit]
+Description=Deskbrid desktop agent HAL
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.cargo/bin/deskbrid
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

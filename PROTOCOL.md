@@ -278,11 +278,12 @@ Get daemon and desktop capabilities.
 {"ok": true, "data": {
   "deskbrid_version": "0.1.0",
   "desktop": "GNOME",
-  "desktop_version": "42.9",
   "session_type": "wayland",
-  "capabilities": ["window", "inject", "clipboard", "screenshot", "screencast", "notifications", "display", "idle", "audio"]
+  "capabilities": ["screenshot", "screencast", "window", "notifications", "display", "idle", "inject", "clipboard", "audio"]
 }}
 ```
+
+Capability availability is runtime-dependent. If a subsystem fails during startup, the daemon stays up, omits that capability from `info`, and actions for it return `not_supported`.
 
 ## Error Handling
 

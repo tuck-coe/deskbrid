@@ -32,10 +32,7 @@ fn uuid_v4() -> String {
 #[serde(tag = "type")]
 pub enum ServerMessage {
     #[serde(rename = "hello")]
-    Hello {
-        version: &'static str,
-        pid: u32,
-    },
+    Hello { version: &'static str, pid: u32 },
     #[serde(rename = "event")]
     Event {
         event: String,
