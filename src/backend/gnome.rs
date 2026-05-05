@@ -13,7 +13,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::{watch, Mutex};
 use tokio::time::{self, Duration};
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 use zbus::zvariant::{OwnedObjectPath, OwnedValue};
 
 const SHELL_DEST: &str = "org.gnome.Shell";
@@ -29,8 +29,8 @@ const SESSION_IFACE: &str = "org.gnome.Mutter.RemoteDesktop.Session";
 const DEVICE_TYPES_ALL: u32 = 7;
 const KEY_RELEASED: u32 = 0;
 const KEY_PRESSED: u32 = 1;
-const BUTTON_RELEASED: u32 = 0;
-const BUTTON_PRESSED: u32 = 1;
+const BUTTON_RELEASED: bool = false;
+const BUTTON_PRESSED: bool = true;
 
 type Mode = (
     String,
@@ -77,6 +77,9 @@ pub struct GnomeInputSession {
     conn: zbus::Connection,
     path: OwnedObjectPath,
     lock: Arc<Mutex<()>>,
+    api: InputApi,
+    cursor_x: Arc<Mutex<f64>>,
+    cursor_y: Arc<Mutex<f64>>,
 }
 
 impl GnomeBackend {
@@ -145,7 +148,7 @@ impl GnomeBackend {
                     last_focus = Some(focus);
                 }
                 Ok(_) => {}
-                Err(error) => warn!("window focus poll failed: {error:#}"),
+                Err(error) => debug!("window focus poll failed: {error:#}"),
             }
 
             match self.list_windows().await {
@@ -177,7 +180,7 @@ impl GnomeBackend {
 
                     previous_windows = current_set;
                 }
-                Err(error) => warn!("window list poll failed: {error:#}"),
+                Err(error) => debug!("window list poll failed: {error:#}"),
             }
         }
     }
@@ -546,6 +549,44 @@ impl DesktopBackend for GnomeBackend {
     }
 }
 
+/// Detected RemoteDesktop API version — GNOME 43+ uses `(dddd)`,
+/// GNOME 42 uses `(sdd)` which requires a screencast stream for absolute
+/// motion. We fall back to relative motion + button injection for old API.
+#[derive(Clone, Copy, PartialEq)]
+enum InputApi {
+    New,
+    Old,
+}
+
+/// Detect the RemoteDesktop API by introspecting the session's
+/// NotifyPointerMotionAbsolute method signature.
+async fn detect_input_api(
+    conn: &zbus::Connection,
+    path: &OwnedObjectPath,
+) -> Result<InputApi> {
+    let introspect_proxy = zbus::Proxy::new(
+        conn,
+        MUTTER_DEST,
+        path.as_str(),
+        "org.freedesktop.DBus.Introspectable",
+    )
+    .await
+    .context("creating introspection proxy")?;
+
+    let xml: String = introspect_proxy
+        .call("Introspect", &())
+        .await
+        .context("introspecting session")?;
+
+    if xml.contains("type=\"s\"") {
+        info!("old RemoteDesktop API detected — using relative motion + position tracking");
+        Ok(InputApi::Old)
+    } else {
+        info!("new RemoteDesktop API detected — using absolute motion injection");
+        Ok(InputApi::New)
+    }
+}
+
 impl GnomeInputSession {
     pub async fn new() -> Result<Self> {
         let conn = zbus::Connection::session()
@@ -572,10 +613,15 @@ impl GnomeInputSession {
                 .context("starting remote desktop session")?;
         }
 
+        let api = detect_input_api(&conn, &path).await.unwrap_or(InputApi::New);
+
         Ok(Self {
             conn,
             path,
             lock: Arc::new(Mutex::new(())),
+            api,
+            cursor_x: Arc::new(Mutex::new(960.0)),
+            cursor_y: Arc::new(Mutex::new(540.0)),
         })
     }
 
@@ -613,27 +659,51 @@ impl GnomeInputSession {
         &self,
         x: f64,
         y: f64,
-        stream_width: f64,
-        stream_height: f64,
+        _stream_width: f64,
+        _stream_height: f64,
     ) -> Result<()> {
         let proxy = self.session_proxy().await?;
-        let _: () = proxy
-            .call(
-                "NotifyPointerMotionAbsolute",
-                &(x, y, stream_width, stream_height),
-            )
-            .await
-            .context("injecting absolute pointer motion")?;
-        Ok(())
+        match self.api {
+            InputApi::New => {
+                let _: () = proxy
+                    .call("NotifyPointerMotionAbsolute", &(x, y, _stream_width, _stream_height))
+                    .await
+                    .context("injecting absolute pointer motion")?;
+                Ok(())
+            }
+            InputApi::Old => {
+                // Use NotifyPointerMotionRelative — works on all GNOME versions
+                // without a screencast stream. Compute delta from tracked position.
+                //
+                // Note: tracked position may drift if the user moves the cursor
+                // between commands. Absolute motion on GNOME 43+ avoids this.
+                let mut cx = self.cursor_x.lock().await;
+                let mut cy = self.cursor_y.lock().await;
+                let dx = x - *cx;
+                let dy = y - *cy;
+                let _: () = proxy
+                    .call("NotifyPointerMotionRelative", &(dx, dy))
+                    .await
+                    .context("injecting relative pointer motion (old API fallback)")?;
+                *cx = x;
+                *cy = y;
+                Ok(())
+            }
+        }
     }
 
-    async fn notify_pointer_button(&self, button: u32, state: u32) -> Result<()> {
+    async fn notify_pointer_button(&self, button: i32, state: bool) -> Result<()> {
         let proxy = self.session_proxy().await?;
-        let _: () = proxy
+        match proxy
             .call("NotifyPointerButton", &(button, state))
             .await
-            .context("injecting pointer button event")?;
-        Ok(())
+        {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                warn!("NotifyPointerButton DBus error: {e:#}");
+                Err(anyhow::anyhow!("injecting pointer button event: {e:#}"))
+            }
+        }
     }
 
     async fn notify_pointer_axis(&self, axis: u32, value: f64, finish: bool) -> Result<()> {
@@ -717,8 +787,8 @@ impl InputBackend for GnomeInputSession {
                     .unwrap_or("left");
                 let button = pointer_button_code(button_name)?;
                 self.notify_pointer_motion_absolute(x, y, 1.0, 1.0).await?;
-                self.notify_pointer_button(button, BUTTON_PRESSED).await?;
-                self.notify_pointer_button(button, BUTTON_RELEASED).await?;
+                self.notify_pointer_button(button as i32, BUTTON_PRESSED).await?;
+                self.notify_pointer_button(button as i32, BUTTON_RELEASED).await?;
             }
             "scroll" => {
                 let dx = params.get("dx").and_then(Value::as_f64).unwrap_or(0.0);
