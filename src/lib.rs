@@ -3,6 +3,7 @@
 //! A standalone daemon that wraps Wayland protocols, DBus APIs, and PipeWire
 //! into a JSON-over-Unix-socket protocol for agent-native desktop control.
 
+pub mod backend;
 pub mod capture;
 pub mod cli;
 pub mod clipboard;
@@ -14,10 +15,15 @@ pub mod protocol;
 
 use anyhow::{anyhow, Context, Result};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::watch;
 use tracing::{debug, info, warn};
+
+pub use backend::types::{MonitorInfo, WindowInfo};
+
+type ClipboardMonitor = clipboard::Monitor;
 
 /// Default socket path: $XDG_RUNTIME_DIR/deskbrid/socket
 pub fn default_socket_path() -> PathBuf {
@@ -28,26 +34,27 @@ pub fn default_socket_path() -> PathBuf {
 /// Version of the running daemon
 pub const VERSION: &str = "0.1.0";
 
-#[derive(Clone, Default)]
-struct RuntimeState {
-    input_session: Option<input::InputSession>,
-    clipboard_monitor: Option<clipboard::Monitor>,
-    dbus_hub: Option<dbus::Hub>,
+struct DaemonState {
+    backend: Box<dyn backend::DesktopBackend>,
+    clipboard_monitor: Option<ClipboardMonitor>,
+    event_bus: events::EventBus,
 }
 
-impl RuntimeState {
+impl DaemonState {
     fn capabilities(&self) -> Vec<&'static str> {
-        let mut capabilities = vec!["screenshot", "screencast"];
-        if self.dbus_hub.is_some() {
-            capabilities.extend(["window", "notifications", "display", "idle"]);
-        }
-        if self.input_session.is_some() {
-            capabilities.push("inject");
-        }
+        let mut capabilities = vec![
+            "window",
+            "notifications",
+            "display",
+            "idle",
+            "inject",
+            "screenshot",
+            "screencast",
+            "audio",
+        ];
         if self.clipboard_monitor.is_some() {
             capabilities.push("clipboard");
         }
-        capabilities.push("audio");
         capabilities
     }
 }
@@ -69,13 +76,6 @@ pub async fn run(config: config::Config, shutdown: watch::Receiver<bool>) -> Res
     info!("listening on {}", socket_path.display());
 
     let event_bus = events::EventBus::new();
-    let input_session = match input::InputSession::new().await {
-        Ok(session) => Some(session),
-        Err(error) => {
-            warn!("input injection unavailable: {error:#}");
-            None
-        }
-    };
     let clipboard_monitor = match clipboard::Monitor::new(event_bus.clone(), shutdown.clone()).await
     {
         Ok(monitor) => Some(monitor),
@@ -84,33 +84,13 @@ pub async fn run(config: config::Config, shutdown: watch::Receiver<bool>) -> Res
             None
         }
     };
-    let dbus_hub = match dbus::Hub::new(event_bus.clone()).await {
-        Ok(hub) => Some(hub),
-        Err(error) => {
-            warn!("dbus hub unavailable: {error:#}");
-            None
-        }
-    };
+    let backend = backend::create_backend(event_bus.clone()).await?;
 
-    let state = RuntimeState {
-        input_session,
+    let state = Arc::new(DaemonState {
+        backend,
         clipboard_monitor,
-        dbus_hub,
-    };
-
-    if let Some(dbus_hub) = state.dbus_hub.clone() {
-        tokio::spawn(
-            dbus_hub
-                .clone()
-                .watch_windows(event_bus.clone(), shutdown.clone()),
-        );
-        tokio::spawn(
-            dbus_hub
-                .clone()
-                .watch_notifications(event_bus.clone(), shutdown.clone()),
-        );
-        tokio::spawn(dbus_hub.watch_idle(event_bus.clone(), shutdown.clone()));
-    }
+        event_bus: event_bus.clone(),
+    });
 
     let mut shutdown = shutdown;
     loop {
@@ -118,13 +98,12 @@ pub async fn run(config: config::Config, shutdown: watch::Receiver<bool>) -> Res
             _ = shutdown.changed() => break,
             accept_result = listener.accept() => {
                 let (stream, addr) = accept_result.context("accepting client")?;
-                let eb = event_bus.clone();
-                let client_state = state.clone();
+                let client_state = Arc::clone(&state);
                 let client_shutdown = shutdown.clone();
 
                 tokio::spawn(async move {
                     debug!("client connected: {:?}", addr);
-                    if let Err(error) = handle_client(stream, eb, client_state, client_shutdown).await {
+                    if let Err(error) = handle_client(stream, client_state, client_shutdown).await {
                         warn!("client error: {error:#}");
                     }
                 });
@@ -137,15 +116,14 @@ pub async fn run(config: config::Config, shutdown: watch::Receiver<bool>) -> Res
 
 async fn handle_client(
     stream: UnixStream,
-    event_bus: events::EventBus,
-    state: RuntimeState,
+    state: Arc<DaemonState>,
     mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut line = String::new();
     let mut subscriptions = protocol::Session::new();
-    let mut events_rx = event_bus.subscribe();
+    let mut events_rx = state.event_bus.subscribe();
 
     write_server_message(
         &mut writer,
@@ -273,7 +251,7 @@ async fn write_server_message(
 async fn dispatch_action(
     action: &str,
     params: serde_json::Value,
-    state: &RuntimeState,
+    state: &DaemonState,
 ) -> Result<serde_json::Value> {
     match action {
         "inject:type" => {
@@ -281,9 +259,8 @@ async fn dispatch_action(
                 .get("text")
                 .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| anyhow!("missing 'text' param"))?;
-            require_subsystem(&state.input_session, "inject")?
-                .type_text(text)
-                .await?;
+            let input = state.backend.create_input_session().await?;
+            input.type_text(text).await?;
             Ok(serde_json::json!({}))
         }
         "inject:key" => {
@@ -294,27 +271,25 @@ async fn dispatch_action(
                     .ok_or_else(|| anyhow!("missing 'keys' param"))?,
             )
             .context("invalid 'keys' param")?;
-            require_subsystem(&state.input_session, "inject")?
-                .send_keys(&keys)
-                .await?;
+            let input = state.backend.create_input_session().await?;
+            input.send_keys(&keys).await?;
             Ok(serde_json::json!({}))
         }
         "inject:mouse" => {
-            require_subsystem(&state.input_session, "inject")?
-                .mouse_action(&params)
-                .await?;
+            let input = state.backend.create_input_session().await?;
+            input.mouse_action(&params).await?;
             Ok(serde_json::json!({}))
         }
         "window:list" => {
-            let windows = require_subsystem(&state.dbus_hub, "window")?
-                .list_windows()
-                .await?;
+            let windows = state.backend.list_windows().await?;
             Ok(serde_json::json!({ "windows": windows }))
         }
+        "window:focused" => {
+            let window = state.backend.focused_window().await?;
+            Ok(serde_json::json!({ "window": window }))
+        }
         "display:list" => {
-            let monitors = require_subsystem(&state.dbus_hub, "display")?
-                .list_monitors()
-                .await?;
+            let monitors = state.backend.list_displays().await?;
             Ok(serde_json::json!({ "monitors": monitors }))
         }
         "window:focus" => {
@@ -324,9 +299,7 @@ async fn dispatch_action(
                 .get("exact")
                 .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
-            require_subsystem(&state.dbus_hub, "window")?
-                .focus_window(app_id, title, exact)
-                .await?;
+            state.backend.focus_window(app_id, title, exact).await?;
             Ok(serde_json::json!({}))
         }
         "clipboard:read" => {
@@ -361,7 +334,8 @@ async fn dispatch_action(
                 .get("urgency")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("normal");
-            let id = require_subsystem(&state.dbus_hub, "notifications")?
+            let id = state
+                .backend
                 .send_notification(summary, body, urgency)
                 .await?;
             Ok(serde_json::json!({ "id": id }))
@@ -397,8 +371,8 @@ async fn dispatch_action(
         }
         "info" => Ok(serde_json::json!({
             "deskbrid_version": VERSION,
-            "desktop": "GNOME",
-            "session_type": "wayland",
+            "desktop": state.backend.desktop_name(),
+            "session_type": std::env::var("XDG_SESSION_TYPE").unwrap_or_else(|_| "unknown".to_string()),
             "capabilities": state.capabilities()
         })),
         other => Err(anyhow!("unknown action: {other}")),
