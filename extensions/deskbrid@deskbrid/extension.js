@@ -62,7 +62,9 @@ function serializeFocusedWindow() {
 
 let _debounceTimer = 0;
 let _dbusImpl = null;
-let _dbusId = null;
+let _dbusId = 0;
+let _focusSignalId = 0;
+let _windowCreatedId = 0;
 
 function emitWindowStateChanged() {
     if (_debounceTimer) {
@@ -114,10 +116,11 @@ function enable() {
         }
     });
 
-    _dbusId = Gio.DbusUtils.own_name(
+    // GNOME 42 compatible DBus name ownership
+    _dbusId = Gio.bus_own_name(
+        Gio.BusType.SESSION,
         DBUS_SERVICE,
-        Gio.BusNameAppOwnershipFlags.NONE,
-        null,
+        Gio.BusNameOwnerFlags.NONE,
         null,
         null,
         null
@@ -126,13 +129,12 @@ function enable() {
     _dbusImpl.export(Gio.DBus.session, DBUS_PATH);
 
     // Watch for window focus changes in GNOME Shell
-    const display = global.display;
-    this._focusSignalId = display.connect('notify::focus-window', () => {
+    _focusSignalId = global.display.connect('notify::focus-window', () => {
         emitWindowStateChanged();
     });
 
     // Also watch window tracking events
-    this._windowCreatedId = display.connect('window-created', () => {
+    _windowCreatedId = global.display.connect('window-created', () => {
         emitWindowStateChanged();
     });
 
@@ -140,21 +142,21 @@ function enable() {
 }
 
 function disable() {
-    if (this._focusSignalId) {
-        global.display.disconnect(this._focusSignalId);
-        this._focusSignalId = 0;
+    if (_focusSignalId) {
+        global.display.disconnect(_focusSignalId);
+        _focusSignalId = 0;
     }
-    if (this._windowCreatedId) {
-        global.display.disconnect(this._windowCreatedId);
-        this._windowCreatedId = 0;
+    if (_windowCreatedId) {
+        global.display.disconnect(_windowCreatedId);
+        _windowCreatedId = 0;
     }
     if (_dbusImpl) {
         _dbusImpl.unexport();
         _dbusImpl = null;
     }
     if (_dbusId) {
-        Gio.DbusUtils.unown_name(_dbusId);
-        _dbusId = null;
+        Gio.bus_unown_name(_dbusId);
+        _dbusId = 0;
     }
     if (_debounceTimer) {
         GLib.source_remove(_debounceTimer);
