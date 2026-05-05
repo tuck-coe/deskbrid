@@ -5,7 +5,6 @@
 A single daemon that wraps Wayland protocols, DBus APIs, and PipeWire into a JSON-over-Unix-socket protocol. One binary. Zero config. Both your shell scripts and your AI agents use the same socket.
 
 ```bash
-# A shell script using it
 deskbrid action clipboard:read | grep "TODO" | notify-send
 
 # An AI agent using it (same socket, same protocol)
@@ -15,7 +14,7 @@ deskbrid action clipboard:read | grep "TODO" | notify-send
 
 ## Why now
 
-Every major AI lab is racing to ship desktop agents — OpenAI Operator, Claude Code, Codex — and Linux is the gap nobody has solved cleanly. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has... `xdotool` that breaks on Wayland.
+Every major AI lab is racing to ship desktop agents — and Linux is the gap nobody has solved cleanly. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has... `xdotool` that breaks on Wayland.
 
 Deskbrid is the missing abstraction layer, built at exactly the moment it's needed. It doesn't bet on agents taking off — automation use cases validate it today, agents validate it tomorrow. Same daemon, same protocol, same socket.
 
