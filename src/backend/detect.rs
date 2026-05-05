@@ -1,9 +1,11 @@
 use std::fs;
+use std::process::Command;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DesktopType {
     Gnome,
     Kde,
+    Wlroots,
     Other,
 }
 
@@ -24,6 +26,13 @@ pub fn detect_desktop() -> DesktopType {
     }
     if process_exists(&["kwin_wayland", "kwin_x11", "plasmashell"]) {
         return DesktopType::Kde;
+    }
+    if command_exists("sway", Some("--version"))
+        || command_exists("hyprctl", None)
+        || command_exists("riverctl", None)
+        || command_exists("wayfire", Some("--version"))
+    {
+        return DesktopType::Wlroots;
     }
 
     DesktopType::Other
@@ -62,4 +71,16 @@ fn process_exists(names: &[&str]) -> bool {
     }
 
     false
+}
+
+fn command_exists(program: &str, arg: Option<&str>) -> bool {
+    let mut command = Command::new(program);
+    if let Some(arg) = arg {
+        command.arg(arg);
+    }
+
+    command
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
 }

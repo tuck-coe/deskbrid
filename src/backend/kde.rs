@@ -41,6 +41,10 @@ impl DesktopBackend for KdeBackend {
     fn desktop_name(&self) -> &'static str {
         "KDE"
     }
+
+    fn capabilities(&self) -> &'static [&'static str] {
+        &["screenshot"]
+    }
 }
 
 pub struct KdeInputBackend;

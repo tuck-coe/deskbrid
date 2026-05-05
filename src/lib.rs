@@ -42,16 +42,7 @@ struct DaemonState {
 
 impl DaemonState {
     fn capabilities(&self) -> Vec<&'static str> {
-        let mut capabilities = vec![
-            "window",
-            "notifications",
-            "display",
-            "idle",
-            "inject",
-            "screenshot",
-            "screencast",
-            "audio",
-        ];
+        let mut capabilities = self.backend.capabilities().to_vec();
         if self.clipboard_monitor.is_some() {
             capabilities.push("clipboard");
         }

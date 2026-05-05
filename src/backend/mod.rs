@@ -2,6 +2,7 @@ pub mod detect;
 pub mod gnome;
 pub mod kde;
 pub mod types;
+pub mod wlroots;
 
 use crate::events::EventBus;
 use anyhow::{anyhow, Result};
@@ -11,6 +12,7 @@ pub use types::{MonitorInfo, WindowInfo};
 
 use self::detect::{detect_desktop, DesktopType};
 use self::gnome::GnomeBackend;
+use self::wlroots::WlrootsBackend;
 
 #[async_trait]
 pub trait DesktopBackend: Send + Sync {
@@ -21,6 +23,7 @@ pub trait DesktopBackend: Send + Sync {
     async fn create_input_session(&self) -> Result<Box<dyn InputBackend>>;
     async fn send_notification(&self, summary: &str, body: &str, urgency: &str) -> Result<u32>;
     fn desktop_name(&self) -> &'static str;
+    fn capabilities(&self) -> &'static [&'static str];
 }
 
 #[async_trait]
@@ -34,6 +37,7 @@ pub async fn create_backend(event_bus: EventBus) -> Result<Box<dyn DesktopBacken
     match detect_desktop() {
         DesktopType::Gnome => Ok(Box::new(GnomeBackend::new(event_bus).await?)),
         DesktopType::Kde => Err(anyhow!("KDE backend not yet implemented")),
+        DesktopType::Wlroots => Ok(Box::new(WlrootsBackend::new(event_bus).await?)),
         DesktopType::Other => Err(anyhow!("unsupported desktop environment")),
     }
 }

@@ -427,6 +427,19 @@ impl DesktopBackend for GnomeBackend {
     fn desktop_name(&self) -> &'static str {
         "GNOME"
     }
+
+    fn capabilities(&self) -> &'static [&'static str] {
+        &[
+            "window",
+            "notifications",
+            "display",
+            "idle",
+            "inject",
+            "screenshot",
+            "screencast",
+            "audio",
+        ]
+    }
 }
 
 impl GnomeInputSession {
