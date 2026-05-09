@@ -54,8 +54,15 @@ class AsyncDeskbrid:
         self._closed = False
         self._reader_task: asyncio.Task[None] | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
-        self._hello: dict[str, Any] | None = None
+        self._server_info: dict[str, Any] | None = None
         self._closed_event = asyncio.Event()
+
+    @property
+    def version(self) -> str:
+        if self._server_info:
+            data = self._server_info.get("data", {})
+            return str(data.get("version", "unknown"))
+        return "unknown"
 
     async def connect(self) -> None:
         should_resubscribe = False
@@ -68,9 +75,9 @@ class AsyncDeskbrid:
 
             reader, writer = await asyncio.open_unix_connection(self.socket_path)
             try:
-                hello = await self._read_message_from(reader)
-                if hello.get("type") != "hello":
-                    raise DeskbridError("protocol_error", "expected hello message")
+                server_msg = await self._read_message_from(reader)
+                if server_msg.get("type") != "connected":
+                    raise DeskbridError("protocol_error", f"expected connected message, got {server_msg.get('type')}")
             except Exception:
                 writer.close()
                 with contextlib.suppress(Exception):
@@ -79,7 +86,7 @@ class AsyncDeskbrid:
 
             self._reader = reader
             self._writer = writer
-            self._hello = hello
+            self._server_info = server_msg
             self._connected.set()
             self._reader_task = asyncio.create_task(self._read_loop())
             should_resubscribe = bool(self._events.subscribed_events())
@@ -119,42 +126,44 @@ class AsyncDeskbrid:
         await self.connect()
         await self._closed_event.wait()
 
+    # ─── Actions ───────────────────────────────────────
+
     async def type_text(self, text: str) -> None:
-        await self._request("inject:type", {"text": text})
+        await self._request("input.keyboard", {"action": "type", "text": text})
 
     async def send_keys(self, keys: list[str]) -> None:
-        await self._request("inject:key", {"keys": keys})
+        await self._request("input.keyboard", {"action": "combo", "keys": keys})
 
     async def mouse_click(self, x: int, y: int, button: str = "left") -> None:
-        await self._request("inject:mouse", {"type": "click", "x": x, "y": y, "button": button})
+        await self._request("input.mouse", {"action": "click", "x": x, "y": y, "button": button})
 
     async def mouse_move(self, x: int, y: int) -> None:
-        await self._request("inject:mouse", {"type": "move", "x": x, "y": y})
+        await self._request("input.mouse", {"action": "move", "x": x, "y": y})
 
     async def mouse_scroll(self, dx: float = 0.0, dy: float = 0.0) -> None:
-        await self._request("inject:mouse", {"type": "scroll", "dx": dx, "dy": dy})
+        await self._request("input.mouse", {"action": "scroll", "dx": dx, "dy": dy})
 
     async def clipboard_read(self) -> ClipboardContent:
-        return decode_clipboard(await self._request("clipboard:read"))
+        return decode_clipboard(await self._request("clipboard.read"))
 
     async def clipboard_write(self, text: str) -> None:
-        await self._request("clipboard:write", {"text": text})
+        await self._request("clipboard.write", {"text": text})
 
     async def screenshot(self, monitor: int | None = None) -> ScreenshotResult:
-        params = {}
+        params: dict[str, Any] = {}
         if monitor is not None:
             params["monitor"] = monitor
         return decode_screenshot(await self._request("screenshot", params))
 
     async def notify(self, title: str, body: str = "", urgency: str = "normal") -> int:
         response = await self._request(
-            "notification:send",
-            {"summary": title, "body": body, "urgency": urgency},
+            "notification.send",
+            {"app_name": "deskbrid", "title": title, "body": body, "urgency": urgency},
         )
-        return int(response.get("id", 0))
+        return int(response.get("notification_id", 0))
 
     async def list_windows(self) -> list[WindowInfo]:
-        return decode_windows(await self._request("window:list"))
+        return decode_windows(await self._request("windows.list"))
 
     async def focus_window(
         self,
@@ -163,27 +172,34 @@ class AsyncDeskbrid:
         title: str | None = None,
         exact: bool = False,
     ) -> None:
-        params: dict[str, Any] = {"exact": exact}
-        if app_id is not None:
-            params["app_id"] = app_id
-        if title is not None:
-            params["title"] = title
-        await self._request("window:focus", params)
+        # Find the window first, then focus by ID
+        if not app_id and not title:
+            raise DeskbridError("invalid_params", "app_id or title required")
+        windows = await self.list_windows()
+        target = next(
+            (w for w in windows if (app_id and w.app_id == app_id) or (title and title.lower() in w.title.lower())),
+            None,
+        )
+        if not target:
+            raise DeskbridError("not_found", f"window not found: {app_id or title}")
+        await self._request("windows.focus", {"window_id": target.id})
 
     async def list_displays(self) -> list[MonitorInfo]:
-        return decode_monitors(await self._request("display:list"))
+        return decode_monitors(await self._request("monitor.list"))
 
     async def info(self) -> DaemonInfo:
-        return decode_info(await self._request("info"))
+        return decode_info(await self._request("system.info"))
 
-    async def _request(self, action: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    # ─── Request/response internals ────────────────────
+
+    async def _request(self, action_type: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         request_id = str(uuid.uuid4())
-        message = {
-            "type": "action",
-            "id": request_id,
-            "action": action,
-            "params": params or {},
-        }
+        message: dict[str, Any] = {"type": action_type, "id": request_id}
+        if params:
+            # Flatten params into the message envelope (daemon expects flat keys)
+            for key, value in params.items():
+                if key not in ("type", "id"):
+                    message[key] = value
 
         loop = asyncio.get_running_loop()
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
@@ -196,14 +212,19 @@ class AsyncDeskbrid:
             self._pending.pop(request_id, None)
             raise
 
-        if not result.get("ok", False):
+        status = result.get("status", "error")
+        if status != "ok":
+            error_body = result.get("error", {})
             raise DeskbridError(
-                str(result.get("error", "internal_error")),
-                str(result.get("message", "request failed")),
+                str(error_body.get("code", "internal_error")),
+                str(error_body.get("message", "request failed")),
             )
+
         data = result.get("data")
         if isinstance(data, dict):
             return data
+        if isinstance(data, list):
+            return {"data": data}
         return {}
 
     async def _send_message(self, message: dict[str, Any]) -> None:
@@ -228,10 +249,11 @@ class AsyncDeskbrid:
                     break
                 msg_type = message.get("type")
                 if msg_type == "event":
+                    event_id = str(message.get("id", ""))
                     payload = message.get("data")
                     if isinstance(payload, dict):
-                        await self._events.dispatch(str(message.get("event", "")), payload)
-                elif msg_type == "result":
+                        await self._events.dispatch(event_id, payload)
+                elif msg_type == "response":
                     request_id = str(message.get("id", ""))
                     future = self._pending.pop(request_id, None)
                     if future is not None and not future.done():
@@ -266,7 +288,8 @@ class AsyncDeskbrid:
         events = self._events.subscribed_events()
         if not events:
             return
-        await self._send_message({"type": "subscribe", "events": events})
+        request_id = str(uuid.uuid4())
+        await self._send_message({"type": "subscribe", "id": request_id, "events": events})
 
     async def _resubscribe(self) -> None:
         if self._events.subscribed_events():
@@ -354,6 +377,10 @@ class Deskbrid:
         await client.connect()
         return client
 
+    @property
+    def version(self) -> str:
+        return self._client.version
+
     def close(self) -> None:
         self._loop.submit(self._client.close()).result()
         self._closed_event.set()
@@ -373,8 +400,6 @@ class Deskbrid:
     def listen(self) -> None:
         try:
             self._loop.submit(self._client.connect()).result()
-            # The background asyncio loop keeps event callbacks active; the sync API only needs
-            # to block the calling thread until close() or Ctrl-C ends the session.
             self._closed_event.wait()
         except KeyboardInterrupt:
             self.close()

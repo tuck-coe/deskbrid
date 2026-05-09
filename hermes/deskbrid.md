@@ -1,6 +1,6 @@
 ---
 name: deskbrid
-description: Desktop control via Deskbrid daemon — inject keystrokes, read clipboard, take screenshots, track windows
+description: Desktop control via Deskbrid daemon — inject keystrokes, read clipboard, take screenshots, list windows
 ---
 
 # Deskbrid Hermes Skill
@@ -9,54 +9,22 @@ Use this skill when a Hermes agent needs to interact with the local Linux deskto
 
 ## Requirement
 
-Deskbrid must already be running and listening on its Unix socket before any examples below will work.
+Deskbrid must already be running and listening on `$XDG_RUNTIME_DIR/deskbrid.sock`.
 
 ## Connect from Hermes
 
-Inside `execute_code`, import the Python client and create a connection:
+Inside `execute_code`, import the Python client:
 
 ```python
-import deskbrid
+from deskbrid import Deskbrid
 
-client = deskbrid.Deskbrid()
+client = Deskbrid()
 ```
 
-Close the client when you are done:
+Close when done:
 
 ```python
 client.close()
-```
-
-## Template Helper Functions
-
-Use helpers like these for common operations:
-
-```python
-import deskbrid
-
-
-def connect_client():
-    return deskbrid.Deskbrid()
-
-
-def current_windows(client):
-    return client.list_windows()
-
-
-def current_clipboard_text(client):
-    return client.clipboard_read().text
-
-
-def write_clipboard(client, text):
-    client.clipboard_write(text)
-
-
-def type_into_focused_window(client, text):
-    client.type_text(text)
-
-
-def send_notification(client, title, body=""):
-    return client.notify(title, body)
 ```
 
 ## Common Examples
@@ -64,25 +32,24 @@ def send_notification(client, title, body=""):
 ### Check what window is focused
 
 ```python
-import deskbrid
+from deskbrid import Deskbrid
 
-client = deskbrid.Deskbrid()
+client = Deskbrid()
 try:
     windows = client.list_windows()
-    focused = [window for window in windows if window.focused]
-    print(focused[0] if focused else "No focused window reported")
+    focused = [w for w in windows if w.is_focused]
+    if focused:
+        print(f"Focused: {focused[0].app_id} — {focused[0].title}")
 finally:
     client.close()
 ```
 
-`client.list_windows()` is the main entry point for window inspection.
-
-### Type into the terminal
+### Type into the focused window
 
 ```python
-import deskbrid
+from deskbrid import Deskbrid
 
-client = deskbrid.Deskbrid()
+client = Deskbrid()
 try:
     client.type_text("command\n")
 finally:
@@ -92,9 +59,9 @@ finally:
 ### Read or write the clipboard
 
 ```python
-import deskbrid
+from deskbrid import Deskbrid
 
-client = deskbrid.Deskbrid()
+client = Deskbrid()
 try:
     print(client.clipboard_read().text)
     client.clipboard_write("new clipboard contents")
@@ -105,12 +72,12 @@ finally:
 ### Take a screenshot
 
 ```python
-import deskbrid
+from deskbrid import Deskbrid
 
-client = deskbrid.Deskbrid()
+client = Deskbrid()
 try:
-    screenshot_path = client.screenshot()
-    print(screenshot_path)
+    result = client.screenshot()
+    print(result.path)
 finally:
     client.close()
 ```
@@ -118,38 +85,52 @@ finally:
 ### Send a desktop notification
 
 ```python
-import deskbrid
+from deskbrid import Deskbrid
 
-client = deskbrid.Deskbrid()
+client = Deskbrid()
 try:
-    client.notify("Hermes", "Deskbrid task finished")
+    client.notify("Hermes", "Task finished")
 finally:
     client.close()
 ```
 
-## Event Subscription Pattern
-
-If the Hermes task needs to watch the desktop over time, attach handlers with `@client.on` and then call `client.listen()`:
+### Focus a specific window, then type
 
 ```python
-import deskbrid
+from deskbrid import Deskbrid
 
-client = deskbrid.Deskbrid()
+client = Deskbrid()
+try:
+    client.focus_window(app_id="code")
+    client.type_text("Fix the build errors\n")
+finally:
+    client.close()
+```
 
-@client.on("window:focus")
-def on_focus(window):
-    print(window.title)
+## Event Subscription
 
-@client.on("clipboard")
-def on_clipboard(clip):
-    print(clip.text)
+Watch for file system events:
+
+```python
+from deskbrid import Deskbrid
+
+client = Deskbrid()
+
+@client.on("file.created")
+def on_create(event):
+    print(f"Created: {event['path']}")
+
+@client.on("file.*")
+def on_change(event):
+    print(f"{event['kind']}: {event['path']}")
 
 client.listen()
 ```
 
 ## Practical Guidance
 
-- Use `client.info()` first if you need to inspect daemon capabilities.
-- Use `client.focus_window(...)` before typing if a specific app needs focus.
-- Expect input injection to require a GNOME Wayland session with remote desktop access available.
-- Prefer short, explicit operations instead of long unverified action chains.
+- Use `client.info()` first to inspect daemon capabilities
+- Use `client.focus_window(app_id="code")` to target a specific application before typing
+- Expect input injection to require a GNOME Wayland session
+- Prefer short, explicit operations over long unverified chains
+- The daemon binds at `$XDG_RUNTIME_DIR/deskbrid.sock` (typically `/run/user/1000/deskbrid.sock`)

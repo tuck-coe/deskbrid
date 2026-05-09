@@ -5,8 +5,6 @@ import inspect
 from collections import defaultdict
 from typing import Any, Awaitable, Callable, DefaultDict
 
-from .models import decode_event
-
 EventCallback = Callable[[Any], Any]
 
 
@@ -34,9 +32,8 @@ class EventManager:
         if not callbacks:
             return
 
-        data = decode_event(event, payload)
         for callback in callbacks:
-            result = callback(data)
+            result = callback(payload)
             if inspect.isawaitable(result):
                 await result
 

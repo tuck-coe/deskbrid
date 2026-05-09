@@ -6,19 +6,14 @@ from typing import Any
 
 @dataclass(slots=True)
 class WindowInfo:
+    id: str = ""
     title: str = ""
     app_id: str = ""
     pid: int = 0
-    workspace: int = 0
-    focused: bool = False
+    workspace_id: int = 0
+    is_focused: bool = False
+    is_minimized: bool = False
     geometry: tuple[int, int, int, int] = (0, 0, 0, 0)
-    wm_class: str = ""
-
-
-@dataclass(slots=True)
-class WindowClosedEvent:
-    app_id: str = ""
-    pid: int = 0
 
 
 @dataclass(slots=True)
@@ -29,38 +24,13 @@ class ClipboardContent:
 
 
 @dataclass(slots=True)
-class NotificationEvent:
-    app: str = ""
-    app_icon: str = ""
-    summary: str = ""
-    body: str = ""
-    urgency: str = "normal"
-    id: int = 0
-
-
-@dataclass(slots=True)
-class IdleEvent:
-    idle: bool = False
-    idle_since: int | None = None
-    idle_seconds: int = 0
-
-
-@dataclass(slots=True)
-class AudioNodeEvent:
-    id: int = 0
-    name: str = ""
-    state: str = ""
-    volume: float = 0.0
-    muted: bool = False
-
-
-@dataclass(slots=True)
 class MonitorInfo:
     id: int = 0
+    name: str = ""
     width: int = 0
     height: int = 0
     scale: float = 1.0
-    refresh: int = 0
+    primary: bool = False
 
 
 @dataclass(slots=True)
@@ -72,85 +42,67 @@ class ScreenshotResult:
 
 @dataclass(slots=True)
 class DaemonInfo:
-    deskbrid_version: str
-    desktop: str
-    session_type: str
-    capabilities: list[str]
+    desktop: str = ""
+    desktop_version: str = ""
+    compositor: str = ""
+    session_type: str = ""
+    monitors: list[MonitorInfo] = field(default_factory=list)
+    workspace_count: int = 0
+    current_workspace: int = 0
+    idle_seconds: int = 0
 
 
-def decode_event(event: str, payload: dict[str, Any]) -> Any:
-    if event in {"window:focus", "window:open"}:
-        return WindowInfo(
-            title=str(payload.get("title", "")),
-            app_id=str(payload.get("app_id", "")),
-            pid=int(payload.get("pid", 0)),
-            workspace=int(payload.get("workspace", 0)),
-            focused=bool(payload.get("focused", False)),
-            geometry=_geometry(payload.get("geometry")),
-            wm_class=str(payload.get("wm_class", "")),
-        )
-    if event == "window:close":
-        return WindowClosedEvent(
-            app_id=str(payload.get("app_id", "")),
-            pid=int(payload.get("pid", 0)),
-        )
-    if event == "clipboard":
-        return ClipboardContent(
-            text=str(payload.get("text", "")),
-            mime_types=[str(item) for item in payload.get("mime_types", [])],
-            timestamp=_optional_int(payload.get("timestamp")),
-        )
-    if event == "notifications":
-        return NotificationEvent(
-            app=str(payload.get("app", "")),
-            app_icon=str(payload.get("app_icon", "")),
-            summary=str(payload.get("summary", "")),
-            body=str(payload.get("body", "")),
-            urgency=str(payload.get("urgency", "normal")),
-            id=int(payload.get("id", 0)),
-        )
-    if event == "idle":
-        return IdleEvent(
-            idle=bool(payload.get("idle", False)),
-            idle_since=_optional_int(payload.get("idle_since")),
-            idle_seconds=int(payload.get("idle_seconds", 0)),
-        )
-    if event == "audio:node":
-        return AudioNodeEvent(
-            id=int(payload.get("id", 0)),
-            name=str(payload.get("name", "")),
-            state=str(payload.get("state", "")),
-            volume=float(payload.get("volume", 0.0)),
-            muted=bool(payload.get("muted", False)),
-        )
-    return payload
-
+# ─── Decoders ──────────────────────────────────────
 
 def decode_windows(payload: dict[str, Any]) -> list[WindowInfo]:
+    # windows.list returns data as a flat array: [{"id": "3", "title": "...", ...}]
+    if isinstance(payload, list):
+        items = payload
+    elif isinstance(payload, dict):
+        items = payload.get("data", payload.get("windows", []))
+        if isinstance(items, dict):
+            items = [items]
+        elif not isinstance(items, list):
+            items = []
+    else:
+        items = []
+
     return [
         WindowInfo(
+            id=str(item.get("id", "")),
             title=str(item.get("title", "")),
             app_id=str(item.get("app_id", "")),
             pid=int(item.get("pid", 0)),
-            workspace=int(item.get("workspace", 0)),
-            focused=bool(item.get("focused", False)),
+            workspace_id=int(item.get("workspace_id", item.get("workspace", 0))),
+            is_focused=bool(item.get("is_focused", item.get("focused", False))),
+            is_minimized=bool(item.get("is_minimized", item.get("minimized", False))),
             geometry=_geometry(item.get("geometry")),
-            wm_class=str(item.get("wm_class", "")),
         )
-        for item in payload.get("windows", [])
+        for item in items
     ]
 
 
 def decode_monitors(payload: dict[str, Any]) -> list[MonitorInfo]:
+    # monitor.list returns data as a flat array
+    if isinstance(payload, list):
+        items = payload
+    elif isinstance(payload, dict):
+        items = payload.get("data", payload.get("monitors", []))
+        if not isinstance(items, list):
+            items = []
+    else:
+        items = []
+
     return [
         MonitorInfo(
             id=int(item.get("id", 0)),
+            name=str(item.get("name", "")),
             width=int(item.get("width", 0)),
             height=int(item.get("height", 0)),
             scale=float(item.get("scale", 1.0)),
-            refresh=int(item.get("refresh", 0)),
+            primary=bool(item.get("primary", False)),
         )
-        for item in payload.get("monitors", [])
+        for item in items
     ]
 
 
@@ -163,11 +115,28 @@ def decode_clipboard(payload: dict[str, Any]) -> ClipboardContent:
 
 
 def decode_info(payload: dict[str, Any]) -> DaemonInfo:
+    monitors_raw = payload.get("monitors", [])
+    monitors = decode_monitors(monitors_raw) if not isinstance(monitors_raw, list) else [
+        MonitorInfo(
+            id=int(m.get("id", 0)),
+            name=str(m.get("name", "")),
+            width=int(m.get("width", 0)),
+            height=int(m.get("height", 0)),
+            scale=float(m.get("scale", 1.0)),
+            primary=bool(m.get("primary", False)),
+        )
+        for m in (monitors_raw if isinstance(monitors_raw, list) else [])
+    ]
+
     return DaemonInfo(
-        deskbrid_version=str(payload.get("deskbrid_version", "")),
         desktop=str(payload.get("desktop", "")),
+        desktop_version=str(payload.get("desktop_version", "")),
+        compositor=str(payload.get("compositor", "")),
         session_type=str(payload.get("session_type", "")),
-        capabilities=[str(item) for item in payload.get("capabilities", [])],
+        monitors=monitors,
+        workspace_count=int(payload.get("workspace_count", 0)),
+        current_workspace=int(payload.get("current_workspace", 0)),
+        idle_seconds=int(payload.get("idle_seconds", 0)),
     )
 
 
@@ -178,6 +147,8 @@ def decode_screenshot(payload: dict[str, Any]) -> ScreenshotResult:
         height=_optional_int(payload.get("height")),
     )
 
+
+# ─── Helpers ───────────────────────────────────────
 
 def _geometry(value: Any) -> tuple[int, int, int, int]:
     if isinstance(value, (list, tuple)) and len(value) == 4:
