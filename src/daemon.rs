@@ -465,7 +465,7 @@ async fn execute_action(
             ref workdir,
             ref env,
         } => {
-            let mut cmd = std::process::Command::new(&command[0]);
+            let mut cmd = tokio::process::Command::new(&command[0]);
             cmd.args(&command[1..]);
             if let Some(wd) = workdir {
                 cmd.current_dir(wd);
@@ -480,7 +480,7 @@ async fn execute_action(
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .spawn()?;
-            serde_json::json!({"pid": child.id(), "command": command})
+            serde_json::json!({"pid": child.id().unwrap_or(0), "command": command})
         }
 
         HotkeysRegister {
