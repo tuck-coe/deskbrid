@@ -4,7 +4,6 @@ use anyhow::Context;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 const SOCKET_PATH: &str = "/run/user/1000/deskbrid.sock";

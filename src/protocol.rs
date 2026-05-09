@@ -447,7 +447,7 @@ impl Action {
 
     /// Convert action to a JSON envelope string
     pub fn to_json(&self) -> anyhow::Result<String> {
-        let msg_type = self.action_type();
+        let _msg_type = self.action_type();
         let id = Uuid::new_v4().to_string();
         let envelope = match self {
             Action::Ping => json!({"type": "ping", "id": id}),
