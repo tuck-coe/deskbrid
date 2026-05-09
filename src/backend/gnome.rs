@@ -767,27 +767,160 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  BLUETOOTH (stubs for Phase 2b)
+    //  BLUETOOTH
     // ═══════════════════════════════════════════════════════
 
     async fn bluetooth_list(&self) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>> {
-        Ok(vec![])
+        let reply = self
+            .conn
+            .call_method(
+                Some("org.bluez"),
+                "/",
+                Some("org.freedesktop.DBus.ObjectManager"),
+                "GetManagedObjects",
+                &(),
+            )
+            .await?;
+
+        // Returns a{oa{sa{sv}}}
+        let managed: std::collections::HashMap<
+            zvariant::OwnedObjectPath,
+            std::collections::HashMap<String, zvariant::OwnedValue>,
+        > = reply.body().deserialize()?;
+
+        let mut devices = Vec::new();
+
+        for ifaces in managed.values() {
+            // Only process objects that have the Device1 interface
+            if !ifaces.contains_key("org.bluez.Device1") {
+                continue;
+            }
+            // Get device properties from the Device1 interface dict
+            // The value is an a{sv} map of properties
+            let props = if let Some(v) = ifaces.get("org.bluez.Device1") {
+                if let Ok(map) = v.downcast_ref::<zvariant::Dict>() {
+                    map
+                } else {
+                    continue;
+                }
+            } else {
+                continue;
+            };
+
+            let mut address = String::new();
+            let mut name = "(unknown)".to_string();
+            let mut paired = false;
+            let mut connected = false;
+            let mut rssi: Option<i32> = None;
+
+            for (prop_key, prop_val) in props.iter() {
+                // Dict keys are zvariant Values — downcast to string for comparison
+                let key_str = if let Ok(s) = prop_key.downcast_ref::<zvariant::Str>() {
+                    s.to_string()
+                } else {
+                    continue;
+                };
+                match key_str.as_str() {
+                    "Address" => {
+                        if let Ok(s) = prop_val.downcast_ref::<zvariant::Str>() {
+                            address = s.to_string();
+                        }
+                    }
+                    "Name" => {
+                        if let Ok(s) = prop_val.downcast_ref::<zvariant::Str>() {
+                            name = s.to_string();
+                        }
+                    }
+                    "Paired" => {
+                        if let Ok(b) = prop_val.downcast_ref::<bool>() {
+                            paired = b;
+                        }
+                    }
+                    "Connected" => {
+                        if let Ok(b) = prop_val.downcast_ref::<bool>() {
+                            connected = b;
+                        }
+                    }
+                    "RSSI" => {
+                        if let Ok(v) = prop_val.downcast_ref::<i16>() {
+                            rssi = Some(v as i32);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            devices.push(protocol::BluetoothDeviceInfo {
+                address,
+                name,
+                paired,
+                connected,
+                rssi,
+            });
+        }
+
+        Ok(devices)
     }
 
     async fn bluetooth_scan(&self, _duration: Option<u32>) -> anyhow::Result<()> {
-        anyhow::bail!("Bluetooth scan not yet implemented (Phase 2b)")
-    }
-
-    async fn bluetooth_stop_scan(&self) -> anyhow::Result<()> {
+        // Find the first adapter and start discovery
+        let adapter_path = self.find_bluetooth_adapter().await?;
+        self.conn
+            .call_method(
+                Some("org.bluez"),
+                adapter_path.as_str(),
+                Some("org.bluez.Adapter1"),
+                "StartDiscovery",
+                &(),
+            )
+            .await?;
         Ok(())
     }
 
-    async fn bluetooth_connect(&self, _address: &str) -> anyhow::Result<()> {
-        anyhow::bail!("Bluetooth connect not yet implemented (Phase 2b)")
+    async fn bluetooth_stop_scan(&self) -> anyhow::Result<()> {
+        if let Ok(adapter_path) = self.find_bluetooth_adapter().await {
+            let _ = self
+                .conn
+                .call_method(
+                    Some("org.bluez"),
+                    adapter_path.as_str(),
+                    Some("org.bluez.Adapter1"),
+                    "StopDiscovery",
+                    &(),
+                )
+                .await;
+        }
+        Ok(())
     }
 
-    async fn bluetooth_disconnect(&self, _address: &str) -> anyhow::Result<()> {
-        anyhow::bail!("Bluetooth disconnect not yet implemented (Phase 2b)")
+    async fn bluetooth_connect(&self, address: &str) -> anyhow::Result<()> {
+        let path = self.device_path(address);
+        self.conn
+            .call_method(
+                Some("org.bluez"),
+                path.as_str(),
+                Some("org.bluez.Device1"),
+                "Connect",
+                &(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn bluetooth_disconnect(&self, address: &str) -> anyhow::Result<()> {
+        let path = self.device_path(address);
+        // Disconnect may fail if not connected — that's fine for our purposes
+        let _ = self
+            .conn
+            .call_method(
+                Some("org.bluez"),
+                path.as_str(),
+                Some("org.bluez.Device1"),
+                "Disconnect",
+                &(),
+            )
+            .await;
+        Ok(())
     }
 
     // ═══════════════════════════════════════════════════════
@@ -1086,6 +1219,38 @@ impl GnomeBackend {
             }
         }
         None
+    }
+
+    /// Find the first BlueZ adapter path (e.g., /org/bluez/hci0).
+    async fn find_bluetooth_adapter(&self) -> anyhow::Result<String> {
+        let reply = self
+            .conn
+            .call_method(
+                Some("org.bluez"),
+                "/",
+                Some("org.freedesktop.DBus.ObjectManager"),
+                "GetManagedObjects",
+                &(),
+            )
+            .await?;
+
+        let managed: std::collections::HashMap<
+            zvariant::OwnedObjectPath,
+            std::collections::HashMap<String, zvariant::OwnedValue>,
+        > = reply.body().deserialize()?;
+
+        for (path, ifaces) in &managed {
+            if ifaces.contains_key("org.bluez.Adapter1") {
+                return Ok(path.as_str().to_string());
+            }
+        }
+        anyhow::bail!("no Bluetooth adapter found")
+    }
+
+    /// Convert a Bluetooth address (XX:XX:XX:XX:XX:XX) to a BlueZ device path.
+    fn device_path(&self, address: &str) -> String {
+        let normalized = address.replace(':', "_").to_uppercase();
+        format!("/org/bluez/hci0/dev_{}", normalized)
     }
 }
 
