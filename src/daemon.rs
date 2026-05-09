@@ -430,8 +430,53 @@ async fn execute_action(
             serde_json::json!({"matches": backend.files_search(pattern, root.as_deref(), max_results).await?})
         }
 
-        ProcessList => serde_json::json!({"processes": "not yet implemented"}),
-        ProcessStart { .. } => serde_json::json!({"process": "not yet implemented"}),
+        ProcessList => {
+            let output = tokio::process::Command::new("ps")
+                .args(["aux", "--no-headers"])
+                .output()
+                .await?;
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let processes: Vec<serde_json::Value> = stdout
+                .lines()
+                .take(200)
+                .filter_map(|line| {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() < 11 {
+                        return None;
+                    }
+                    Some(serde_json::json!({
+                        "user": parts[0],
+                        "pid": parts[1].parse::<u32>().unwrap_or(0),
+                        "cpu": parts[2],
+                        "mem": parts[3],
+                        "command": parts[10..].join(" ")
+                    }))
+                })
+                .collect();
+            serde_json::json!({"processes": processes})
+        }
+        ProcessStart {
+            ref command,
+            ref workdir,
+            ref env,
+        } => {
+            let mut cmd = std::process::Command::new(&command[0]);
+            cmd.args(&command[1..]);
+            if let Some(wd) = workdir {
+                cmd.current_dir(wd);
+            }
+            if let Some(env_vars) = env {
+                for (k, v) in env_vars {
+                    cmd.env(k, v);
+                }
+            }
+            let child = cmd
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()?;
+            serde_json::json!({"pid": child.id(), "command": command})
+        }
 
         HotkeysRegister {
             ref hotkey_id,
