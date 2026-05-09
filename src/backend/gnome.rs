@@ -1575,11 +1575,8 @@ fn split_tuple(s: &str) -> Vec<&str> {
         match ch {
             '\'' => in_quote = !in_quote,
             '(' if !in_quote => depth += 1,
-            ')' if !in_quote => {
-                if depth > 0 {
-                    depth -= 1;
-                }
-            }
+            ')' if !in_quote && depth > 0 => depth -= 1,
+            ')' if !in_quote => { /* depth is 0, no-op */ }
             ',' if !in_quote && depth == 0 => {
                 parts.push(s[start..i].trim());
                 start = i + 1;
