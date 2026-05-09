@@ -134,3 +134,41 @@ client.listen()
 - Expect input injection to require a GNOME Wayland session
 - Prefer short, explicit operations over long unverified chains
 - The daemon binds at `$XDG_RUNTIME_DIR/deskbrid.sock` (typically `/run/user/1000/deskbrid.sock`)
+
+## Troubleshooting
+
+### Windows/workspaces actions return INTERNAL_ERROR
+
+This means the GNOME Shell extension is not active. Check its state:
+
+```bash
+gnome-extensions info deskbrid@deskbrid | grep State
+```
+
+**State: INACTIVE** — the gsettings flag is set but GNOME Shell hasn't loaded the extension. On GNOME 46 Wayland, `ReloadExtension` is deprecated, `gnome-extensions enable` doesn't trigger a reload, and `Alt+F2` → `r` doesn't work (Wayland). The ONLY way to force a reload without logout:
+
+```bash
+busctl --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell.Extensions DisableExtension s "deskbrid@deskbrid"
+sleep 1
+busctl --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell.Extensions EnableExtension s "deskbrid@deskbrid"
+sleep 2
+gnome-extensions info deskbrid@deskbrid | grep State  # Should show ACTIVE
+```
+
+### Extension works then silently dies (~10 minutes)
+
+Known GNOME 46 GJS GC bug. The extension needs a GC root in `enable()`: set `_extensionInstance = this`. Without it, GJS garbage-collects the Extension instance and GNOME Shell calls `disable()`. Fixed in extension.js as of commit `1e75b06`.
+
+If you encounter this and can't update the extension code, use the DBus reload trick above — it buys you another ~10 minutes.
+
+### Daemon not running
+
+```bash
+systemctl --user start deskbrid
+# or manually:
+~/projects/deskbrid/target/release/deskbrid daemon
+```
+
+### Socket not found
+
+Check `echo $XDG_RUNTIME_DIR` — socket is at `$XDG_RUNTIME_DIR/deskbrid.sock` (typically `/run/user/1000/deskbrid.sock`).
