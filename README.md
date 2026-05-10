@@ -12,7 +12,7 @@
 
 **The HAL your Linux desktop agents are missing.**
 
-Deskbrid is a single Rust binary that auto-detects your desktop environment and wraps it into a JSON-over-Unix-socket protocol. GNOME, Hyprland, KDE (planned) — one daemon, one protocol, one binary.
+Deskbrid is a single Rust binary that auto-detects your desktop environment and wraps it into a JSON-over-Unix-socket protocol. GNOME, Hyprland, KDE, Cinnamon, MATE — one daemon, one protocol, one binary.
 
 ```bash
 # Human
@@ -27,7 +27,7 @@ deskbrid clipboard read
 
 Every major AI lab is racing to ship desktop agents. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has `xdotool` — which breaks on Wayland, the default display protocol for every major distro.
 
-Deskbrid fills that gap. It auto-detects your compositor and loads the right backend — GNOME (Mutter RemoteDesktop DBus), Hyprland (hyprctl + ydotool + grim), or KDE (planned). Same binary, same protocol, same socket.
+Deskbrid fills that gap. It auto-detects your compositor and loads the right backend — GNOME (Mutter RemoteDesktop DBus), Hyprland (hyprctl + ydotool + grim), or KDE / Cinnamon / MATE (planned). Same binary, same protocol, same socket.
 
 ![Demo: agent focuses VS Code window and types a command via deskbrid](demo.gif)
 
@@ -89,8 +89,10 @@ cargo build --release
 |---------|---------|--------|---------|
 | **GNOME 46+** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
 | **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
-| KDE Plasma | Wayland | 🔄 Planned | — |
-| X11 | X11 | ❌ Not planned | — |
+| KDE Plasma | Wayland | 🔄 Planned | KWin D-Bus |
+| Cinnamon | X11 | 🔄 Planned | xdotool + xprop + xclip |
+| MATE | X11 | 🔄 Planned | xdotool + xprop + xclip |
+| X11 (generic) | X11 | 🔄 Planned | xdotool + import |
 
 Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → process scan → GNOME fallback). No config files, no flags.
 
@@ -210,6 +212,7 @@ At startup, deskbrid auto-detects your desktop environment and loads the matchin
 - **GNOME** — talks to Mutter RemoteDesktop (input injection), the GNOME Shell extension (windows/workspaces), and standard Linux utilities (grim, wl-clipboard, NetworkManager, BlueZ)
 - **Hyprland** — uses `hyprctl` (JSON CLI) for windows/workspaces, `ydotool` for input, `grim` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
 - **KDE** — planned, will use KWin's DBus interface
+- **Cinnamon / MATE / X11** — planned, will use xdotool, xclip, and X11 utilities
 
 ## Compared to alternatives
 
