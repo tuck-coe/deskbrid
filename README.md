@@ -12,12 +12,12 @@
 
 **The HAL your Linux desktop agents are missing.**
 
-Deskbrid is a single Rust binary that wraps GNOME Shell, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into one JSON-over-Unix-socket protocol. Your shell scripts and AI agents use the same socket.
+Deskbrid is a single Rust binary that auto-detects your desktop environment and wraps it into a JSON-over-Unix-socket protocol. GNOME, Hyprland, KDE (planned) — one daemon, one protocol, one binary.
 
 ```bash
 # Human
 deskbrid windows list
-deskbrid keyboard type "git push origin main"
+deskbrid clipboard read
 
 # Agent (same socket)
 {"action": "windows.list"}  →  [{"title": "VS Code", "app_id": "code", ...}]
@@ -27,41 +27,72 @@ deskbrid keyboard type "git push origin main"
 
 Every major AI lab is racing to ship desktop agents. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has `xdotool` — which breaks on Wayland, the default display protocol for every major distro.
 
-Deskbrid fills that gap. It doesn't bet on agents taking off — automation use cases validate it today, agents validate it tomorrow. Same daemon, same protocol, same socket.
+Deskbrid fills that gap. It auto-detects your compositor and loads the right backend — GNOME (Mutter RemoteDesktop DBus), Hyprland (hyprctl + ydotool + grim), or KDE (planned). Same binary, same protocol, same socket.
 
 ![Demo: agent focuses VS Code window and types a command via deskbrid](demo.gif)
 
 ## Quick start
 
+### GNOME
 ```bash
-# 1. Clone and install system dependencies
 git clone https://github.com/coe0718/deskbrid
 cd deskbrid
+
+# System deps
 sudo apt install -y grim wl-clipboard
 
-# 2. Install the GNOME Shell extension
+# Install GNOME Shell extension
 cp -r extensions/deskbrid@deskbrid ~/.local/share/gnome-shell/extensions/
 gnome-extensions enable deskbrid@deskbrid
+# Log out and back in (or Alt+F2 → r on X11)
 
-# 3. Log out and back in (GNOME must reload extensions)
-
-# 4. Build and run
+# Build and run
 cargo build --release
 ./target/release/deskbrid daemon &
 
-# 5. Test it
+# Test it
 ./target/release/deskbrid windows list
 ./target/release/deskbrid system info
 ```
 
+### Hyprland
+```bash
+git clone https://github.com/coe0718/deskbrid
+cd deskbrid
+
+# System deps
+sudo pacman -S grim wl-clipboard ydotool   # Arch
+# or
+sudo apt install grim wl-clipboard          # Debian — install ydotool from source
+
+# Fix /dev/uinput permissions (ydotool needs write access)
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
+sudo udevadm control --reload-rules
+sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
+sudo usermod -aG input $USER  # log out and back in
+
+# Add ydotoold to your Hyprland config
+echo 'exec-once = ydotoold' >> ~/.config/hypr/hyprland.conf
+
+# Build and run
+cargo build --release
+./target/release/deskbrid daemon &
+
+# Test it
+./target/release/deskbrid windows list
+./target/release/deskbrid screenshot
+```
+
 ## Supported desktops
 
-| Desktop | Session | Status |
-|---|---|---|
-| **GNOME 46+** | Wayland | ✅ Supported |
-| GNOME 45 | Wayland | ⚠️ Legacy (v0.1 only) |
-| KDE Plasma | Wayland | 🔄 Planned |
-| X11 | X11 | ❌ Not planned |
+| Desktop | Session | Status | Backend |
+|---------|---------|--------|---------|
+| **GNOME 46+** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
+| **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
+| KDE Plasma | Wayland | 🔄 Planned | — |
+| X11 | X11 | ❌ Not planned | — |
+
+Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → process scan → GNOME fallback). No config files, no flags.
 
 ## What it can do
 
@@ -69,7 +100,7 @@ cargo build --release
 | Action | Description |
 |---|---|
 | `windows.list` | List all open windows (title, app_id, workspace, geometry) |
-| `windows.focus` | Focus a window by ID |
+| `windows.focus` | Focus a window by app_id, title substring, or hex address |
 | `windows.get` | Get details for a specific window |
 | `workspaces.list` | List workspaces |
 | `workspaces.switch` | Switch to a workspace |
@@ -80,7 +111,7 @@ cargo build --release
 |---|---|
 | `input.keyboard type` | Type text into the focused window |
 | `input.keyboard key` | Send a single keypress |
-| `input.keyboard combo` | Send key combos (ctrl+shift+t) |
+| `input.keyboard combo` | Send key combos (ctrl+l, super+space, alt+tab) |
 | `input.mouse move` | Move mouse to absolute position |
 | `input.mouse click` | Click (left/middle/right) |
 | `input.mouse scroll` | Scroll (dx/dy) |
@@ -90,14 +121,14 @@ cargo build --release
 |---|---|
 | `clipboard.read` | Read Wayland clipboard |
 | `clipboard.write` | Write to Wayland clipboard |
-| `screenshot` | Capture screen (full, region, or window) |
+| `screenshot` | Capture screen (full, monitor, region, or window) |
 | `notification.send` | Send a desktop notification |
 | `notification.close` | Close a notification by ID |
 
 ### ⚙️ System · 🌐 Network · 📡 Bluetooth · 🎵 Audio · 📁 Files
 | Action | Description |
 |---|---|
-| `system.info` | Desktop info (GNOME version, monitors, workspaces) |
+| `system.info` | Desktop info (compositor, version, monitors, workspaces) |
 | `system.idle` | Seconds since last user input |
 | `system.battery` | Battery percentage, state, time remaining |
 | `system.power` | Suspend, hibernate, shutdown, reboot, lock, logout |
@@ -131,7 +162,7 @@ cargo build --release
 ← [{"title": "PatchHive — VS Code", "app_id": "code", ...},
    {"title": "praxis — VS Code", "app_id": "code", ...}]
 
-→ {"action": "windows.focus", "window_id": "0x3a0000b"}
+→ {"action": "windows.focus", "window_id": "code"}
 ← {"type": "response", "status": "ok"}
 
 → {"action": "input.mouse", "action": "move", "x": 900, "y": 920}
@@ -139,7 +170,7 @@ cargo build --release
 → {"action": "input.keyboard", "action": "type", "text": "Fix the build errors\n"}
 ```
 
-The agent picks the right window by title, brings it to front, clicks into the chat input, and types.
+The agent picks the right window by title substring, brings it to front, clicks into the chat input, and types. Works identically on GNOME and Hyprland.
 
 ## Client libraries
 
@@ -174,18 +205,11 @@ client.listen()  # blocks, streaming events
 
 Deskbrid binds a Unix socket at `$XDG_RUNTIME_DIR/deskbrid.sock`. Every interaction is one JSON line in → one JSON line out. Agents subscribe to events and get pushed real-time updates.
 
-Under the hood it talks to:
-- **GNOME Shell** via DBus (windows, workspaces)
-- **Mutter RemoteDesktop API** (keyboard injection, pointer control)
-- **Mutter** (IdleMonitor)
-- **NetworkManager** (network, WiFi)
-- **BlueZ** (Bluetooth)
-- **UPower** (battery)
-- **org.freedesktop.Notifications** (notifications)
-- **grim** (Wayland screenshots)
-- **wl-paste/wl-copy** (clipboard)
-- **pactl** (audio)
-- **notify crate** (inotify file watching)
+At startup, deskbrid auto-detects your desktop environment and loads the matching backend:
+
+- **GNOME** — talks to Mutter RemoteDesktop (input injection), the GNOME Shell extension (windows/workspaces), and standard Linux utilities (grim, wl-clipboard, NetworkManager, BlueZ)
+- **Hyprland** — uses `hyprctl` (JSON CLI) for windows/workspaces, `ydotool` for input, `grim` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
+- **KDE** — planned, will use KWin's DBus interface
 
 ## Compared to alternatives
 
@@ -199,7 +223,7 @@ Under the hood it talks to:
 | wl-clipboard | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | atspi | limited | ❌ | ❌ | limited | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use.
+Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use — and it works on both GNOME and Hyprland.
 
 ## Full protocol
 
