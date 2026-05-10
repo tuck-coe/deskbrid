@@ -44,16 +44,18 @@ async fn detect_desktop() -> DesktopEnv {
     if let Ok(output) = std::process::Command::new("pgrep")
         .args(["-x", "Hyprland"])
         .output()
-        && output.status.success() {
-            return DesktopEnv::Hyprland;
-        }
+        && output.status.success()
+    {
+        return DesktopEnv::Hyprland;
+    }
 
     if let Ok(output) = std::process::Command::new("pgrep")
         .args(["-x", "kwin_wayland"])
         .output()
-        && output.status.success() {
-            return DesktopEnv::Kde;
-        }
+        && output.status.success()
+    {
+        return DesktopEnv::Kde;
+    }
 
     // Default to GNOME
     DesktopEnv::Gnome

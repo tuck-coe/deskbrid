@@ -30,11 +30,13 @@ impl HyprBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
         // Auto-detect the Hyprland instance and Wayland socket
         let (instance_sig, wl_socket) = detect_hypr_instance();
-        let xdg_runtime = std::env::var("XDG_RUNTIME_DIR")
-            .unwrap_or_else(|_| "/run/user/1000".to_string());
+        let xdg_runtime =
+            std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
         if let Some(ref sig) = instance_sig {
             if sig.is_empty() {
-                eprintln!("[deskbrid] WARN: detected empty instance sig (found dirs but name empty)");
+                eprintln!(
+                    "[deskbrid] WARN: detected empty instance sig (found dirs but name empty)"
+                );
             } else {
                 eprintln!("[deskbrid] detected Hyprland instance: {sig}");
             }
@@ -53,9 +55,10 @@ impl HyprBackend {
         };
         // Cache monitor list on startup
         if let Ok(monitors) = backend.monitors_inner().await
-            && let Ok(mut m) = backend.monitors.lock() {
-                *m = monitors;
-            }
+            && let Ok(mut m) = backend.monitors.lock()
+        {
+            *m = monitors;
+        }
         Ok(backend)
     }
 
@@ -64,7 +67,8 @@ impl HyprBackend {
     /// Run `hyprctl` with JSON output, return parsed JSON value.
     async fn hyprctl_json(&self, args: &[&str]) -> anyhow::Result<serde_json::Value> {
         let mut cmd = Command::new("hyprctl");
-        cmd.args(args).arg("-j")
+        cmd.args(args)
+            .arg("-j")
             .stdin(Stdio::null())
             .stderr(Stdio::piped());
         if let Some(sig) = &self.instance_sig {
@@ -82,7 +86,8 @@ impl HyprBackend {
     /// Run `hyprctl dispatch` (no JSON output, just success/fail).
     async fn hyprctl_dispatch(&self, dispatch: &str) -> anyhow::Result<()> {
         let mut cmd = std::process::Command::new("hyprctl");
-        cmd.arg("dispatch").arg(dispatch)
+        cmd.arg("dispatch")
+            .arg(dispatch)
             .stdin(Stdio::null())
             .stderr(Stdio::piped());
         if let Some(sig) = &self.instance_sig {
@@ -100,7 +105,8 @@ impl HyprBackend {
     /// Run a shell command and return stdout.
     async fn sh(&self, cmd: &str, args: &[&str]) -> anyhow::Result<String> {
         let mut command = Command::new(cmd);
-        command.args(args)
+        command
+            .args(args)
             .stdin(Stdio::null())
             .stderr(Stdio::piped());
         // Set wayland env for grim, wl-clipboard, etc.
@@ -119,7 +125,8 @@ impl HyprBackend {
     /// Run a command, return true if exit code is 0.
     async fn sh_ok(&self, cmd: &str, args: &[&str]) -> bool {
         let mut command = Command::new(cmd);
-        command.args(args)
+        command
+            .args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
@@ -128,9 +135,10 @@ impl HyprBackend {
             command.env("WAYLAND_DISPLAY", sock);
         }
         if let Some(sig) = &self.instance_sig
-            && !sig.is_empty() {
-                command.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
-            }
+            && !sig.is_empty()
+        {
+            command.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
+        }
         command.status().await.map(|s| s.success()).unwrap_or(false)
     }
 
@@ -138,7 +146,9 @@ impl HyprBackend {
 
     async fn monitors_inner(&self) -> anyhow::Result<Vec<protocol::MonitorInfo>> {
         let json = self.hyprctl_json(&["monitors"]).await?;
-        let arr = json.as_array().ok_or_else(|| anyhow::anyhow!("expected array"))?;
+        let arr = json
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("expected array"))?;
         let mut monitors = Vec::new();
         for (i, m) in arr.iter().enumerate() {
             monitors.push(protocol::MonitorInfo {
@@ -148,14 +158,8 @@ impl HyprBackend {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
-                width: m
-                    .get("width")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(1920) as u32,
-                height: m
-                    .get("height")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(1080) as u32,
+                width: m.get("width").and_then(|v| v.as_u64()).unwrap_or(1920) as u32,
+                height: m.get("height").and_then(|v| v.as_u64()).unwrap_or(1080) as u32,
                 scale: m.get("scale").and_then(|v| v.as_f64()).unwrap_or(1.0),
                 primary: i == 0,
             });
@@ -165,13 +169,35 @@ impl HyprBackend {
 
     fn hyprctl_client_to_window(c: &serde_json::Value) -> protocol::WindowInfo {
         let geometry = protocol::Geometry {
-            x: c.get("at").and_then(|v| v.as_array()).and_then(|a| a.first()).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-            y: c.get("at").and_then(|v| v.as_array()).and_then(|a| a.get(1)).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-            width: c.get("size").and_then(|v| v.as_array()).and_then(|a| a.first()).and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-            height: c.get("size").and_then(|v| v.as_array()).and_then(|a| a.get(1)).and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+            x: c.get("at")
+                .and_then(|v| v.as_array())
+                .and_then(|a| a.first())
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0) as i32,
+            y: c.get("at")
+                .and_then(|v| v.as_array())
+                .and_then(|a| a.get(1))
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0) as i32,
+            width: c
+                .get("size")
+                .and_then(|v| v.as_array())
+                .and_then(|a| a.first())
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            height: c
+                .get("size")
+                .and_then(|v| v.as_array())
+                .and_then(|a| a.get(1))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
         };
         protocol::WindowInfo {
-            id: c.get("address").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
+            id: c
+                .get("address")
+                .and_then(|v| v.as_str())
+                .unwrap_or("0")
+                .to_string(),
             title: c
                 .get("title")
                 .and_then(|v| v.as_str())
@@ -209,7 +235,9 @@ impl crate::backend::DesktopBackend for HyprBackend {
 
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
         let json = self.hyprctl_json(&["clients"]).await?;
-        let arr = json.as_array().ok_or_else(|| anyhow::anyhow!("expected JSON array"))?;
+        let arr = json
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("expected JSON array"))?;
         Ok(arr.iter().map(Self::hyprctl_client_to_window).collect())
     }
 
@@ -248,7 +276,9 @@ impl crate::backend::DesktopBackend for HyprBackend {
 
     async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
         let json = self.hyprctl_json(&["workspaces"]).await?;
-        let arr = json.as_array().ok_or_else(|| anyhow::anyhow!("expected array"))?;
+        let arr = json
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("expected array"))?;
         Ok(arr
             .iter()
             .map(|w| protocol::WorkspaceInfo {
@@ -258,10 +288,7 @@ impl crate::backend::DesktopBackend for HyprBackend {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
-                is_active: w
-                    .get("monitor")
-                    .and_then(|v| v.as_str())
-                    .is_some(),
+                is_active: w.get("monitor").and_then(|v| v.as_str()).is_some(),
             })
             .collect())
     }
@@ -316,8 +343,7 @@ impl crate::backend::DesktopBackend for HyprBackend {
         for (i, key) in combo.iter().enumerate() {
             if i < combo.len() - 1 {
                 // Modifier: press and hold
-                self.sh("ydotool", &["key", &format!("{}:1", key)])
-                    .await?;
+                self.sh("ydotool", &["key", &format!("{}:1", key)]).await?;
             } else {
                 // Final key: tap
                 self.sh("ydotool", &["key", key]).await?;
@@ -325,8 +351,7 @@ impl crate::backend::DesktopBackend for HyprBackend {
         }
         // Release modifiers
         for key in combo.iter().take(combo.len().saturating_sub(1)) {
-            self.sh("ydotool", &["key", &format!("{}:0", key)])
-                .await?;
+            self.sh("ydotool", &["key", &format!("{}:0", key)]).await?;
         }
         Ok(())
     }
@@ -344,7 +369,12 @@ impl crate::backend::DesktopBackend for HyprBackend {
         }
         self.sh(
             "ydotool",
-            &["mousemove", "--absolute", &format!("{}", x as i32), &format!("{}", y as i32)],
+            &[
+                "mousemove",
+                "--absolute",
+                &format!("{}", x as i32),
+                &format!("{}", y as i32),
+            ],
         )
         .await?;
         Ok(())
@@ -367,11 +397,19 @@ impl crate::backend::DesktopBackend for HyprBackend {
             // We can use mouse_move with relative wheel events via raw input
             // Simplified: just call scroll with vertical
             // ydotool doesn't have a direct scroll, fall back to libinput tool
-            self.sh("ydotool", &["rec", "mousemove", "0", &format!("{}", dy as i32)]).await?;
+            self.sh(
+                "ydotool",
+                &["rec", "mousemove", "0", &format!("{}", dy as i32)],
+            )
+            .await?;
         }
         // dx scroll (horizontal) — same approach
         if dx != 0.0 {
-            self.sh("ydotool", &["rec", "mousemove", &format!("{}", dx as i32), "0"]).await?;
+            self.sh(
+                "ydotool",
+                &["rec", "mousemove", &format!("{}", dx as i32), "0"],
+            )
+            .await?;
         }
         Ok(())
     }
@@ -522,7 +560,10 @@ impl crate::backend::DesktopBackend for HyprBackend {
             .await
             .map(|v| {
                 // hyprctl -j version returns: {"version":"v0.54.3","branch":"v0.54.3",...}
-                v.get("version").and_then(|s| s.as_str()).unwrap_or("unknown").to_string()
+                v.get("version")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("unknown")
+                    .to_string()
             })
             .unwrap_or_else(|_| "unknown".into());
 
@@ -608,9 +649,8 @@ impl crate::backend::DesktopBackend for HyprBackend {
                 continue;
             }
 
-            let read_sys = |file: &str| -> Option<String> {
-                std::fs::read_to_string(path.join(file)).ok()
-            };
+            let read_sys =
+                |file: &str| -> Option<String> { std::fs::read_to_string(path.join(file)).ok() };
 
             let capacity = read_sys("capacity")
                 .and_then(|s| s.trim().parse::<f64>().ok())
@@ -647,7 +687,10 @@ impl crate::backend::DesktopBackend for HyprBackend {
     // ═══════════════════════════════════════════════════════
 
     async fn network_status(&self) -> anyhow::Result<protocol::NetworkStatusInfo> {
-        let online = if self.sh_ok("nmcli", &["networking", "connectivity", "check"]).await {
+        let online = if self
+            .sh_ok("nmcli", &["networking", "connectivity", "check"])
+            .await
+        {
             true
         } else {
             self.sh_ok("ping", &["-c", "1", "-W", "2", "8.8.8.8"]).await
@@ -688,9 +731,10 @@ impl crate::backend::DesktopBackend for HyprBackend {
                 "connecting" => "connecting".to_string(),
                 _ => "disconnected".to_string(),
             };
-            let ipv4 = parts.get(2).filter(|s| !s.is_empty()).map(|s| {
-                s.split('/').next().unwrap_or(s).to_string()
-            });
+            let ipv4 = parts
+                .get(2)
+                .filter(|s| !s.is_empty())
+                .map(|s| s.split('/').next().unwrap_or(s).to_string());
 
             ifaces.push(protocol::NetworkInterfaceInfo {
                 name,
@@ -737,11 +781,8 @@ impl crate::backend::DesktopBackend for HyprBackend {
     async fn wifi_connect(&self, ssid: &str, password: Option<&str>) -> anyhow::Result<()> {
         match password {
             Some(pw) => {
-                self.sh(
-                    "nmcli",
-                    &["dev", "wifi", "connect", ssid, "password", pw],
-                )
-                .await?;
+                self.sh("nmcli", &["dev", "wifi", "connect", ssid, "password", pw])
+                    .await?;
             }
             None => {
                 self.sh("nmcli", &["dev", "wifi", "connect", ssid]).await?;
@@ -755,7 +796,10 @@ impl crate::backend::DesktopBackend for HyprBackend {
     // ═══════════════════════════════════════════════════════
 
     async fn bluetooth_list(&self) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>> {
-        let output = self.sh("bluetoothctl", &["devices"]).await.unwrap_or_default();
+        let output = self
+            .sh("bluetoothctl", &["devices"])
+            .await
+            .unwrap_or_default();
         let mut devices = Vec::new();
         for line in output.lines() {
             // Format: Device MAC Name
@@ -815,48 +859,49 @@ impl crate::backend::DesktopBackend for HyprBackend {
         };
         let _pattern_filter = patterns.map(|p| p.to_vec());
 
-        let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-            if let Ok(event) = res {
-                let _path_str = event.paths.first().map(|p| p.to_string_lossy().to_string());
-                let event_kind = if event.kind.is_create() {
-                    "create"
-                } else if event.kind.is_modify() {
-                    "modify"
-                } else if event.kind.is_remove() {
-                    "remove"
-                } else {
-                    "other"
-                };
+        let mut watcher =
+            notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+                if let Ok(event) = res {
+                    let _path_str = event.paths.first().map(|p| p.to_string_lossy().to_string());
+                    let event_kind = if event.kind.is_create() {
+                        "create"
+                    } else if event.kind.is_modify() {
+                        "modify"
+                    } else if event.kind.is_remove() {
+                        "remove"
+                    } else {
+                        "other"
+                    };
 
-                let path_str = event.paths.first().map(|p| p.to_string_lossy().to_string());
-                let ts = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
+                    let path_str = event.paths.first().map(|p| p.to_string_lossy().to_string());
+                    let ts = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
 
-                match event_kind {
-                    "create" => {
-                        let _ = event_tx.send(DeskbridEvent::FileCreated {
-                            path: path_str.unwrap_or_default(),
-                            timestamp: ts,
-                        });
+                    match event_kind {
+                        "create" => {
+                            let _ = event_tx.send(DeskbridEvent::FileCreated {
+                                path: path_str.unwrap_or_default(),
+                                timestamp: ts,
+                            });
+                        }
+                        "modify" => {
+                            let _ = event_tx.send(DeskbridEvent::FileModified {
+                                path: path_str.unwrap_or_default(),
+                                timestamp: ts,
+                            });
+                        }
+                        "remove" => {
+                            let _ = event_tx.send(DeskbridEvent::FileDeleted {
+                                path: path_str.unwrap_or_default(),
+                                timestamp: ts,
+                            });
+                        }
+                        _ => {}
                     }
-                    "modify" => {
-                        let _ = event_tx.send(DeskbridEvent::FileModified {
-                            path: path_str.unwrap_or_default(),
-                            timestamp: ts,
-                        });
-                    }
-                    "remove" => {
-                        let _ = event_tx.send(DeskbridEvent::FileDeleted {
-                            path: path_str.unwrap_or_default(),
-                            timestamp: ts,
-                        });
-                    }
-                    _ => {}
                 }
-            }
-        })?;
+            })?;
 
         watcher.watch(std::path::Path::new(&watch_path), recursive_mode)?;
 
@@ -909,7 +954,10 @@ impl crate::backend::DesktopBackend for HyprBackend {
 
     async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
         // Use pactl list sinks short (PipeWire provides pactl compat)
-        let output = self.sh("pactl", &["list", "short", "sinks"]).await.unwrap_or_default();
+        let output = self
+            .sh("pactl", &["list", "short", "sinks"])
+            .await
+            .unwrap_or_default();
         let mut sinks = Vec::new();
         for line in output.lines() {
             let parts: Vec<&str> = line.split('\t').collect();
@@ -957,13 +1005,14 @@ impl HyprBackend {
                 let name_str = name.to_string_lossy();
                 if name_str.starts_with("event")
                     && let Ok(meta) = entry.metadata()
-                        && let Ok(modified) = meta.modified()
-                            && let Ok(ts) = modified.duration_since(std::time::UNIX_EPOCH) {
-                                let secs = ts.as_secs();
-                                if secs > newest && secs <= now {
-                                    newest = secs;
-                                }
-                            }
+                    && let Ok(modified) = meta.modified()
+                    && let Ok(ts) = modified.duration_since(std::time::UNIX_EPOCH)
+                {
+                    let secs = ts.as_secs();
+                    if secs > newest && secs <= now {
+                        newest = secs;
+                    }
+                }
             }
         }
 
@@ -980,8 +1029,8 @@ impl HyprBackend {
 /// Auto-detect the running Hyprland instance and Wayland display
 /// by scanning the Hyprland socket directory.
 fn detect_hypr_instance() -> (Option<String>, Option<String>) {
-    let xdg_runtime = std::env::var("XDG_RUNTIME_DIR")
-        .unwrap_or_else(|_| "/run/user/1000".to_string());
+    let xdg_runtime =
+        std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
     let hypr_dir = std::path::Path::new(&xdg_runtime).join("hypr");
 
     let entries = match std::fs::read_dir(&hypr_dir) {
@@ -994,20 +1043,27 @@ fn detect_hypr_instance() -> (Option<String>, Option<String>) {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
         .filter_map(|e| {
-            e.metadata().ok().and_then(|m| m.modified().ok()).map(|t| (e.path(), t))
+            e.metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .map(|t| (e.path(), t))
         })
         .collect();
 
     instances.sort_by_key(|item| std::cmp::Reverse(item.1));
 
     if let Some((path, _)) = instances.first() {
-        let sig = path.file_name()
+        let sig = path
+            .file_name()
             .and_then(|n| n.to_str())
             .map(|s| s.to_string());
         // Try to read .wayland_socket symlink, else default to "wayland-1"
         let wl_sock = std::fs::read_link(path.join(".wayland_socket"))
             .ok()
-            .and_then(|p| p.file_name().and_then(|n| n.to_str().map(|s| s.to_string())))
+            .and_then(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str().map(|s| s.to_string()))
+            })
             .or_else(|| Some("wayland-1".to_string()));
 
         (sig, wl_sock)
