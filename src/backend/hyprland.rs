@@ -52,11 +52,10 @@ impl HyprBackend {
             xdg_runtime,
         };
         // Cache monitor list on startup
-        if let Ok(monitors) = backend.monitors_inner().await {
-            if let Ok(mut m) = backend.monitors.lock() {
+        if let Ok(monitors) = backend.monitors_inner().await
+            && let Ok(mut m) = backend.monitors.lock() {
                 *m = monitors;
             }
-        }
         Ok(backend)
     }
 
@@ -128,11 +127,10 @@ impl HyprBackend {
         if let Some(sock) = &self.wl_socket {
             command.env("WAYLAND_DISPLAY", sock);
         }
-        if let Some(sig) = &self.instance_sig {
-            if !sig.is_empty() {
+        if let Some(sig) = &self.instance_sig
+            && !sig.is_empty() {
                 command.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
             }
-        }
         command.status().await.map(|s| s.success()).unwrap_or(false)
     }
 
@@ -685,9 +683,9 @@ impl crate::backend::DesktopBackend for HyprBackend {
             if name == "lo" || name.is_empty() {
                 continue;
             }
-            let state = match parts.get(1).unwrap_or(&"") {
-                &"connected" => "connected".to_string(),
-                &"connecting" => "connecting".to_string(),
+            let state = match *parts.get(1).unwrap_or(&"") {
+                "connected" => "connected".to_string(),
+                "connecting" => "connecting".to_string(),
                 _ => "disconnected".to_string(),
             };
             let ipv4 = parts.get(2).filter(|s| !s.is_empty()).map(|s| {
@@ -957,18 +955,15 @@ impl HyprBackend {
             for entry in entries.flatten() {
                 let name = entry.file_name();
                 let name_str = name.to_string_lossy();
-                if name_str.starts_with("event") {
-                    if let Ok(meta) = entry.metadata() {
-                        if let Ok(modified) = meta.modified() {
-                            if let Ok(ts) = modified.duration_since(std::time::UNIX_EPOCH) {
+                if name_str.starts_with("event")
+                    && let Ok(meta) = entry.metadata()
+                        && let Ok(modified) = meta.modified()
+                            && let Ok(ts) = modified.duration_since(std::time::UNIX_EPOCH) {
                                 let secs = ts.as_secs();
                                 if secs > newest && secs <= now {
                                     newest = secs;
                                 }
                             }
-                        }
-                    }
-                }
             }
         }
 

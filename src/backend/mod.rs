@@ -14,7 +14,7 @@ pub async fn create_backend(
         DesktopEnv::Hyprland => hyprland::HyprBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
-        DesktopEnv::KDE => gnome::GnomeBackend::new(event_tx)
+        DesktopEnv::Kde => gnome::GnomeBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         // GNOME is the fallback/default
@@ -33,10 +33,10 @@ async fn detect_desktop() -> DesktopEnv {
             return DesktopEnv::Hyprland;
         }
         if lower.contains("kde") || lower.contains("plasma") {
-            return DesktopEnv::KDE;
+            return DesktopEnv::Kde;
         }
         if lower.contains("gnome") {
-            return DesktopEnv::GNOME;
+            return DesktopEnv::Gnome;
         }
     }
 
@@ -44,29 +44,25 @@ async fn detect_desktop() -> DesktopEnv {
     if let Ok(output) = std::process::Command::new("pgrep")
         .args(["-x", "Hyprland"])
         .output()
-    {
-        if output.status.success() {
+        && output.status.success() {
             return DesktopEnv::Hyprland;
         }
-    }
 
     if let Ok(output) = std::process::Command::new("pgrep")
         .args(["-x", "kwin_wayland"])
         .output()
-    {
-        if output.status.success() {
-            return DesktopEnv::KDE;
+        && output.status.success() {
+            return DesktopEnv::Kde;
         }
-    }
 
     // Default to GNOME
-    DesktopEnv::GNOME
+    DesktopEnv::Gnome
 }
 
 enum DesktopEnv {
-    GNOME,
+    Gnome,
     Hyprland,
-    KDE,
+    Kde,
 }
 
 /// The DesktopBackend trait defines all actions deskbrid can perform on a desktop
