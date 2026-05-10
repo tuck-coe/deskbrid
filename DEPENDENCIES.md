@@ -1,33 +1,61 @@
 # Dependencies
 
-Deskbrid relies on several system packages. Most are available via `apt`.
+Deskbrid auto-detects your desktop environment and loads the matching backend. Dependencies vary by backend — install only what your compositor needs.
 
-## Required
+## GNOME
 
 | Dependency | Package | Purpose |
 |---|---|---|
-| GNOME Shell Extension | `extensions/deskbrid@deskbrid/` (in-repo) | Window listing, focus, and state-change signals over DBus |
+| GNOME Shell Extension | `extensions/deskbrid@deskbrid/` (in-repo) | Window listing, focus, workspace control |
 | `grim` | `grim` | Wayland screenshots |
 | `wl-paste` / `wl-copy` | `wl-clipboard` | Clipboard read/write |
-| `wtype` | `wtype` | Keyboard text injection |
+| `ydotool` | `ydotool` | Mouse control (move, click, scroll) |
 
-Install the GNOME extension:
 ```bash
+sudo apt install -y grim wl-clipboard ydotool
+
+# Install and enable the GNOME Shell extension
 cp -r extensions/deskbrid@deskbrid ~/.local/share/gnome-shell/extensions/
 gnome-extensions enable deskbrid@deskbrid
-# Log out and back in, or restart GNOME Shell (Alt+F2, type 'r')
+# Log out and back in, or restart GNOME Shell (Alt+F2, type 'r' on X11)
 ```
 
-## Optional
+## Hyprland
 
 | Dependency | Package | Purpose |
 |---|---|---|
-| `ydotool` | `ydotool` | Mouse control (move, click, scroll) |
-| `pactl` | `pulseaudio-utils` or `pipewire-pulse` | Audio sink listing and volume |
-| `nmcli` | `network-manager` | WiFi scanning and connection |
-
-## Quick Install
+| `grim` | `grim` | Wayland screenshots |
+| `wl-paste` / `wl-copy` | `wl-clipboard` | Clipboard read/write |
+| `ydotool` + `ydotoold` | `ydotool` | Keyboard and mouse input injection |
 
 ```bash
-sudo apt install -y grim wl-clipboard wtype ydotool
+# Arch
+sudo pacman -S grim wl-clipboard ydotool
+
+# Debian/Ubuntu — ydotool from source or backports
+sudo apt install -y grim wl-clipboard
 ```
+
+**/dev/uinput permissions:** ydotool needs write access to `/dev/uinput`. On most distros it's root-only by default:
+
+```bash
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
+sudo udevadm control --reload-rules
+sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
+sudo usermod -aG input $USER
+# Log out and back in for group to take effect
+```
+
+Add to `~/.config/hypr/hyprland.conf`:
+```
+exec-once = ydotoold
+```
+
+## Optional (both backends)
+
+| Dependency | Package | Purpose |
+|---|---|---|
+| `pactl` | `pulseaudio-utils` or `pipewire-pulse` | Audio sink listing and volume |
+| `nmcli` | `network-manager` | WiFi scanning and connection |
+| `bluetoothctl` | `bluez` | Bluetooth device management |
+| `notify-send` | `libnotify` | Desktop notifications |

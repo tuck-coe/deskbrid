@@ -145,4 +145,5 @@ finally:
 ## Notes
 
 - Requires a running Deskbrid daemon on `$XDG_RUNTIME_DIR/deskbrid.sock`
-- Input injection requires a GNOME Wayland session with remote desktop access
+- Desktop is auto-detected: GNOME (Mutter RemoteDesktop) or Hyprland (hyprctl + ydotool) — same client, same API
+- On Hyprland: `ydotoold` must be running and `/dev/uinput` must be writable by the `input` group
