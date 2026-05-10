@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/coe0718/deskbrid/actions"><img src="https://github.com/coe0718/deskbrid/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-2021%20edition-orange.svg" alt="Rust 2021"></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-2024%20edition-orange.svg" alt="Rust 2024"></a>
 </p>
 
 **The HAL your Linux desktop agents are missing.**
@@ -35,7 +35,7 @@ Deskbrid fills that gap. It doesn't bet on agents taking off — automation use 
 # 1. Clone and install system dependencies
 git clone https://github.com/coe0718/deskbrid
 cd deskbrid
-sudo apt install -y grim wl-clipboard wtype
+sudo apt install -y grim wl-clipboard
 
 # 2. Install the GNOME Shell extension
 cp -r extensions/deskbrid@deskbrid ~/.local/share/gnome-shell/extensions/
@@ -57,7 +57,7 @@ cargo build --release
 | Desktop | Session | Status |
 |---|---|---|
 | **GNOME 46+** | Wayland | ✅ Supported |
-| GNOME 45 | Wayland | ✅ Supported |
+| GNOME 45 | Wayland | ⚠️ Legacy (v0.1 only) |
 | KDE Plasma | Wayland | 🔄 Planned |
 | X11 | X11 | ❌ Not planned |
 
@@ -174,14 +174,13 @@ Deskbrid binds a Unix socket at `$XDG_RUNTIME_DIR/deskbrid.sock`. Every interact
 
 Under the hood it talks to:
 - **GNOME Shell** via DBus (windows, workspaces)
+- **Mutter RemoteDesktop API** (keyboard injection, pointer control)
 - **Mutter** (IdleMonitor)
 - **NetworkManager** (network, WiFi)
 - **BlueZ** (Bluetooth)
 - **UPower** (battery)
 - **org.freedesktop.Notifications** (notifications)
 - **grim** (Wayland screenshots)
-- **wtype** (keyboard injection)
-- **ydotool** (mouse control)
 - **wl-paste/wl-copy** (clipboard)
 - **pactl** (audio)
 - **notify crate** (inotify file watching)
