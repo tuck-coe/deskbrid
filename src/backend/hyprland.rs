@@ -392,25 +392,21 @@ impl crate::backend::DesktopBackend for HyprBackend {
     }
 
     async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()> {
-        if dy != 0.0 {
-            // ydotool uses vertical scroll for up/down
-            // We can use mouse_move with relative wheel events via raw input
-            // Simplified: just call scroll with vertical
-            // ydotool doesn't have a direct scroll, fall back to libinput tool
-            self.sh(
-                "ydotool",
-                &["rec", "mousemove", "0", &format!("{}", dy as i32)],
-            )
-            .await?;
+        if dx == 0.0 && dy == 0.0 {
+            return Ok(());
         }
-        // dx scroll (horizontal) — same approach
-        if dx != 0.0 {
-            self.sh(
-                "ydotool",
-                &["rec", "mousemove", &format!("{}", dx as i32), "0"],
-            )
-            .await?;
-        }
+        // ydotool mousemove --wheel <horizontal> <vertical>
+        // Positive dy = scroll down, positive dx = scroll right
+        self.sh(
+            "ydotool",
+            &[
+                "mousemove",
+                "--wheel",
+                &format!("{}", dx as i32),
+                &format!("{}", dy as i32),
+            ],
+        )
+        .await?;
         Ok(())
     }
 
@@ -923,29 +919,20 @@ impl crate::backend::DesktopBackend for HyprBackend {
         max_results: u32,
     ) -> anyhow::Result<Vec<String>> {
         let root_path = root.unwrap_or(".");
-        // Use find + grep for files, then match pattern on file names
+        // Use find — no shell pipes, truncate results in Rust
         let output = self
             .sh(
                 "find",
-                &[
-                    root_path,
-                    "-type",
-                    "f",
-                    "-name",
-                    pattern,
-                    "-maxdepth",
-                    "5",
-                    "2>/dev/null",
-                    "|",
-                    "head",
-                    "-n",
-                    &max_results.to_string(),
-                ],
+                &[root_path, "-type", "f", "-name", pattern, "-maxdepth", "5"],
             )
             .await
             .unwrap_or_default();
 
-        Ok(output.lines().map(|l| l.to_string()).collect())
+        Ok(output
+            .lines()
+            .take(max_results as usize)
+            .map(|l| l.to_string())
+            .collect())
     }
 
     // ═══════════════════════════════════════════════════════

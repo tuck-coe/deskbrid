@@ -7,7 +7,7 @@ requires_approval = true
 [endpoint]
 method = "POST"
 url = "http://localhost/deskbrid/action"
-unix_socket = "$XDG_RUNTIME_DIR/deskbrid/socket"
+unix_socket = "$XDG_RUNTIME_DIR/deskbrid.sock"
 content_type = "application/json"
 
 [endpoint.params]
