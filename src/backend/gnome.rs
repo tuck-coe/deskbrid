@@ -369,31 +369,10 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     }
 
     async fn workspace_switch(&self, id: u32) -> anyhow::Result<()> {
-        // Use org.gnome.Shell Eval to switch workspace
-        let js = format!(
-            "global.workspace_manager.get_workspace_by_index({}).activate(global.get_current_time())",
-            id
-        );
-        let result = self
-            .conn
-            .call_method(
-                Some("org.gnome.Shell"),
-                "/org/gnome/Shell",
-                Some("org.gnome.Shell"),
-                "Eval",
-                &(js.as_str(),),
-            )
-            .await;
-        match result {
-            Ok(_) => Ok(()),
-            Err(_) => {
-                // Fallback: try wmctrl or gdbus
-                anyhow::bail!(
-                    "workspace switch failed — GNOME Shell Eval may be disabled. \
-                     Enable with: gsettings set org.gnome.shell disable-user-extensions false"
-                )
-            }
-        }
+        // Call extension's SwitchWorkspace(index) over DBus — no Eval needed
+        self.ext_call_parsed("SwitchWorkspace", &[&id.to_string()])
+            .await?;
+        Ok(())
     }
 
     async fn workspace_move_window(
@@ -402,34 +381,18 @@ impl crate::backend::DesktopBackend for GnomeBackend {
         workspace_id: u32,
         _follow: bool,
     ) -> anyhow::Result<()> {
-        // Find window, get its meta_window via Eval, move to workspace
+        // Call extension's MoveWindowToWorkspace(app_id, workspace_index) over DBus
         let windows = self.windows_list().await?;
         let target = windows
             .iter()
             .find(|w| w.id == window_id || w.app_id == window_id)
             .ok_or_else(|| anyhow::anyhow!("window not found: {}", window_id))?;
 
-        let js = format!(
-            "(() => {{ const ws = global.workspace_manager.get_workspace_by_index({ws}); \
-             const actors = global.get_window_actors(); \
-             for (const a of actors) {{ \
-               if (a.meta_window.get_wm_class() === '{app_id}') {{ \
-                 a.meta_window.change_workspace(ws); return 'ok'; \
-               }} \
-             }} return 'not found'; }})()",
-            ws = workspace_id,
-            app_id = target.app_id
-        );
-        let _ = self
-            .conn
-            .call_method(
-                Some("org.gnome.Shell"),
-                "/org/gnome/Shell",
-                Some("org.gnome.Shell"),
-                "Eval",
-                &(js.as_str(),),
-            )
-            .await;
+        self.ext_call_parsed(
+            "MoveWindowToWorkspace",
+            &[&target.app_id, &workspace_id.to_string()],
+        )
+        .await?;
         Ok(())
     }
 
