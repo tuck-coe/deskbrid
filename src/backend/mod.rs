@@ -1,18 +1,76 @@
 pub mod gnome;
+pub mod hyprland;
+
 use crate::protocol;
 use async_trait::async_trait;
 
-/// Create the default backend for the current desktop environment.
+/// Auto-detect the current desktop environment and create the matching backend.
 pub async fn create_backend(
     event_tx: tokio::sync::broadcast::Sender<crate::protocol::DeskbridEvent>,
 ) -> anyhow::Result<Box<dyn DesktopBackend>> {
-    gnome::GnomeBackend::new(event_tx)
-        .await
-        .map(|b| Box::new(b) as Box<dyn DesktopBackend>)
+    let desktop = detect_desktop().await;
+
+    match desktop {
+        DesktopEnv::Hyprland => hyprland::HyprBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::KDE => gnome::GnomeBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        // GNOME is the fallback/default
+        _ => gnome::GnomeBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+    }
+}
+
+/// Detect which desktop environment is running.
+async fn detect_desktop() -> DesktopEnv {
+    // 1. Check XDG_CURRENT_DESKTOP env var
+    if let Ok(desktop) = std::env::var("XDG_CURRENT_DESKTOP") {
+        let lower = desktop.to_lowercase();
+        if lower.contains("hyprland") {
+            return DesktopEnv::Hyprland;
+        }
+        if lower.contains("kde") || lower.contains("plasma") {
+            return DesktopEnv::KDE;
+        }
+        if lower.contains("gnome") {
+            return DesktopEnv::GNOME;
+        }
+    }
+
+    // 2. Check running compositor processes
+    if let Ok(output) = std::process::Command::new("pgrep")
+        .args(["-x", "Hyprland"])
+        .output()
+    {
+        if output.status.success() {
+            return DesktopEnv::Hyprland;
+        }
+    }
+
+    if let Ok(output) = std::process::Command::new("pgrep")
+        .args(["-x", "kwin_wayland"])
+        .output()
+    {
+        if output.status.success() {
+            return DesktopEnv::KDE;
+        }
+    }
+
+    // Default to GNOME
+    DesktopEnv::GNOME
+}
+
+enum DesktopEnv {
+    GNOME,
+    Hyprland,
+    KDE,
 }
 
 /// The DesktopBackend trait defines all actions deskbrid can perform on a desktop
-/// environment. Only GNOME 46+ is supported in v2.
+/// environment. Supported backends: GNOME (Mutter DBus), Hyprland (hyprctl).
 #[async_trait]
 pub trait DesktopBackend: Send + Sync {
     // ─── Windows ────────────────────────────────────────
