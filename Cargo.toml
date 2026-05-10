@@ -40,3 +40,7 @@ notify = { version = "7", features = ["macos_kqueue"] }
 pipewire = { version = "0.8", optional = true }
 spa = { version = "0.8", package = "libspa", optional = true }
 image = { version = "0.25", default-features = false, features = ["png"], optional = true }
+
+[[bin]]
+name = "deskbrid"
+path = "src/main.rs"

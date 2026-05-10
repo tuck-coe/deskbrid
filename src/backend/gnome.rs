@@ -19,16 +19,32 @@ pub struct GnomeBackend {
     event_tx: broadcast::Sender<DeskbridEvent>,
     /// Active file watchers keyed by path.
     watchers: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>,
+    /// Mutter RemoteDesktop session path for input injection via compositor.
+    rd_session_path: String,
+    /// Mutter ScreenCast stream path for absolute mouse positioning.
+    sc_stream_path: String,
+    /// Last known mouse position for relative delta calculation.
+    last_mouse: std::sync::Mutex<(f64, f64)>,
 }
 
 impl GnomeBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
         let conn = zbus::Connection::session().await?;
-        Ok(Self {
+        let mut backend = Self {
             conn,
             event_tx,
             watchers: Arc::new(Mutex::new(HashMap::new())),
-        })
+            rd_session_path: String::new(),
+            sc_stream_path: String::new(),
+            last_mouse: std::sync::Mutex::new((960.0, 540.0)),
+        };
+        backend.init_remote_desktop().await?;
+        // ScreenCast is best-effort — required for absolute mouse positioning.
+        // Relative motion works without it.
+        if let Err(e) = backend.init_screen_cast().await {
+            tracing::warn!("ScreenCast unavailable (absolute mouse positioning disabled): {}", e);
+        }
+        Ok(backend)
     }
 
     // ─── Shell helpers ──────────────────────────────────
@@ -83,6 +99,217 @@ impl GnomeBackend {
         ];
         args.extend(extra_args);
         self.sh("gdbus", &args).await
+    }
+
+    // ─── Remote Desktop input injection ─────────────────
+
+    /// Initialise a Mutter RemoteDesktop session for input injection.
+    /// The session lives as long as the zbus connection (the daemon's lifetime).
+    async fn init_remote_desktop(&mut self) -> anyhow::Result<()> {
+        let reply = self
+            .conn
+            .call_method(
+                Some("org.gnome.Mutter.RemoteDesktop"),
+                "/org/gnome/Mutter/RemoteDesktop",
+                Some("org.gnome.Mutter.RemoteDesktop"),
+                "CreateSession",
+                &(),
+            )
+            .await?;
+        let path: zbus::zvariant::OwnedObjectPath = reply.body().deserialize()?;
+
+        self.conn
+            .call_method(
+                Some("org.gnome.Mutter.RemoteDesktop"),
+                path.as_str(),
+                Some("org.gnome.Mutter.RemoteDesktop.Session"),
+                "Start",
+                &(),
+            )
+            .await?;
+
+        self.rd_session_path = path.to_string();
+        tracing::info!("RemoteDesktop session started: {}", self.rd_session_path);
+        Ok(())
+    }
+
+    /// Initialise a Mutter ScreenCast session and record the primary monitor.
+    /// The resulting stream path is needed for absolute mouse positioning.
+    async fn init_screen_cast(&mut self) -> anyhow::Result<()> {
+        use std::collections::HashMap;
+
+        // Create ScreenCast session
+        let props: HashMap<&str, zbus::zvariant::Value<'_>> = HashMap::new();
+        let reply = self
+            .conn
+            .call_method(
+                Some("org.gnome.Mutter.ScreenCast"),
+                "/org/gnome/Mutter/ScreenCast",
+                Some("org.gnome.Mutter.ScreenCast"),
+                "CreateSession",
+                &(props,),
+            )
+            .await?;
+        let session_path: zbus::zvariant::OwnedObjectPath = reply.body().deserialize()?;
+
+        // Start the session
+        self.conn
+            .call_method(
+                Some("org.gnome.Mutter.ScreenCast"),
+                session_path.as_str(),
+                Some("org.gnome.Mutter.ScreenCast.Session"),
+                "Start",
+                &(),
+            )
+            .await?;
+
+        // RecordMonitor with the known connector name.
+        // RecordVirtual returns "Unknown monitor" on GNOME 46.
+        let connector = "DP-1";
+        tracing::info!("Recording monitor: {}", connector);
+
+        let stream_props: HashMap<&str, zbus::zvariant::Value<'_>> = HashMap::new();
+        let reply = self
+            .conn
+            .call_method(
+                Some("org.gnome.Mutter.ScreenCast"),
+                session_path.as_str(),
+                Some("org.gnome.Mutter.ScreenCast.Session"),
+                "RecordMonitor",
+                &(connector, stream_props),
+            )
+            .await?;
+        let stream_path: zbus::zvariant::OwnedObjectPath = reply.body().deserialize()?;
+        self.sc_stream_path = stream_path.to_string();
+        tracing::info!("ScreenCast stream created: {}", self.sc_stream_path);
+        Ok(())
+    }
+
+    /// Call a void method on the RemoteDesktop session.
+    async fn rd_call<B>(&self, method: &str, body: &B) -> anyhow::Result<()>
+    where
+        B: serde::Serialize + zbus::zvariant::Type,
+    {
+        self.conn
+            .call_method(
+                Some("org.gnome.Mutter.RemoteDesktop"),
+                self.rd_session_path.as_str(),
+                Some("org.gnome.Mutter.RemoteDesktop.Session"),
+                method,
+                body,
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Press or release a keysym through the Mutter compositor pipeline.
+    async fn rd_keysym(&self, keysym: u32, pressed: bool) -> anyhow::Result<()> {
+        self.rd_call("NotifyKeyboardKeysym", &(keysym, pressed))
+            .await
+    }
+
+    /// Press or release a mouse button.
+    async fn rd_button(&self, button: i32, pressed: bool) -> anyhow::Result<()> {
+        self.rd_call("NotifyPointerButton", &(button, pressed))
+            .await
+    }
+}
+
+// ─── Keysym mapping ─────────────────────────────────────
+
+/// XKB keysyms for common characters and keys.
+/// Reference: /usr/include/X11/keysymdef.h
+mod keysym {
+    // Modifier keys
+    pub const SHIFT_L: u32 = 0xFFE1;
+    pub const CTRL_L: u32 = 0xFFE3;
+    pub const ALT_L: u32 = 0xFFE9;
+    pub const SUPER_L: u32 = 0xFFEB;
+
+    // Special keys
+    pub const RETURN: u32 = 0xFF0D;
+    pub const TAB: u32 = 0xFF09;
+    pub const ESCAPE: u32 = 0xFF1B;
+    pub const BACKSPACE: u32 = 0xFF08;
+    pub const DELETE: u32 = 0xFFFF;
+    pub const UP: u32 = 0xFF52;
+    pub const DOWN: u32 = 0xFF54;
+    pub const LEFT: u32 = 0xFF51;
+    pub const RIGHT: u32 = 0xFF53;
+    pub const HOME: u32 = 0xFF50;
+    pub const END: u32 = 0xFF57;
+    pub const PAGE_UP: u32 = 0xFF55;
+    pub const PAGE_DOWN: u32 = 0xFF56;
+    pub const SPACE: u32 = 0x0020;
+
+    /// Map a key name string to its XKB keysym.
+    pub fn from_name(name: &str) -> Option<u32> {
+        Some(match name.to_lowercase().as_str() {
+            "return" | "enter" => RETURN,
+            "tab" => TAB,
+            "escape" | "esc" => ESCAPE,
+            "backspace" => BACKSPACE,
+            "delete" | "del" => DELETE,
+            "up" => UP,
+            "down" => DOWN,
+            "left" => LEFT,
+            "right" => RIGHT,
+            "home" => HOME,
+            "end" => END,
+            "page_up" | "pgup" => PAGE_UP,
+            "page_down" | "pgdn" => PAGE_DOWN,
+            "space" => SPACE,
+            // Modifier names
+            "shift" | "shift_l" => SHIFT_L,
+            "ctrl" | "control" | "control_l" => CTRL_L,
+            "alt" | "alt_l" => ALT_L,
+            "super" | "super_l" | "meta" | "win" | "windows" => SUPER_L,
+            _ => return None,
+        })
+    }
+
+    /// Map a printable ASCII character to its XKB keysym.
+    /// Returns (keysym, needs_shift).
+    pub fn from_char(c: char) -> Option<(u32, bool)> {
+        match c {
+            'a'..='z' => Some((0x0061 + (c as u32 - 'a' as u32), false)),
+            'A'..='Z' => Some((0x0061 + (c as u32 - 'A' as u32), true)),
+            '0'..='9' => Some((0x0030 + (c as u32 - '0' as u32), false)),
+            ' ' => Some((0x0020, false)),
+            '.' => Some((0x002E, false)),
+            ',' => Some((0x002C, false)),
+            ';' => Some((0x003B, false)),
+            ':' => Some((0x003B, true)),
+            '\'' => Some((0x0027, false)),
+            '"' => Some((0x0027, true)),
+            '/' => Some((0x002F, false)),
+            '?' => Some((0x002F, true)),
+            '\\' => Some((0x005C, false)),
+            '|' => Some((0x005C, true)),
+            '[' => Some((0x005B, false)),
+            '{' => Some((0x005B, true)),
+            ']' => Some((0x005D, false)),
+            '}' => Some((0x005D, true)),
+            '-' => Some((0x002D, false)),
+            '_' => Some((0x002D, true)),
+            '=' => Some((0x003D, false)),
+            '+' => Some((0x003D, true)),
+            '`' => Some((0x0060, false)),
+            '~' => Some((0x0060, true)),
+            '!' => Some((0x0031, true)),
+            '@' => Some((0x0032, true)),
+            '#' => Some((0x0033, true)),
+            '$' => Some((0x0034, true)),
+            '%' => Some((0x0035, true)),
+            '^' => Some((0x0036, true)),
+            '&' => Some((0x0037, true)),
+            '*' => Some((0x0038, true)),
+            '(' => Some((0x0039, true)),
+            ')' => Some((0x0030, true)),
+            '\n' => Some((RETURN, false)),
+            '\t' => Some((TAB, false)),
+            _ => None,
+        }
     }
 }
 
@@ -207,74 +434,124 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  INPUT
+    //  INPUT  (via Mutter RemoteDesktop compositor pipeline)
     // ═══════════════════════════════════════════════════════
 
     async fn keyboard_type(&self, text: &str) -> anyhow::Result<()> {
-        // wtype types literal text
-        self.sh("wtype", &[text]).await?;
+        for c in text.chars() {
+            let (keysym, needs_shift) = keysym::from_char(c)
+                .ok_or_else(|| anyhow::anyhow!("no keysym for char: {:?}", c))?;
+            if needs_shift {
+                self.rd_keysym(keysym::SHIFT_L, true).await?;
+            }
+            self.rd_keysym(keysym, true).await?;
+            self.rd_keysym(keysym, false).await?;
+            if needs_shift {
+                self.rd_keysym(keysym::SHIFT_L, false).await?;
+            }
+        }
         Ok(())
     }
 
     async fn keyboard_key(&self, key: &str) -> anyhow::Result<()> {
-        self.sh("wtype", &["-k", key]).await?;
+        let keysym = keysym::from_name(key)
+            .or_else(|| {
+                key.chars()
+                    .next()
+                    .and_then(|c| keysym::from_char(c).map(|(k, _)| k))
+            })
+            .ok_or_else(|| anyhow::anyhow!("unknown key: {}", key))?;
+        self.rd_keysym(keysym, true).await?;
+        self.rd_keysym(keysym, false).await?;
         Ok(())
     }
 
     async fn keyboard_combo(&self, keys: &[String]) -> anyhow::Result<()> {
-        let mut args: Vec<&str> = Vec::new();
-        let key_refs: Vec<String> = keys.iter().map(|k| k.to_lowercase()).collect();
-        for k in &key_refs {
-            args.push("-k");
-            args.push(k);
+        if keys.is_empty() {
+            return Ok(());
         }
-        self.sh("wtype", &args).await?;
+        // Press all modifiers, then the final key
+        let (modifiers, final_key) = keys.split_at(keys.len().saturating_sub(1));
+        let final_key_str = &final_key[0];
+
+        // Resolve all keysyms upfront so we don't fail mid-combo
+        let mut modifier_syms: Vec<u32> = Vec::new();
+        for k in modifiers {
+            let sym = keysym::from_name(k)
+                .or_else(|| {
+                    k.chars()
+                        .next()
+                        .and_then(|c| keysym::from_char(c).map(|(s, _)| s))
+                })
+                .ok_or_else(|| anyhow::anyhow!("unknown modifier: {}", k))?;
+            modifier_syms.push(sym);
+        }
+        let target_sym = keysym::from_name(final_key_str)
+            .or_else(|| {
+                final_key_str
+                    .chars()
+                    .next()
+                    .and_then(|c| keysym::from_char(c).map(|(s, _)| s))
+            })
+            .ok_or_else(|| anyhow::anyhow!("unknown key: {}", final_key_str))?;
+
+        // Press modifiers
+        for &sym in &modifier_syms {
+            self.rd_keysym(sym, true).await?;
+        }
+
+        // Press and release the target key
+        self.rd_keysym(target_sym, true).await?;
+        self.rd_keysym(target_sym, false).await?;
+
+        // Release modifiers in reverse order
+        for &sym in modifier_syms.iter().rev() {
+            self.rd_keysym(sym, false).await?;
+        }
         Ok(())
     }
 
     async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()> {
-        self.sh(
-            "ydotool",
-            &["mousemove", "--absolute", &x.to_string(), &y.to_string()],
-        )
-        .await?;
+        // Use relative motion from the last known position.
+        // Absolute positioning requires a ScreenCast stream which we don't have yet.
+        let (last_x, last_y) = {
+            let pos = self.last_mouse.lock().unwrap();
+            *pos
+        };
+        let dx = x - last_x;
+        let dy = y - last_y;
+
+        // Update tracked position
+        {
+            let mut pos = self.last_mouse.lock().unwrap();
+            *pos = (x, y);
+        }
+
+        self.rd_call("NotifyPointerMotionRelative", &(dx, dy))
+            .await?;
         Ok(())
     }
 
     async fn mouse_click(&self, button: &str) -> anyhow::Result<()> {
-        let btn = match button {
-            "left" => "0xC0",
-            "middle" => "0xC1",
-            "right" => "0xC2",
+        let btn: i32 = match button {
+            "left" => 1,
+            "middle" => 2,
+            "right" => 3,
             _ => anyhow::bail!("unknown button: {}", button),
         };
-        // ydotool click <button> ; ydotool click --repeat 1 --next-delay 50 <button>
-        self.sh("ydotool", &["click", btn]).await?;
+        self.rd_button(btn, true).await?;
+        self.rd_button(btn, false).await?;
         Ok(())
     }
 
     async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()> {
         if dy != 0.0 {
-            let dir = if dy > 0.0 { "down" } else { "up" };
-            let steps = dy.abs() as u32;
-            for _ in 0..steps {
-                self.sh(
-                    "ydotool",
-                    &["click", if dir == "up" { "0x40" } else { "0x41" }],
-                )
+            self.rd_call("NotifyPointerAxisDiscrete", &(0u32, dy as i32))
                 .await?;
-            }
         }
         if dx != 0.0 {
-            let dir = if dx > 0.0 { "right" } else { "left" };
-            let steps = dx.abs() as u32;
-            for _ in 0..steps {
-                self.sh(
-                    "ydotool",
-                    &["click", if dir == "right" { "0x42" } else { "0x43" }],
-                )
+            self.rd_call("NotifyPointerAxisDiscrete", &(1u32, dx as i32))
                 .await?;
-            }
         }
         Ok(())
     }
