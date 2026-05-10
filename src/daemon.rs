@@ -71,7 +71,7 @@ async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::Resul
         "type": "connected",
         "id": "server",
         "seq": 0,
-        "data": { "version": "2.0.0", "protocol": "deskbrid-v2" }
+        "data": { "version": "0.4.1", "protocol": "deskbrid-v2" }
     });
     writer
         .write_all(format!("{}\n", serde_json::to_string(&connected)?).as_bytes())

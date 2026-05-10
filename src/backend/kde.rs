@@ -46,20 +46,6 @@ impl KdeBackend {
         Ok(String::from_utf8(output.stdout)?.trim().to_string())
     }
 
-    async fn sh_ok(&self, cmd: &str, args: &[&str]) -> bool {
-        let mut command = Command::new(cmd);
-        command.args(args).stdin(Stdio::null());
-        command.env("XDG_RUNTIME_DIR", &self.xdg_runtime);
-        if let Some(sock) = &self.wl_socket {
-            command.env("WAYLAND_DISPLAY", sock);
-        }
-        command
-            .output()
-            .await
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-    }
-
     async fn qdbus(
         &self,
         service: &str,
@@ -262,24 +248,24 @@ for (var i = 0; i < windows.length; i++) {{
         let lines = self.kwin_js(&js).await?;
         for line in &lines {
             let trimmed = line.trim();
-            if trimmed.starts_with('{') {
-                if let Ok(w) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                    return Ok(protocol::WindowInfo {
-                        id: w["id"].as_str().unwrap_or("").to_string(),
-                        title: w["title"].as_str().unwrap_or("").to_string(),
-                        app_id: w["app_id"].as_str().unwrap_or("").to_string(),
-                        workspace_id: 0,
-                        is_focused: w["active"].as_bool().unwrap_or(false),
-                        is_minimized: w["minimized"].as_bool().unwrap_or(false),
-                        geometry: Some(protocol::Geometry {
-                            x: w["x"].as_i64().unwrap_or(0) as i32,
-                            y: w["y"].as_i64().unwrap_or(0) as i32,
-                            width: w["width"].as_i64().unwrap_or(0) as u32,
-                            height: w["height"].as_i64().unwrap_or(0) as u32,
-                        }),
-                        pid: w["pid"].as_i64().map(|p| p as u32),
-                    });
-                }
+            if trimmed.starts_with('{')
+                && let Ok(w) = serde_json::from_str::<serde_json::Value>(trimmed)
+            {
+                return Ok(protocol::WindowInfo {
+                    id: w["id"].as_str().unwrap_or("").to_string(),
+                    title: w["title"].as_str().unwrap_or("").to_string(),
+                    app_id: w["app_id"].as_str().unwrap_or("").to_string(),
+                    workspace_id: 0,
+                    is_focused: w["active"].as_bool().unwrap_or(false),
+                    is_minimized: w["minimized"].as_bool().unwrap_or(false),
+                    geometry: Some(protocol::Geometry {
+                        x: w["x"].as_i64().unwrap_or(0) as i32,
+                        y: w["y"].as_i64().unwrap_or(0) as i32,
+                        width: w["width"].as_i64().unwrap_or(0) as u32,
+                        height: w["height"].as_i64().unwrap_or(0) as u32,
+                    }),
+                    pid: w["pid"].as_i64().map(|p| p as u32),
+                });
             }
         }
         anyhow::bail!("window not found: {}", id)
@@ -460,7 +446,8 @@ for (var i = 0; i < windows.length; i++) {{
             if let Some(geo) = info.geometry {
                 self.sh("spectacle", &["-b", "-n", "-o", &raw_path]).await?;
                 let crop = format!("{}x{}+{}+{}", geo.width, geo.height, geo.x, geo.y);
-                self.sh("convert", &[&raw_path, "-crop", &crop, &out_path]).await?;
+                self.sh("convert", &[&raw_path, "-crop", &crop, &out_path])
+                    .await?;
                 tokio::fs::remove_file(&raw_path).await.ok();
                 return Ok(protocol::ScreenshotResult {
                     path: out_path,
@@ -475,7 +462,8 @@ for (var i = 0; i < windows.length; i++) {{
         if let Some(ref r) = _region {
             self.sh("spectacle", &["-b", "-n", "-o", &raw_path]).await?;
             let crop = format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y);
-            self.sh("convert", &[&raw_path, "-crop", &crop, &out_path]).await?;
+            self.sh("convert", &[&raw_path, "-crop", &crop, &out_path])
+                .await?;
             tokio::fs::remove_file(&raw_path).await.ok();
             return Ok(protocol::ScreenshotResult {
                 path: out_path,
@@ -647,7 +635,7 @@ for (var i = 0; i < windows.length; i++) {{
             let parts: Vec<&str> = line.split(':').collect();
             if parts.len() >= 3 {
                 interfaces.push(protocol::NetworkInterfaceInfo {
-                    name: parts.get(0).unwrap_or(&"").to_string(),
+                    name: parts.first().unwrap_or(&"").to_string(),
                     state: parts.get(3).unwrap_or(&"").to_string(),
                     ipv4: parts
                         .get(4)

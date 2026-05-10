@@ -6,8 +6,7 @@ pub const GNOME_EXTENSION_METADATA: &str =
     include_str!("../extensions/deskbrid@deskbrid/metadata.json");
 
 /// GNOME Shell extension JavaScript, baked into the binary at compile time.
-pub const GNOME_EXTENSION_JS: &str =
-    include_str!("../extensions/deskbrid@deskbrid/extension.js");
+pub const GNOME_EXTENSION_JS: &str = include_str!("../extensions/deskbrid@deskbrid/extension.js");
 
 enum DesktopEnv {
     Gnome,
@@ -40,10 +39,9 @@ fn detect_desktop() -> DesktopEnv {
         if let Ok(out) = std::process::Command::new("pgrep")
             .args(["-x", name])
             .output()
+            && out.status.success()
         {
-            if out.status.success() {
-                return env;
-            }
+            return env;
         }
     }
 
@@ -68,15 +66,17 @@ pub async fn run() -> anyhow::Result<()> {
 /// Install and enable the GNOME Shell extension.
 async fn setup_gnome() -> anyhow::Result<()> {
     eprintln!("Detected: GNOME Shell");
-    let home = std::env::var("HOME")
-        .map_err(|_| anyhow::anyhow!("$HOME not set"))?;
+    let home = std::env::var("HOME").map_err(|_| anyhow::anyhow!("$HOME not set"))?;
     let ext_dir = format!(
         "{}/.local/share/gnome-shell/extensions/deskbrid@deskbrid",
         home
     );
 
     std::fs::create_dir_all(&ext_dir)?;
-    std::fs::write(format!("{}/metadata.json", ext_dir), GNOME_EXTENSION_METADATA)?;
+    std::fs::write(
+        format!("{}/metadata.json", ext_dir),
+        GNOME_EXTENSION_METADATA,
+    )?;
     std::fs::write(format!("{}/extension.js", ext_dir), GNOME_EXTENSION_JS)?;
     eprintln!("  ✓ Extension files written to {ext_dir}");
 

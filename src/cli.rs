@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "deskbrid",
     about = "The HAL your Linux desktop agents are missing",
-    version = "2.0.0"
+    version = "0.4.1"
 )]
 pub struct Args {
     #[command(subcommand)]

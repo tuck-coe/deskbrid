@@ -1,6 +1,6 @@
 [package]
 name = "deskbrid"
-version = "2.0.0"
+version = "0.4.1"
 edition = "2024"
 description = "The HAL your Linux desktop agents are missing"
 license = "MIT"
