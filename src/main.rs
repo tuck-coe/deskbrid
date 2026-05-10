@@ -16,7 +16,10 @@ async fn main() -> anyhow::Result<()> {
     match args.command {
         cli::Command::Daemon { verbose } => {
             if verbose {
-                std::env::set_var("DESKBRID_LOG", "debug");
+                // SAFETY: called at startup before threads are spawned
+                unsafe {
+                    std::env::set_var("DESKBRID_LOG", "debug");
+                }
             }
             daemon::run().await
         }

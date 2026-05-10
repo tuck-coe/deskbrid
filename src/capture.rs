@@ -1,7 +1,7 @@
 //! Screen capture fallbacks using external tools.
 //! PipeWire screencast will replace this in Phase 3.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::path::PathBuf;
 use tokio::process::Command;
 

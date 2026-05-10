@@ -8,7 +8,7 @@ pub mod protocol;
 use protocol::DeskbridEvent;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 
 /// Global daemon state shared across all client connections
 pub struct DaemonState {

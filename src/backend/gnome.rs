@@ -42,7 +42,10 @@ impl GnomeBackend {
         // ScreenCast is best-effort — required for absolute mouse positioning.
         // Relative motion works without it.
         if let Err(e) = backend.init_screen_cast().await {
-            tracing::warn!("ScreenCast unavailable (absolute mouse positioning disabled): {}", e);
+            tracing::warn!(
+                "ScreenCast unavailable (absolute mouse positioning disabled): {}",
+                e
+            );
         }
         Ok(backend)
     }

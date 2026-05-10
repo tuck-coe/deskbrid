@@ -222,10 +222,11 @@ fn event_matches_any(subscriptions: &std::collections::HashSet<String>, event_ty
             return true;
         }
         // Glob-style: "file.*" matches "file.created"
-        if let Some(prefix) = sub.strip_suffix(".*") {
-            if event_type.starts_with(prefix) && event_type[prefix.len()..].starts_with('.') {
-                return true;
-            }
+        if let Some(prefix) = sub.strip_suffix(".*")
+            && event_type.starts_with(prefix)
+            && event_type[prefix.len()..].starts_with('.')
+        {
+            return true;
         }
         // Glob-style: "*" matches everything
         if sub == "*" {
