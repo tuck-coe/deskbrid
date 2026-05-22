@@ -26,6 +26,10 @@ pub enum Command {
     Daemon {
         #[arg(long)]
         verbose: bool,
+
+        /// Enable MCP TCP listener on the given port (default: 18796)
+        #[arg(long)]
+        mcp_port: Option<u16>,
     },
 
     /// Check if daemon is running

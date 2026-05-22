@@ -104,6 +104,14 @@ Add to your AI coding tool's MCP config:
 }
 ```
 
+**Dual-protocol mode** (daemon + MCP on same socket):
+
+```bash
+deskbrid daemon --mcp-port 18796
+# Unix socket at /run/user/1000/deskbrid.sock
+# MCP TCP at 127.0.0.1:18796
+```
+
 **MCP tools:** `list_windows`, `focus_window`, `type_text`, `press_keys`, `mouse_move`, `mouse_click`, `screenshot`, `clipboard_read`, `clipboard_write`, `list_apps`, `get_accessibility_tree`, `perform_action`, `set_element_value`, `get_element_text`, `click_element`, `doctor`, `setup_accessibility`, `capabilities`
 
 **AT-SPI accessibility tools** provide full tree snapshots with bounds, actions, value, and text data — matching `computer-use-linux` output format for drop-in migration.

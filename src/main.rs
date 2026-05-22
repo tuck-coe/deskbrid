@@ -3,6 +3,7 @@ use deskbrid::client;
 use deskbrid::daemon;
 
 #[tokio::main]
+#[allow(unused_variables)]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -18,14 +19,31 @@ async fn main() -> anyhow::Result<()> {
     };
 
     match args.command {
-        cli::Command::Daemon { verbose } => {
+        cli::Command::Daemon { verbose, mcp_port } => {
             if verbose {
                 // SAFETY: called at startup before threads are spawned
                 unsafe {
                     std::env::set_var("DESKBRID_LOG", "debug");
                 }
             }
-            daemon::run().await
+            if let Some(port) = mcp_port {
+                #[cfg(feature = "mcp")]
+                {
+                    // Start daemon + MCP TCP listener in parallel
+                    let daemon_handle = tokio::spawn(async { daemon::run().await });
+                    let mcp_handle = tokio::spawn(async { deskbrid::mcp::run_mcp_tcp(port).await });
+                    let (daemon_result, mcp_result) = tokio::join!(daemon_handle, mcp_handle);
+                    daemon_result??;
+                    mcp_result??;
+                    Ok(())
+                }
+                #[cfg(not(feature = "mcp"))]
+                anyhow::bail!(
+                    "MCP server not compiled (enable 'mcp' feature: cargo build --features mcp)"
+                )
+            } else {
+                daemon::run().await
+            }
         }
         cli::Command::Status => client::send_one_shot(deskbrid::protocol::Action::Ping).await,
         cli::Command::Setup => deskbrid::setup::run().await,
