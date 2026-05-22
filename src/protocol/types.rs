@@ -140,6 +140,26 @@ pub struct ClipboardHistoryEntry {
     pub source: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct AppCatalogEntry {
+    pub app_id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generic_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exec: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    pub categories: Vec<String>,
+    pub mime_types: Vec<String>,
+    pub no_display: bool,
+    pub terminal: bool,
+    pub path: String,
+}
+
 // ─── Envelope ───────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

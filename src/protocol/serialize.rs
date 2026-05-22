@@ -137,6 +137,28 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         }
         Action::ClipboardHistoryClear => json!({"type": "clipboard.history.clear", "id": id}),
 
+        // Apps
+        Action::AppList {
+            categories,
+            mime_types,
+            include_hidden,
+            limit,
+        } => {
+            let mut obj = json!({"type": "apps.list", "id": id, "categories": categories, "mime_types": mime_types, "include_hidden": include_hidden});
+            if let Some(limit) = limit {
+                obj["limit"] = json!(limit);
+            }
+            obj
+        }
+        Action::AppSearch { query, limit } => {
+            let mut obj = json!({"type": "apps.search", "id": id, "query": query});
+            if let Some(limit) = limit {
+                obj["limit"] = json!(limit);
+            }
+            obj
+        }
+        Action::AppGet { app_id } => json!({"type": "apps.get", "id": id, "app_id": app_id}),
+
         // Screenshot
         Action::Screenshot {
             monitor,
@@ -754,6 +776,9 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::ClipboardWrite { .. } => "clipboard.write",
         Action::ClipboardHistoryList { .. } => "clipboard.history",
         Action::ClipboardHistoryClear => "clipboard.history.clear",
+        Action::AppList { .. } => "apps.list",
+        Action::AppSearch { .. } => "apps.search",
+        Action::AppGet { .. } => "apps.get",
         Action::Screenshot { .. } => "screenshot",
         Action::ScreenshotOcr { .. } => "screenshot.ocr",
         Action::ScreenshotDiff { .. } => "screenshot.diff",

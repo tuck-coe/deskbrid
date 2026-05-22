@@ -182,6 +182,9 @@ pub async fn execute_action(
         ClipboardHistoryList { .. } | ClipboardHistoryClear => {
             anyhow::bail!("clipboard history actions are handled by the daemon dispatcher")
         }
+        AppList { .. } | AppSearch { .. } | AppGet { .. } => {
+            anyhow::bail!("app catalog actions are handled by the daemon dispatcher")
+        }
 
         Screenshot {
             monitor,

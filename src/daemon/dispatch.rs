@@ -11,8 +11,9 @@ use super::system::{execute_system_control_action, is_system_control_action};
 use super::terminal::{execute_terminal_action, is_terminal_action};
 use super::wait_for_condition;
 use super::{
-    AuditRecord, check_rate_limit, execute_audit_action, execute_clipboard_history_action,
-    is_audit_action, is_clipboard_history_action, record_audit_entry,
+    AuditRecord, check_rate_limit, execute_app_catalog_action, execute_audit_action,
+    execute_clipboard_history_action, is_app_catalog_action, is_audit_action,
+    is_clipboard_history_action, record_audit_entry,
 };
 
 pub async fn dispatch_action(
@@ -97,6 +98,15 @@ pub async fn dispatch_action_with_options(
             &action,
             action_timeout_ms,
             execute_clipboard_history_action(action.clone(), state),
+        )
+        .await;
+        return action_response(state, &action, peer_uid, seq, result, started, None).await;
+    }
+    if is_app_catalog_action(&action) {
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_app_catalog_action(action.clone(), state),
         )
         .await;
         return action_response(state, &action, peer_uid, seq, result, started, None).await;

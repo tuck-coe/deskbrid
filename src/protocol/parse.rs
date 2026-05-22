@@ -143,6 +143,21 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         },
         "clipboard.history.clear" => Action::ClipboardHistoryClear,
 
+        // Apps
+        "apps.list" => Action::AppList {
+            categories: optional_string_array(&raw, "categories")?,
+            mime_types: optional_string_array(&raw, "mime_types")?,
+            include_hidden: raw["include_hidden"].as_bool().unwrap_or(false),
+            limit: raw["limit"].as_u64().map(|value| value as usize),
+        },
+        "apps.search" => Action::AppSearch {
+            query: required_non_empty_string(&raw, "query")?,
+            limit: raw["limit"].as_u64().map(|value| value as usize),
+        },
+        "apps.get" => Action::AppGet {
+            app_id: required_non_empty_string(&raw, "app_id")?,
+        },
+
         // Screenshot
         "screenshot" => Action::Screenshot {
             monitor: raw["monitor"].as_u64().map(|v| v as u32),

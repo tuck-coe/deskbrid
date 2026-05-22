@@ -30,6 +30,7 @@ it to the completed table below.
 | [9. Confinement Detection](#9-confinement-detection-flatpak--snap--selinux--apparmor) | Detect Flatpak, Snap, AppImage, containers, WSL, AppArmor, and SELinux via `system.confinement` and capability/health reports | `src/daemon/capabilities/confinement.rs`, `src/protocol/`, `clients/python/` |
 | [12. OCR / Text Extraction](#12-ocr--text-extraction) | OCR existing screenshots or fresh captures with optional word boxes through Tesseract | `src/ocr.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [16. Application Menu Catalog](#16-application-menu-catalog) | List, search, and inspect installed `.desktop` applications from XDG application directories | `src/daemon/apps.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [18. Clipboard History](#18-clipboard-history) | Query and clear bounded text entries observed through Deskbrid clipboard reads/writes | `src/daemon/clipboard.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
@@ -74,7 +75,7 @@ These features exist in the codebase already for reference:
 13. [✅ Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
 14. [MPRIS Media Control](#14-mpris-media-control)
 15. [Drag & Drop](#15-drag--drop)
-16. [Application Menu Catalog](#16-application-menu-catalog)
+16. [✅ Application Menu Catalog](#16-application-menu-catalog)
 17. [Screen Recording (Finish Half-Built)](#17-screen-recording-finish-half-built-implementation)
 18. [✅ Clipboard History](#18-clipboard-history)
 19. [Window Tiling Presets](#19-window-tiling-presets)
@@ -1220,13 +1221,13 @@ InputMouseDrag {
 
 ## 16. Application Menu Catalog
 
+**Status:** ✅ Done. Deskbrid scans standard XDG application directories for
+`.desktop` files and exposes `apps.list`, `apps.search`, and `apps.get` through
+the protocol, CLI, and Python client.
+
 ### What's Missing
 
-Deskbrid has `WindowsActivateOrLaunch` (find by app_id or launch), but no way to:
-- Enumerate installed applications
-- Find apps by category (Development, Games, Office)
-- Read `.desktop` file metadata
-- Explore a running application's menubar via DBus menu model
+Running application menubar exploration via DBus menu model remains future work.
 
 ### Implementation
 
@@ -6065,7 +6066,7 @@ SnapshotClone { id: String, target_path: String },
 | **Capabilities reporting** | ✅ Done | Low (caps crate) | Medium | Tells agents what they can and cannot do on this machine |
 | **Confinement detection** | ✅ Done | Low (env checks only) | High | Prevents confusing failures in Flatpak/Snap/sandboxed environments |
 | **Clipboard history** | ✅ Done | Low (~200 lines, ring buffer) | Medium | Retrieves and searches old clipboard entries |
-| **App catalog (.desktop)** | 🧭 Planned | Low (~200 lines, ini parser) | Medium | Helps agents discover installed launchable applications |
+| **App catalog (.desktop)** | ✅ Done | Low (~200 lines, ini parser) | Medium | Helps agents discover installed launchable applications |
 | **MPRIS media control** | 🧭 Planned | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |
 | **Color picker** | 🧭 Planned | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |
 | **Window tiling presets** | 🧭 Planned | Low (~150 lines, helper over existing) | Medium | Tiles windows without forcing agents to compute pixel coordinates |

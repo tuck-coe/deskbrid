@@ -123,6 +123,9 @@ client.listen()  # blocks, streaming events
 | `notify(title, body="", urgency="normal") -> int` | Send desktop notification |
 | `clipboard_history(limit=None, query=None) -> list[dict]` | List clipboard text observed through Deskbrid reads/writes |
 | `clipboard_history_clear() -> dict` | Clear Deskbrid clipboard history |
+| `app_list(categories=None, mime_types=None, include_hidden=False, limit=None) -> list[dict]` | List installed `.desktop` applications |
+| `app_search(query, limit=None) -> list[dict]` | Search installed applications |
+| `app_get(app_id) -> dict` | Get one application by desktop ID |
 
 ### Terminal / PTY
 

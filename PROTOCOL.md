@@ -128,6 +128,14 @@ The daemon also applies a per-UID token bucket. Configure it with
 ← {"type": "response", "id": "8", "seq": 8, "status": "ok", "data": {"text": "copied content"}}
 ```
 
+### Apps
+
+| Action | Params | Description |
+|--------|--------|-------------|
+| `apps.list` | `categories` (string[], optional), `mime_types` (string[], optional), `include_hidden` (bool, optional), `limit` (number, optional) | List installed `.desktop` applications |
+| `apps.search` | `query` (string), `limit` (number, optional) | Search installed applications |
+| `apps.get` | `app_id` (string) | Get one application by desktop ID |
+
 ### Screenshot
 
 | Action | Params | Description |
@@ -323,6 +331,7 @@ windows.list, windows.focus, windows.get
 workspaces.list, workspaces.switch, workspaces.move_window
 input.keyboard, input.mouse
 clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear
+apps.list, apps.search, apps.get
 screenshot, screenshot.ocr, screenshot.diff
 audit.log, audit.clear
 notification.send, notification.close

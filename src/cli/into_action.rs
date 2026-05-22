@@ -99,6 +99,22 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             ClipboardCmd::ClearHistory => Action::ClipboardHistoryClear,
         },
 
+        Command::Apps { cmd } => match cmd {
+            AppCmd::List {
+                categories,
+                mime_types,
+                include_hidden,
+                limit,
+            } => Action::AppList {
+                categories,
+                mime_types,
+                include_hidden,
+                limit,
+            },
+            AppCmd::Search { query, limit } => Action::AppSearch { query, limit },
+            AppCmd::Get { app_id } => Action::AppGet { app_id },
+        },
+
         Command::Screenshot {
             output: _,
             monitor,

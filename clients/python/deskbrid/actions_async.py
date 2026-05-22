@@ -55,6 +55,33 @@ class AsyncActionsMixin:
     async def clipboard_history_clear(self) -> dict[str, Any]:
         return await self._request("clipboard.history.clear")
 
+    async def app_list(
+        self,
+        categories: list[str] | None = None,
+        mime_types: list[str] | None = None,
+        include_hidden: bool = False,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "categories": categories or [],
+            "mime_types": mime_types or [],
+            "include_hidden": include_hidden,
+        }
+        if limit is not None:
+            params["limit"] = limit
+        response = await self._request("apps.list", params)
+        return list(response.get("apps", []))
+
+    async def app_search(self, query: str, limit: int | None = None) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"query": query}
+        if limit is not None:
+            params["limit"] = limit
+        response = await self._request("apps.search", params)
+        return list(response.get("apps", []))
+
+    async def app_get(self, app_id: str) -> dict[str, Any]:
+        return await self._request("apps.get", {"app_id": app_id})
+
     async def screenshot(self, monitor: int | None = None) -> ScreenshotResult:
         params: dict[str, Any] = {}
         if monitor is not None:

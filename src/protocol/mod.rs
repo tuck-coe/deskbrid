@@ -89,6 +89,21 @@ pub enum Action {
     },
     ClipboardHistoryClear,
 
+    // Apps
+    AppList {
+        categories: Vec<String>,
+        mime_types: Vec<String>,
+        include_hidden: bool,
+        limit: Option<usize>,
+    },
+    AppSearch {
+        query: String,
+        limit: Option<usize>,
+    },
+    AppGet {
+        app_id: String,
+    },
+
     // Screenshot
     Screenshot {
         monitor: Option<u32>,
@@ -474,6 +489,9 @@ impl Action {
             "clipboard.write",
             "clipboard.history",
             "clipboard.history.clear",
+            "apps.list",
+            "apps.search",
+            "apps.get",
             "screenshot",
             "screenshot.ocr",
             "screenshot.diff",
@@ -629,6 +647,7 @@ mod tests {
         assert!(actions.contains(&"screenshot.diff"));
         assert!(actions.contains(&"audit.log"));
         assert!(actions.contains(&"clipboard.history"));
+        assert!(actions.contains(&"apps.list"));
     }
 
     #[test]

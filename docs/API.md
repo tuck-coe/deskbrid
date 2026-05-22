@@ -570,6 +570,37 @@ Clear Deskbrid clipboard history.
 
 ---
 
+## Apps
+
+### `apps.list`
+
+List installed `.desktop` applications, optionally filtering by category or MIME type.
+
+**Request:**
+```json
+{"type": "apps.list", "id": "req-19", "categories": ["Development"], "limit": 50}
+```
+
+### `apps.search`
+
+Search installed applications by name, desktop ID, comment, or category.
+
+**Request:**
+```json
+{"type": "apps.search", "id": "req-20", "query": "browser", "limit": 10}
+```
+
+### `apps.get`
+
+Get one application by desktop ID.
+
+**Request:**
+```json
+{"type": "apps.get", "id": "req-21", "app_id": "firefox.desktop"}
+```
+
+---
+
 ## Screenshot
 
 ### `screenshot`

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tokio::net::UnixListener;
 use tracing::{debug, error, info, warn};
 
+mod apps;
 mod audit;
 mod capabilities;
 mod client;
@@ -20,6 +21,7 @@ mod tests;
 mod wait;
 
 // Re-export the daemon's public API
+pub(crate) use apps::{execute_app_catalog_action, is_app_catalog_action};
 pub(crate) use audit::{
     AuditRecord, action_timeout_from_env, audit_capacity_from_env, execute_audit_action,
     is_audit_action, record_audit_entry,

@@ -33,6 +33,28 @@ class SyncActionsMixin:
     def clipboard_history_clear(self) -> dict[str, Any]:
         return self._loop.submit(self._client.clipboard_history_clear()).result()
 
+    def app_list(
+        self,
+        categories: list[str] | None = None,
+        mime_types: list[str] | None = None,
+        include_hidden: bool = False,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._loop.submit(
+            self._client.app_list(
+                categories=categories,
+                mime_types=mime_types,
+                include_hidden=include_hidden,
+                limit=limit,
+            )
+        ).result()
+
+    def app_search(self, query: str, limit: int | None = None) -> list[dict[str, Any]]:
+        return self._loop.submit(self._client.app_search(query, limit=limit)).result()
+
+    def app_get(self, app_id: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.app_get(app_id)).result()
+
     def screenshot(self, monitor: int | None = None) -> str:
         result = self._loop.submit(self._client.screenshot(monitor=monitor)).result()
         return result.path
