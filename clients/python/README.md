@@ -126,6 +126,9 @@ client.listen()  # blocks, streaming events
 | `app_list(categories=None, mime_types=None, include_hidden=False, limit=None) -> list[dict]` | List installed `.desktop` applications |
 | `app_search(query, limit=None) -> list[dict]` | Search installed applications |
 | `app_get(app_id) -> dict` | Get one application by desktop ID |
+| `mpris_list() -> list[dict]` | List MPRIS media players |
+| `mpris_get(player=None) -> dict` | Get one player status and metadata |
+| `mpris_control(action, player=None) -> dict` | Send a playback command |
 
 ### Terminal / PTY
 

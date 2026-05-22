@@ -115,6 +115,12 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             AppCmd::Get { app_id } => Action::AppGet { app_id },
         },
 
+        Command::Mpris { cmd } => match cmd {
+            MprisCmd::List => Action::MprisList,
+            MprisCmd::Get { player } => Action::MprisGet { player },
+            MprisCmd::Control { action, player } => Action::MprisControl { player, action },
+        },
+
         Command::Screenshot {
             output: _,
             monitor,

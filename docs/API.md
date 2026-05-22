@@ -601,6 +601,37 @@ Get one application by desktop ID.
 
 ---
 
+## MPRIS Media
+
+### `mpris.list`
+
+List MPRIS-compatible media players on the session bus.
+
+**Request:**
+```json
+{"type": "mpris.list", "id": "req-22"}
+```
+
+### `mpris.get`
+
+Get status, metadata, and controls for one player. Omit `player` to use the first player.
+
+**Request:**
+```json
+{"type": "mpris.get", "id": "req-23", "player": "spotify"}
+```
+
+### `mpris.control`
+
+Send a playback command. Supported actions: `play_pause`, `play`, `pause`, `stop`, `next`, `previous`.
+
+**Request:**
+```json
+{"type": "mpris.control", "id": "req-24", "player": "spotify", "action": "play_pause"}
+```
+
+---
+
 ## Screenshot
 
 ### `screenshot`

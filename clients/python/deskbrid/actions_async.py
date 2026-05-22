@@ -82,6 +82,22 @@ class AsyncActionsMixin:
     async def app_get(self, app_id: str) -> dict[str, Any]:
         return await self._request("apps.get", {"app_id": app_id})
 
+    async def mpris_list(self) -> list[dict[str, Any]]:
+        response = await self._request("mpris.list")
+        return list(response.get("players", []))
+
+    async def mpris_get(self, player: str | None = None) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if player is not None:
+            params["player"] = player
+        return await self._request("mpris.get", params)
+
+    async def mpris_control(self, action: str, player: str | None = None) -> dict[str, Any]:
+        params: dict[str, Any] = {"action": action}
+        if player is not None:
+            params["player"] = player
+        return await self._request("mpris.control", params)
+
     async def screenshot(self, monitor: int | None = None) -> ScreenshotResult:
         params: dict[str, Any] = {}
         if monitor is not None:

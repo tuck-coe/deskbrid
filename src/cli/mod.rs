@@ -89,6 +89,13 @@ pub enum Command {
         cmd: AppCmd,
     },
 
+    // ─── Media ──────────────────────────────────────────
+    #[command(name = "mpris")]
+    Mpris {
+        #[command(subcommand)]
+        cmd: MprisCmd,
+    },
+
     // ─── Screenshot ─────────────────────────────────────
     #[command(name = "screenshot")]
     Screenshot {
@@ -394,6 +401,20 @@ pub enum AppCmd {
     },
     /// Show one application by desktop ID
     Get { app_id: String },
+}
+
+#[derive(Subcommand)]
+pub enum MprisCmd {
+    /// List MPRIS media players
+    List,
+    /// Show one player, or the first active player
+    Get { player: Option<String> },
+    /// Send a playback command: play_pause, play, pause, stop, next, previous
+    Control {
+        action: String,
+        #[arg(long)]
+        player: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

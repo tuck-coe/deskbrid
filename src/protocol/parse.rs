@@ -158,6 +158,16 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
             app_id: required_non_empty_string(&raw, "app_id")?,
         },
 
+        // MPRIS media control
+        "mpris.list" => Action::MprisList,
+        "mpris.get" => Action::MprisGet {
+            player: optional_non_empty_string(&raw, "player")?,
+        },
+        "mpris.control" => Action::MprisControl {
+            player: optional_non_empty_string(&raw, "player")?,
+            action: required_non_empty_string(&raw, "action")?,
+        },
+
         // Screenshot
         "screenshot" => Action::Screenshot {
             monitor: raw["monitor"].as_u64().map(|v| v as u32),

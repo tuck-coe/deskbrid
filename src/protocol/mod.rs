@@ -104,6 +104,16 @@ pub enum Action {
         app_id: String,
     },
 
+    // MPRIS media control
+    MprisList,
+    MprisGet {
+        player: Option<String>,
+    },
+    MprisControl {
+        player: Option<String>,
+        action: String,
+    },
+
     // Screenshot
     Screenshot {
         monitor: Option<u32>,
@@ -492,6 +502,9 @@ impl Action {
             "apps.list",
             "apps.search",
             "apps.get",
+            "mpris.list",
+            "mpris.get",
+            "mpris.control",
             "screenshot",
             "screenshot.ocr",
             "screenshot.diff",
@@ -648,6 +661,7 @@ mod tests {
         assert!(actions.contains(&"audit.log"));
         assert!(actions.contains(&"clipboard.history"));
         assert!(actions.contains(&"apps.list"));
+        assert!(actions.contains(&"mpris.list"));
     }
 
     #[test]

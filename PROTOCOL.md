@@ -136,6 +136,14 @@ The daemon also applies a per-UID token bucket. Configure it with
 | `apps.search` | `query` (string), `limit` (number, optional) | Search installed applications |
 | `apps.get` | `app_id` (string) | Get one application by desktop ID |
 
+### MPRIS Media
+
+| Action | Params | Description |
+|--------|--------|-------------|
+| `mpris.list` | — | List standard MPRIS media players |
+| `mpris.get` | `player` (string, optional) | Get status and metadata for one player |
+| `mpris.control` | `action` (string), `player` (string, optional) | Send `play_pause`, `play`, `pause`, `stop`, `next`, or `previous` |
+
 ### Screenshot
 
 | Action | Params | Description |
@@ -332,6 +340,7 @@ workspaces.list, workspaces.switch, workspaces.move_window
 input.keyboard, input.mouse
 clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear
 apps.list, apps.search, apps.get
+mpris.list, mpris.get, mpris.control
 screenshot, screenshot.ocr, screenshot.diff
 audit.log, audit.clear
 notification.send, notification.close

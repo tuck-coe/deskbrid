@@ -160,6 +160,24 @@ pub struct AppCatalogEntry {
     pub path: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct MprisPlayerInfo {
+    pub bus_name: String,
+    pub player_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub playback_status: Option<String>,
+    pub metadata: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume: Option<f64>,
+    pub can_play: bool,
+    pub can_pause: bool,
+    pub can_go_next: bool,
+    pub can_go_previous: bool,
+}
+
 // ─── Envelope ───────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

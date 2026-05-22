@@ -13,6 +13,7 @@ mod dispatch;
 mod execute;
 mod helpers;
 mod layout;
+mod mpris;
 mod rate_limit;
 mod system;
 pub mod terminal;
@@ -45,6 +46,7 @@ pub use layout::{
     capture_layout_profile, list_layout_profiles, load_layout_profile, match_profile_window_index,
     restore_layout_profile, save_layout_profile,
 };
+pub(crate) use mpris::{execute_mpris_action, is_mpris_action};
 pub(crate) use rate_limit::{
     RateBucket, RateLimitConfig, check_rate_limit, rate_limit_from_env, rate_limited_response,
 };

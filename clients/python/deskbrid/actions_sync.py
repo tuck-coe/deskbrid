@@ -55,6 +55,17 @@ class SyncActionsMixin:
     def app_get(self, app_id: str) -> dict[str, Any]:
         return self._loop.submit(self._client.app_get(app_id)).result()
 
+    def mpris_list(self) -> list[dict[str, Any]]:
+        return self._loop.submit(self._client.mpris_list()).result()
+
+    def mpris_get(self, player: str | None = None) -> dict[str, Any]:
+        return self._loop.submit(self._client.mpris_get(player=player)).result()
+
+    def mpris_control(self, action: str, player: str | None = None) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.mpris_control(action=action, player=player)
+        ).result()
+
     def screenshot(self, monitor: int | None = None) -> str:
         result = self._loop.submit(self._client.screenshot(monitor=monitor)).result()
         return result.path

@@ -30,6 +30,7 @@ it to the completed table below.
 | [9. Confinement Detection](#9-confinement-detection-flatpak--snap--selinux--apparmor) | Detect Flatpak, Snap, AppImage, containers, WSL, AppArmor, and SELinux via `system.confinement` and capability/health reports | `src/daemon/capabilities/confinement.rs`, `src/protocol/`, `clients/python/` |
 | [12. OCR / Text Extraction](#12-ocr--text-extraction) | OCR existing screenshots or fresh captures with optional word boxes through Tesseract | `src/ocr.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [14. MPRIS Media Control](#14-mpris-media-control) | List MPRIS players, inspect playback status/metadata, and send common playback commands | `src/daemon/mpris.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [16. Application Menu Catalog](#16-application-menu-catalog) | List, search, and inspect installed `.desktop` applications from XDG application directories | `src/daemon/apps.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [18. Clipboard History](#18-clipboard-history) | Query and clear bounded text entries observed through Deskbrid clipboard reads/writes | `src/daemon/clipboard.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
@@ -73,7 +74,7 @@ These features exist in the codebase already for reference:
 11. [elogind (Non-systemd Systems)](#11-elogind-non-systemd-systems)
 12. [✅ OCR / Text Extraction](#12-ocr--text-extraction)
 13. [✅ Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
-14. [MPRIS Media Control](#14-mpris-media-control)
+14. [✅ MPRIS Media Control](#14-mpris-media-control)
 15. [Drag & Drop](#15-drag--drop)
 16. [✅ Application Menu Catalog](#16-application-menu-catalog)
 17. [Screen Recording (Finish Half-Built)](#17-screen-recording-finish-half-built-implementation)
@@ -1081,14 +1082,13 @@ SIGCHLD, terminal size changes, and proper cleanup on client disconnect.
 
 ## 14. MPRIS Media Control
 
+**Status:** ✅ Done. Deskbrid exposes `mpris.list`, `mpris.get`, and
+`mpris.control` for standard session-bus MPRIS players, including playback status,
+metadata, volume, and common transport controls.
+
 ### What's Missing
 
-Deskbrid has `AudioListSinks` and `AudioSetSinkVolume` (PulseAudio/PipeWire audio
-routes), but zero media metadata or transport control. Agents can't:
-- Pause music before starting a recording
-- Skip tracks during demos
-- Mute during voice output
-- Read current track metadata for context-aware automation
+Seek, set-position, shuffle/repeat, raise, and quit controls are future work.
 
 MPRIS (`org.mpris.MediaPlayer2.*`) is the freedesktop standard for media player
 control. Every major player exposes it: Spotify, Rhythmbox, VLC, Firefox, Chromium.
@@ -6067,7 +6067,7 @@ SnapshotClone { id: String, target_path: String },
 | **Confinement detection** | ✅ Done | Low (env checks only) | High | Prevents confusing failures in Flatpak/Snap/sandboxed environments |
 | **Clipboard history** | ✅ Done | Low (~200 lines, ring buffer) | Medium | Retrieves and searches old clipboard entries |
 | **App catalog (.desktop)** | ✅ Done | Low (~200 lines, ini parser) | Medium | Helps agents discover installed launchable applications |
-| **MPRIS media control** | 🧭 Planned | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |
+| **MPRIS media control** | ✅ Done | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |
 | **Color picker** | 🧭 Planned | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |
 | **Window tiling presets** | 🧭 Planned | Low (~150 lines, helper over existing) | Medium | Tiles windows without forcing agents to compute pixel coordinates |
 | **Drag & drop** | 🧭 Planned | Very low (~100 lines, 4 backends) | Medium | Helps with file managers, design tools, and browser upload zones |

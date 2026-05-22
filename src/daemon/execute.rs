@@ -185,6 +185,9 @@ pub async fn execute_action(
         AppList { .. } | AppSearch { .. } | AppGet { .. } => {
             anyhow::bail!("app catalog actions are handled by the daemon dispatcher")
         }
+        MprisList | MprisGet { .. } | MprisControl { .. } => {
+            anyhow::bail!("MPRIS actions are handled by the daemon dispatcher")
+        }
 
         Screenshot {
             monitor,

@@ -159,6 +159,23 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         }
         Action::AppGet { app_id } => json!({"type": "apps.get", "id": id, "app_id": app_id}),
 
+        // MPRIS media control
+        Action::MprisList => json!({"type": "mpris.list", "id": id}),
+        Action::MprisGet { player } => {
+            let mut obj = json!({"type": "mpris.get", "id": id});
+            if let Some(player) = player {
+                obj["player"] = json!(player);
+            }
+            obj
+        }
+        Action::MprisControl { player, action } => {
+            let mut obj = json!({"type": "mpris.control", "id": id, "action": action});
+            if let Some(player) = player {
+                obj["player"] = json!(player);
+            }
+            obj
+        }
+
         // Screenshot
         Action::Screenshot {
             monitor,
@@ -779,6 +796,9 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::AppList { .. } => "apps.list",
         Action::AppSearch { .. } => "apps.search",
         Action::AppGet { .. } => "apps.get",
+        Action::MprisList => "mpris.list",
+        Action::MprisGet { .. } => "mpris.get",
+        Action::MprisControl { .. } => "mpris.control",
         Action::Screenshot { .. } => "screenshot",
         Action::ScreenshotOcr { .. } => "screenshot.ocr",
         Action::ScreenshotDiff { .. } => "screenshot.diff",
