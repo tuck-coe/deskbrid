@@ -30,7 +30,10 @@ pub(super) fn parse_wmctrl_line(
     let width = parts[5].parse::<u32>().ok()?;
     let height = parts[6].parse::<u32>().ok()?;
     let app_id = normalize_wm_class(parts[7]);
-    let title = parts.get(9..).map(|tail| tail.join(" ")).unwrap_or_default();
+    let title = parts
+        .get(9..)
+        .map(|tail| tail.join(" "))
+        .unwrap_or_default();
 
     Some(protocol::WindowInfo {
         is_focused: active_window_id

@@ -234,5 +234,8 @@ async fn insert_x11_deps(deps: &mut serde_json::Map<String, serde_json::Value>) 
     deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
     deps.insert("import".to_string(), check_in_path("import").await);
     deps.insert("identify".to_string(), check_in_path("identify").await);
-    deps.insert("notify-send".to_string(), check_in_path("notify-send").await);
+    deps.insert(
+        "notify-send".to_string(),
+        check_in_path("notify-send").await,
+    );
 }
