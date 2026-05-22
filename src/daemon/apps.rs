@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::DaemonState;
 use crate::protocol::{Action, AppCatalogEntry};
