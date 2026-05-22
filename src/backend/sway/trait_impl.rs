@@ -1,10 +1,5 @@
 use super::*;
-use crate::protocol;
-use crate::backend::DesktopBackend;
-use async_trait::async_trait;
-
 #[async_trait]
-impl DesktopBackend for SwayBackend {
 impl DesktopBackend for SwayBackend {
     // ─── Windows ──────────────────────────────────────
 

@@ -1,10 +1,5 @@
 use super::*;
-use crate::protocol;
-use crate::backend::DesktopBackend;
-use async_trait::async_trait;
-
 #[async_trait]
-impl DesktopBackend for CosmicBackend {
 impl DesktopBackend for CosmicBackend {
     // ─── Windows ────────────────────────────────────────
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {

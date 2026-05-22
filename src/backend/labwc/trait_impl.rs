@@ -1,10 +1,5 @@
 use super::*;
-use crate::protocol;
-use crate::backend::DesktopBackend;
-use async_trait::async_trait;
-
 #[async_trait]
-impl DesktopBackend for LabwcBackend {
 impl DesktopBackend for LabwcBackend {
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
         if self.has_labwc_helper {

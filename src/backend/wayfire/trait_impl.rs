@@ -1,10 +1,5 @@
 use super::*;
-use crate::protocol;
-use crate::backend::DesktopBackend;
-use async_trait::async_trait;
-
 #[async_trait]
-impl DesktopBackend for WayfireBackend {
 impl DesktopBackend for WayfireBackend {
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
         let raw = self.wf_ipc_json(&["-j"]).await?;
