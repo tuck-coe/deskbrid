@@ -9,6 +9,7 @@ repository = "https://github.com/coe0718/deskbrid"
 [features]
 default = []
 cosmic = ["dep:cosmic-protocols", "dep:wayland-client", "dep:wayland-protocols"]
+labwc = ["dep:wayland-client", "dep:wayland-protocols"]
 pipewire = ["dep:pipewire", "dep:spa"]
 mcp = []
 
@@ -68,3 +69,8 @@ path = "src/main.rs"
 name = "cosmic-helper"
 path = "src/bin/cosmic_helper.rs"
 required-features = ["cosmic"]
+
+[[bin]]
+name = "labwc-helper"
+path = "src/bin/labwc_helper.rs"
+required-features = ["labwc"]

@@ -2,6 +2,7 @@ pub mod cosmic;
 pub mod gnome;
 pub mod hyprland;
 pub mod kde;
+pub mod labwc;
 pub mod niri;
 pub mod sway;
 pub mod wayfire;
@@ -35,6 +36,9 @@ pub async fn create_backend(
         DesktopEnv::Niri => niri::NiriBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::Labwc => labwc::LabwcBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         DesktopEnv::Wayfire => wayfire::WayfireBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
@@ -58,6 +62,9 @@ async fn detect_desktop() -> DesktopEnv {
         }
         if lower.contains("niri") {
             if lower.contains("wayfire") {
+                if lower.contains("labwc") {
+                    return DesktopEnv::Labwc;
+                }
                 return DesktopEnv::Wayfire;
             }
             return DesktopEnv::Niri;
@@ -123,6 +130,7 @@ enum DesktopEnv {
     Niri,
     Sway,
     Wayfire,
+    Labwc,
     X11,
 }
 
