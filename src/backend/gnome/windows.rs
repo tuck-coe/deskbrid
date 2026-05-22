@@ -4,7 +4,7 @@ use crate::protocol;
 impl GnomeBackend {
     pub(super) async fn windows_list_inner(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
         let raw = self.ext_call_parsed("ListWindows", &[]).await?;
-        super::parse_extension_json_windows(&raw)
+        super::parsers::parse_extension_json_windows(&raw)
     }
 
     pub(super) async fn window_focus_inner(&self, id: &str) -> anyhow::Result<()> {

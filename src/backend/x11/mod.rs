@@ -7,7 +7,14 @@ use tokio::process::Command;
 use tokio::sync::broadcast;
 
 pub(crate) mod helpers;
-mod system;
+mod audio;
+mod bluetooth;
+mod files;
+mod monitor;
+mod networking;
+mod notifications;
+mod screenshot;
+mod system_info;
 #[cfg(test)]
 mod tests;
 mod trait_impl;
