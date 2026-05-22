@@ -15,19 +15,32 @@ pub struct LabwcBackend {
     pub(super) event_tx: broadcast::Sender<DeskbridEvent>,
     pub(super) watchers: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>,
     pub(super) xdg_runtime: String,
+    /// True if labwc-helper is on PATH (optional accelerator).
+    has_labwc_helper: bool,
 }
 
 impl LabwcBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
         let xdg_runtime =
             std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+        let has_labwc_helper = Command::new("which")
+            .args(["labwc-helper"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .output()
+            .await
+            .map(|o| o.status.success())
+            .unwrap_or(false);
         Ok(Self {
             event_tx,
             watchers: Arc::new(Mutex::new(HashMap::new())),
             xdg_runtime,
+            has_labwc_helper,
         })
     }
 
+    /// Try labwc-helper JSON path first; fall back to wlrctl text.
     async fn helper_json(&self, args: &[&str]) -> anyhow::Result<serde_json::Value> {
         let mut cmd = Command::new("labwc-helper");
         cmd.args(args).stdin(Stdio::null()).stderr(Stdio::piped());
@@ -69,14 +82,32 @@ impl LabwcBackend {
 #[async_trait]
 impl DesktopBackend for LabwcBackend {
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
-        let raw = self.helper_json(&["list-windows"]).await?;
-        Ok(parse_labwc_windows(&raw))
-    }
-    async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
-        self.helper_json(&["activate", "--window-id", id])
+        if self.has_labwc_helper {
+            let raw = self.helper_json(&["list-windows"]).await?;
+            return Ok(parse_labwc_windows_json(&raw));
+        }
+        // wlrctl fallback
+        let raw = self.sh("wlrctl", &["toplevel", "list"]).await?;
+        let focused = self
+            .sh("wlrctl", &["toplevel", "get-focus"])
             .await
-            .map(|_| ())
+            .ok()
+            .map(|s| s.trim().to_string());
+        Ok(parse_wlrctl_windows(&raw, focused.as_deref()))
     }
+
+    async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
+        if self.has_labwc_helper {
+            self.helper_json(&["activate", "--window-id", id])
+                .await
+                .map(|_| ())
+        } else {
+            self.sh("wlrctl", &["toplevel", "focus", id])
+                .await
+                .map(|_| ())
+        }
+    }
+
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
         self.windows_list()
             .await?
@@ -84,21 +115,43 @@ impl DesktopBackend for LabwcBackend {
             .find(|w| w.id == id)
             .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))
     }
+
     async fn window_close(&self, id: &str) -> anyhow::Result<()> {
-        self.helper_json(&["close", "--window-id", id])
-            .await
-            .map(|_| ())
+        if self.has_labwc_helper {
+            self.helper_json(&["close", "--window-id", id])
+                .await
+                .map(|_| ())
+        } else {
+            self.sh("wlrctl", &["toplevel", "close", id])
+                .await
+                .map(|_| ())
+        }
     }
+
     async fn window_minimize(&self, id: &str) -> anyhow::Result<()> {
-        self.helper_json(&["minimize", "--window-id", id])
-            .await
-            .map(|_| ())
+        if self.has_labwc_helper {
+            self.helper_json(&["minimize", "--window-id", id])
+                .await
+                .map(|_| ())
+        } else {
+            anyhow::bail!(
+                "minimize not available via wlrctl; install labwc-helper for full support"
+            )
+        }
     }
+
     async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
-        self.helper_json(&["maximize", "--window-id", id])
-            .await
-            .map(|_| ())
+        if self.has_labwc_helper {
+            self.helper_json(&["maximize", "--window-id", id])
+                .await
+                .map(|_| ())
+        } else {
+            self.sh("wlrctl", &["toplevel", "maximize", id])
+                .await
+                .map(|_| ())
+        }
     }
+
     async fn window_move_resize(
         &self,
         _id: &str,
@@ -109,6 +162,7 @@ impl DesktopBackend for LabwcBackend {
     ) -> anyhow::Result<()> {
         Ok(())
     }
+
     async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
         Ok(vec![protocol::WorkspaceInfo {
             id: 1,
@@ -116,9 +170,11 @@ impl DesktopBackend for LabwcBackend {
             is_active: true,
         }])
     }
+
     async fn workspace_switch(&self, _id: u32) -> anyhow::Result<()> {
         Ok(())
     }
+
     async fn workspace_move_window(&self, _w: &str, _ws: u32, _follow: bool) -> anyhow::Result<()> {
         Ok(())
     }
@@ -126,9 +182,11 @@ impl DesktopBackend for LabwcBackend {
     async fn keyboard_type(&self, t: &str) -> anyhow::Result<()> {
         self.ydotool(&["type", t]).await
     }
+
     async fn keyboard_key(&self, k: &str) -> anyhow::Result<()> {
         self.ydotool(&["key", k]).await
     }
+
     async fn keyboard_combo(&self, keys: &[String]) -> anyhow::Result<()> {
         for k in keys {
             self.ydotool(&["key", &format!("{}:1", k)]).await?;
@@ -138,10 +196,12 @@ impl DesktopBackend for LabwcBackend {
         }
         Ok(())
     }
+
     async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()> {
         self.ydotool(&["mousemove", "--absolute", &x.to_string(), &y.to_string()])
             .await
     }
+
     async fn mouse_click(&self, b: &str) -> anyhow::Result<()> {
         let btn: u8 = match b {
             "left" => 1,
@@ -151,6 +211,7 @@ impl DesktopBackend for LabwcBackend {
         };
         self.ydotool(&["click", &btn.to_string()]).await
     }
+
     async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()> {
         if dy != 0.0 {
             self.ydotool(&["mousemove", "--wheel", "0", &format!("{}", dy as i32)])
@@ -166,6 +227,7 @@ impl DesktopBackend for LabwcBackend {
     async fn clipboard_read(&self) -> anyhow::Result<String> {
         self.sh("wl-paste", &[]).await
     }
+
     async fn clipboard_write(&self, text: &str) -> anyhow::Result<()> {
         let mut cmd = Command::new("wl-copy");
         cmd.stdin(Stdio::piped()).stderr(Stdio::piped());
@@ -237,6 +299,7 @@ impl DesktopBackend for LabwcBackend {
             .await?;
         Ok(out.parse().unwrap_or(0))
     }
+
     async fn notification_close(&self, id: u32) -> anyhow::Result<()> {
         self.sh("makoctl", &["dismiss", "-n", &id.to_string()])
             .await
@@ -289,6 +352,7 @@ impl DesktopBackend for LabwcBackend {
             _ => anyhow::bail!("unsupported power action: {}", a),
         }
     }
+
     async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>> {
         let mut bats = Vec::new();
         for i in 0..5 {
@@ -310,6 +374,7 @@ impl DesktopBackend for LabwcBackend {
         }
         Ok(bats)
     }
+
     async fn network_status(&self) -> anyhow::Result<protocol::NetworkStatusInfo> {
         let o = self.sh("nmcli", &["-t", "-f", "STATE", "general"]).await?;
         Ok(protocol::NetworkStatusInfo {
@@ -317,6 +382,7 @@ impl DesktopBackend for LabwcBackend {
             net_type: String::new(),
         })
     }
+
     async fn network_interfaces(&self) -> anyhow::Result<Vec<protocol::NetworkInterfaceInfo>> {
         let o = self
             .sh("nmcli", &["-t", "-f", "DEVICE,TYPE,STATE", "device"])
@@ -337,6 +403,7 @@ impl DesktopBackend for LabwcBackend {
             })
             .collect())
     }
+
     async fn wifi_scan(&self) -> anyhow::Result<Vec<protocol::WifiNetworkInfo>> {
         let _ = self.sh("nmcli", &["device", "wifi", "rescan"]).await;
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -362,6 +429,7 @@ impl DesktopBackend for LabwcBackend {
             })
             .collect())
     }
+
     async fn wifi_connect(&self, ssid: &str, pw: Option<&str>) -> anyhow::Result<()> {
         let mut a = vec!["device", "wifi", "connect", ssid];
         if let Some(p) = pw {
@@ -370,6 +438,7 @@ impl DesktopBackend for LabwcBackend {
         }
         self.sh("nmcli", &a).await.map(|_| ())
     }
+
     async fn bluetooth_list(&self) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>> {
         let o = self.sh("bluetoothctl", &["devices"]).await?;
         Ok(o.lines()
@@ -389,20 +458,25 @@ impl DesktopBackend for LabwcBackend {
             })
             .collect())
     }
+
     async fn bluetooth_scan(&self, _: Option<u32>) -> anyhow::Result<()> {
         self.sh("bluetoothctl", &["scan", "on"]).await.map(|_| ())
     }
+
     async fn bluetooth_stop_scan(&self) -> anyhow::Result<()> {
         self.sh("bluetoothctl", &["scan", "off"]).await.map(|_| ())
     }
+
     async fn bluetooth_connect(&self, a: &str) -> anyhow::Result<()> {
         self.sh("bluetoothctl", &["connect", a]).await.map(|_| ())
     }
+
     async fn bluetooth_disconnect(&self, a: &str) -> anyhow::Result<()> {
         self.sh("bluetoothctl", &["disconnect", a])
             .await
             .map(|_| ())
     }
+
     async fn files_watch(
         &self,
         path: &str,
@@ -461,6 +535,7 @@ impl DesktopBackend for LabwcBackend {
             .insert(wp, w);
         Ok(())
     }
+
     async fn files_unwatch(&self, path: &str) -> anyhow::Result<()> {
         self.watchers
             .lock()
@@ -468,6 +543,7 @@ impl DesktopBackend for LabwcBackend {
             .remove(path);
         Ok(())
     }
+
     async fn files_search(
         &self,
         p: &str,
@@ -485,6 +561,7 @@ impl DesktopBackend for LabwcBackend {
             .map(|s| s.to_string())
             .collect())
     }
+
     async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
         let o = self.sh("pactl", &["list", "sinks"]).await?;
         let mut sinks = Vec::new();
@@ -509,28 +586,23 @@ impl DesktopBackend for LabwcBackend {
                     .strip_prefix("Sink #")
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(0);
-                name.clear();
-                desc.clear();
                 vol = 0.0;
                 muted = false;
+            } else if t.starts_with("Name: ") {
+                name = t.strip_prefix("Name: ").unwrap_or("").to_string();
             } else if t.starts_with("Description: ") {
                 desc = t.strip_prefix("Description: ").unwrap_or("").to_string();
-                name = desc.clone();
-            } else if t.starts_with("Volume: ") {
-                vol = t
-                    .strip_prefix("Volume: ")
-                    .and_then(|v| {
-                        v.split('%')
-                            .next()
-                            .and_then(|s| s.trim().parse::<u32>().ok())
-                    })
-                    .map(|v| v as f64 / 100.0)
-                    .unwrap_or(0.0);
+            } else if t.starts_with("Volume:") {
+                if let Some(pct) = t.split('/').nth(1) {
+                    vol = pct
+                        .trim()
+                        .strip_suffix('%')
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0.0)
+                        / 100.0;
+                }
             } else if t.starts_with("Mute: ") {
-                muted = t
-                    .strip_prefix("Mute: ")
-                    .map(|s| s.trim() == "yes")
-                    .unwrap_or(false);
+                muted = t.strip_prefix("Mute: ").unwrap_or("").trim() == "yes";
             }
         }
         if id > 0 {
@@ -544,37 +616,43 @@ impl DesktopBackend for LabwcBackend {
         }
         Ok(sinks)
     }
-    async fn audio_set_sink_volume(&self, id: u32, vol: f64) -> anyhow::Result<()> {
+
+    async fn audio_set_sink_volume(&self, sink_id: u32, volume: f64) -> anyhow::Result<()> {
         self.sh(
             "pactl",
             &[
                 "set-sink-volume",
-                &id.to_string(),
-                &format!("{}%", (vol * 100.0) as u32),
+                &sink_id.to_string(),
+                &format!("{}%", (volume * 100.0) as u32),
             ],
         )
         .await
         .map(|_| ())
     }
-    async fn monitor_set_primary(&self, _: &str) -> anyhow::Result<()> {
-        Ok(())
+
+    async fn monitor_set_primary(&self, _output: &str) -> anyhow::Result<()> {
+        anyhow::bail!("monitor_set_primary not implemented on Labwc backend")
     }
+
     async fn monitor_set_resolution(
         &self,
-        _: &str,
-        _: u32,
-        _: u32,
-        _: Option<f64>,
+        _output: &str,
+        _width: u32,
+        _height: u32,
+        _refresh_rate: Option<f64>,
     ) -> anyhow::Result<()> {
-        Ok(())
+        anyhow::bail!("monitor_set_resolution not implemented on Labwc backend")
     }
-    async fn monitor_set_scale(&self, _: &str, _: f64) -> anyhow::Result<()> {
-        Ok(())
+
+    async fn monitor_set_scale(&self, _output: &str, _scale: f64) -> anyhow::Result<()> {
+        anyhow::bail!("monitor_set_scale not implemented on Labwc backend")
     }
-    async fn monitor_set_rotation(&self, _: &str, _: &str) -> anyhow::Result<()> {
-        Ok(())
+
+    async fn monitor_set_rotation(&self, _output: &str, _rotation: &str) -> anyhow::Result<()> {
+        anyhow::bail!("monitor_set_rotation not implemented on Labwc backend")
     }
-    async fn monitor_set_enabled(&self, _: &str, _: bool) -> anyhow::Result<()> {
-        Ok(())
+
+    async fn monitor_set_enabled(&self, _output: &str, _enabled: bool) -> anyhow::Result<()> {
+        anyhow::bail!("monitor_set_enabled not implemented on Labwc backend")
     }
 }

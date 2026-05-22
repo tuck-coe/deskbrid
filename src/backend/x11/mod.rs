@@ -20,13 +20,19 @@ pub struct X11Backend {
     event_tx: broadcast::Sender<DeskbridEvent>,
     #[allow(dead_code)]
     watchers: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>,
+    detected_de: String,
 }
 
 impl X11Backend {
-    pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
+    pub async fn new(
+        event_tx: broadcast::Sender<DeskbridEvent>,
+        detected_de: String,
+    ) -> anyhow::Result<Self> {
+        tracing::info!("Detected {} via X11 backend", detected_de);
         Ok(Self {
             event_tx,
             watchers: Arc::new(Mutex::new(HashMap::new())),
+            detected_de,
         })
     }
     async fn sh(&self, cmd: &str, args: &[&str]) -> anyhow::Result<String> {
@@ -275,7 +281,7 @@ impl DesktopBackend for X11Backend {
     }
     async fn system_info(&self) -> anyhow::Result<protocol::SystemInfo> {
         Ok(protocol::SystemInfo {
-            desktop: "X11".into(),
+            desktop: self.detected_de.clone(),
             desktop_version: "unknown".into(),
             compositor: "x11".into(),
             session_type: "x11".into(),

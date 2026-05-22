@@ -27,9 +27,12 @@ pub async fn create_backend(
         DesktopEnv::Kde => kde::KdeBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
-        DesktopEnv::X11 => x11::X11Backend::new(event_tx)
-            .await
-            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::X11 => {
+            let xdg = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_else(|_| "X11".into());
+            x11::X11Backend::new(event_tx, xdg)
+                .await
+                .map(|b| Box::new(b) as Box<dyn DesktopBackend>)
+        }
         DesktopEnv::Sway => sway::SwayBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
@@ -61,13 +64,13 @@ async fn detect_desktop() -> DesktopEnv {
             return DesktopEnv::Sway;
         }
         if lower.contains("niri") {
-            if lower.contains("wayfire") {
-                if lower.contains("labwc") {
-                    return DesktopEnv::Labwc;
-                }
-                return DesktopEnv::Wayfire;
-            }
             return DesktopEnv::Niri;
+        }
+        if lower.contains("wayfire") {
+            return DesktopEnv::Wayfire;
+        }
+        if lower.contains("labwc") {
+            return DesktopEnv::Labwc;
         }
         if lower.contains("cosmic") {
             return DesktopEnv::Cosmic;
