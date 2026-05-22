@@ -73,6 +73,11 @@ Every action may also include request-level execution controls:
 {"type": "screenshot", "id": "shot-1", "timeout_ms": 15000}
 ```
 
+The daemon also applies a per-UID token bucket. Configure it with
+`DESKBRID_RATE_LIMIT_PER_SEC` and `DESKBRID_RATE_LIMIT_BURST`; set the rate to
+`0` to disable limiting. Limited requests return `RATE_LIMITED` with
+`retry_after_ms`.
+
 ### Windows & Workspaces
 
 | Action | Params | Description |

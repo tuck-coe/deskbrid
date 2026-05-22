@@ -30,6 +30,7 @@ All responses carry:
 - `NOT_SUPPORTED` — action not implemented by current backend
 - `INTERNAL_ERROR` — backend operation failed
 - `PERMISSION_DENIED` — caller UID not permitted
+- `RATE_LIMITED` — caller UID exceeded the daemon token bucket; response includes `retry_after_ms`
 
 ---
 

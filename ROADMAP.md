@@ -33,6 +33,7 @@ it to the completed table below.
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [33. Dry-Run Mode](#33-dry-run-mode) | Request-level `dry_run` option validates permissions and reports would-execute metadata without loading a backend | `src/protocol/parse.rs`, `src/daemon/dispatch.rs`, `src/client.rs`, `src/cli/` |
 | [34. Audit Log](#34-audit-log) | In-memory action ring buffer with query/clear actions, duration, status, UID, and error metadata | `src/daemon/audit.rs`, `src/daemon/dispatch.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [35. Rate Limiting](#35-rate-limiting-per-client) | Per-UID token bucket with configurable rate/burst and audited `RATE_LIMITED` responses | `src/daemon/rate_limit.rs`, `src/daemon/dispatch.rs` |
 | [71. Action Timeouts](#71-action-timeouts-with-kill-guarantees) | Request-level/default timeout wrapper around dispatched actions, with `wait.for` preserving its own deadline | `src/daemon/dispatch.rs`, `src/protocol/parse.rs`, `src/client.rs`, `src/cli/` |
 
 ### Already Built (not covered here)
@@ -90,7 +91,7 @@ These features exist in the codebase already for reference:
 32. [Remote Screenshot Streaming](#32-remote-screenshot-streaming)
 33. [✅ Dry-Run Mode](#33-dry-run-mode)
 34. [✅ Audit Log](#34-audit-log)
-35. [Rate Limiting](#35-rate-limiting-per-client)
+35. [✅ Rate Limiting](#35-rate-limiting-per-client)
 36. [Sandboxed Profiles](#36-sandboxed-agent-profiles)
 37. [Action Confirmation](#37-action-confirmation-mode)
 38. [Canary Actions](#38-canary-actions--auto-suspend)
@@ -2278,10 +2279,16 @@ DeskbridEvent::AuditEntry { seq, uid, action, status, timestamp }
 
 ## 35. Rate Limiting Per Client
 
+**Status:** ✅ Done. Deskbrid applies a per-UID token bucket before permission
+checks. Defaults are `DESKBRID_RATE_LIMIT_PER_SEC=30` and
+`DESKBRID_RATE_LIMIT_BURST=120`; setting the rate to `0` disables limiting.
+Limited requests return `RATE_LIMITED` with `retry_after_ms` and are recorded in
+the audit log.
+
 ### What's Missing
 
-A runaway agent can saturate the daemon with requests, spam the DE, flood
-screenshots, and consume broadcast channel capacity.
+Per-action category limits and `permissions.toml` overrides are future work. The
+shipped version is a daemon-wide per-UID bucket.
 
 ### Implementation
 
@@ -2306,7 +2313,7 @@ default_burst = 15
 screenshot = { rate = 2, burst = 3 }
 ```
 
-Error: `{"error": {"code": "RATE_LIMIT_EXCEEDED", "retry_after_ms": 500}}`
+Error: `{"error": {"code": "RATE_LIMITED", "retry_after_ms": 500}}`
 
 ### Protocol Actions
 
@@ -6047,7 +6054,7 @@ SnapshotClone { id: String, target_path: String },
 | **Audit log** | ✅ Done | Low (~200 lines, ring buffer) | High | Trail for debugging and security as agent actions get more powerful |
 | **Action timeouts** | ✅ Done | Low (~150 lines, timeout wrapper) | High | Prevents hung commands and long-running backend calls from wedging workflows |
 | **Dry-run mode** | ✅ Done | Trivial (~80 lines, dispatch flag) | Medium | Validates sequences before executing them |
-| **Rate limiting** | 🧭 Planned | Low (~200 lines, token bucket) | Medium | Prevents runaway agents from saturating the daemon |
+| **Rate limiting** | ✅ Done | Low (~200 lines, token bucket) | Medium | Prevents runaway agents from saturating the daemon |
 | **Capabilities reporting** | 🧭 Planned | Low (caps crate) | Medium | Tells agents what they can and cannot do on this machine |
 | **Confinement detection** | 🧭 Planned | Low (env checks only) | High | Prevents confusing failures in Flatpak/Snap/sandboxed environments |
 | **Clipboard history** | 🧭 Planned | Low (~200 lines, ring buffer) | Medium | Retrieves and searches old clipboard entries |

@@ -269,6 +269,8 @@ Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → proces
 
 All protocol actions accept `dry_run: true` to validate permissions without execution and `timeout_ms` to override the daemon action timeout. The CLI exposes these as global `--dry-run` and `--timeout-ms` flags.
 
+Runaway clients are throttled with a per-UID token bucket. Tune it with `DESKBRID_RATE_LIMIT_PER_SEC` and `DESKBRID_RATE_LIMIT_BURST`, or set the rate to `0` to disable limiting.
+
 ## What it can do
 
 ### 🖥️ Windows & Workspaces

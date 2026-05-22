@@ -6,10 +6,13 @@ use tracing::warn;
 
 use super::execute::execute_action;
 use super::helpers::{not_supported_response, permission_denied_response};
+use super::rate_limited_response;
 use super::system::{execute_system_control_action, is_system_control_action};
 use super::terminal::{execute_terminal_action, is_terminal_action};
 use super::wait_for_condition;
-use super::{AuditRecord, execute_audit_action, is_audit_action, record_audit_entry};
+use super::{
+    AuditRecord, check_rate_limit, execute_audit_action, is_audit_action, record_audit_entry,
+};
 
 pub async fn dispatch_action(
     action: Action,
@@ -29,6 +32,12 @@ pub async fn dispatch_action_with_options(
 ) -> serde_json::Value {
     let started = std::time::Instant::now();
     let action_timeout_ms = effective_timeout_ms(&action, state, &options);
+
+    if let Some(hit) = check_rate_limit(state, peer_uid).await {
+        let response = rate_limited_response(seq, hit);
+        audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+        return response;
+    }
 
     // Check permissions first
     if !state.permissions.check(peer_uid, &action) {

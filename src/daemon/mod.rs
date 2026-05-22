@@ -11,6 +11,7 @@ mod dispatch;
 mod execute;
 mod helpers;
 mod layout;
+mod rate_limit;
 mod system;
 pub mod terminal;
 #[cfg(test)]
@@ -36,6 +37,9 @@ pub use helpers::{
 pub use layout::{
     capture_layout_profile, list_layout_profiles, load_layout_profile, match_profile_window_index,
     restore_layout_profile, save_layout_profile,
+};
+pub(crate) use rate_limit::{
+    RateBucket, RateLimitConfig, check_rate_limit, rate_limit_from_env, rate_limited_response,
 };
 pub use system::{execute_system_control_action, is_system_control_action};
 pub use terminal::{execute_terminal_action, is_terminal_action};
