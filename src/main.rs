@@ -29,6 +29,14 @@ async fn main() -> anyhow::Result<()> {
         }
         cli::Command::Status => client::send_one_shot(deskbrid::protocol::Action::Ping).await,
         cli::Command::Setup => deskbrid::setup::run().await,
+        #[cfg(feature = "mcp")]
+        cli::Command::Mcp => deskbrid::mcp::run_mcp_server().await,
+        #[cfg(not(feature = "mcp"))]
+        cli::Command::Mcp => {
+            anyhow::bail!(
+                "MCP server not compiled (enable 'mcp' feature: cargo build --features mcp)"
+            )
+        }
         _ => {
             let action = cli::into_action(args.command)?;
             client::send_one_shot_with_options(action, request_options).await

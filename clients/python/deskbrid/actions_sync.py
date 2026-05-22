@@ -152,6 +152,22 @@ class SyncActionsMixin:
             )
         ).result()
 
+    def tile_window(
+        self,
+        window_id: str,
+        preset: str,
+        monitor: int | None = None,
+        padding: int | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.tile_window(
+                window_id=window_id,
+                preset=preset,
+                monitor=monitor,
+                padding=padding,
+            )
+        ).result()
+
     def list_layout_profiles(self) -> list[dict[str, Any]]:
         return self._loop.submit(self._client.list_layout_profiles()).result()
 

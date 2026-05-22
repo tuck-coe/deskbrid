@@ -56,6 +56,15 @@ pub async fn execute_action(
                 "window_id": window_id, "x": x, "y": y, "width": width, "height": height
             })
         }
+        WindowsTile {
+            ref window_id,
+            ref preset,
+            monitor,
+            padding,
+        } => {
+            crate::tiling::tile_window(backend, window_id, preset, monitor, padding.unwrap_or(0))
+                .await?
+        }
         WindowsActivateOrLaunch {
             ref app_id,
             ref command,
@@ -768,6 +777,14 @@ pub async fn execute_action(
         | TerminalKill { .. }
         | Subscribe { .. }
         | Unsubscribe { .. }
+        | A11ySnapshotTree { .. }
+        | A11yPerformAction { .. }
+        | A11ySetValue { .. }
+        | A11yGetElementText { .. }
+        | A11yListApps { .. }
+        | A11yDoctor
+        | A11ySetupAccessibility
+        | A11yClickElementByRef { .. }
         | Disconnect => unreachable!(),
     })
 }

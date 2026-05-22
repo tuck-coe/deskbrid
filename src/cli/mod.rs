@@ -34,6 +34,9 @@ pub enum Command {
     /// One-command setup: install GNOME Shell extension, enable it
     Setup,
 
+    /// Start MCP (Model Context Protocol) stdio server for AI coding tools
+    Mcp,
+
     // ─── Windows ────────────────────────────────────────
     #[command(name = "windows")]
     Windows {
@@ -309,6 +312,15 @@ pub enum WindowCmd {
         y: i32,
         width: u32,
         height: u32,
+    },
+    /// Tile a window to a preset: left, right, top, bottom, top_left, top_right, bottom_left, bottom_right, center, fill
+    Tile {
+        window_id: String,
+        preset: String,
+        #[arg(long)]
+        monitor: Option<u32>,
+        #[arg(long)]
+        padding: Option<u32>,
     },
     /// Focus an app if open, launch it if not
     ActivateOrLaunch {

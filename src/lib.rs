@@ -6,10 +6,13 @@ pub mod cli;
 pub mod client;
 pub mod color;
 pub mod daemon;
+#[cfg(feature = "mcp")]
+pub mod mcp;
 pub mod ocr;
 pub mod permissions;
 pub mod protocol;
 pub mod setup;
+pub mod tiling;
 pub mod visual;
 
 use permissions::Permissions;

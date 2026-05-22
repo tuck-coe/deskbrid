@@ -36,6 +36,22 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         } => {
             json!({"type":"windows.move_resize","id":id,"window_id":window_id,"x":x,"y":y,"width":width,"height":height})
         }
+        Action::WindowsTile {
+            window_id,
+            preset,
+            monitor,
+            padding,
+        } => {
+            let mut obj =
+                json!({"type":"windows.tile","id":id,"window_id":window_id,"preset":preset});
+            if let Some(monitor) = monitor {
+                obj["monitor"] = json!(monitor);
+            }
+            if let Some(padding) = padding {
+                obj["padding"] = json!(padding);
+            }
+            obj
+        }
         Action::WindowsActivateOrLaunch {
             app_id,
             command,
@@ -612,6 +628,64 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             }
             obj
         }
+        Action::A11ySnapshotTree {
+            app_name,
+            pid,
+            max_nodes,
+            max_depth,
+        } => {
+            let mut obj = json!({"type": "a11y.snapshot_tree", "id": id});
+            if let Some(a) = app_name {
+                obj["app_name"] = json!(a);
+            }
+            if let Some(p) = pid {
+                obj["pid"] = json!(p);
+            }
+            if let Some(m) = max_nodes {
+                obj["max_nodes"] = json!(m);
+            }
+            if let Some(d) = max_depth {
+                obj["max_depth"] = json!(d);
+            }
+            obj
+        }
+        Action::A11yPerformAction {
+            object_ref,
+            action_name,
+        } => {
+            let mut obj =
+                json!({"type": "a11y.perform_action", "id": id, "object_ref": object_ref});
+            if let Some(a) = action_name {
+                obj["action_name"] = json!(a);
+            }
+            obj
+        }
+        Action::A11ySetValue { object_ref, value } => {
+            json!({"type": "a11y.set_value", "id": id, "object_ref": object_ref, "value": value})
+        }
+        Action::A11yGetElementText {
+            object_ref,
+            max_chars,
+        } => {
+            let mut obj =
+                json!({"type": "a11y.get_element_text", "id": id, "object_ref": object_ref});
+            if let Some(m) = max_chars {
+                obj["max_chars"] = json!(m);
+            }
+            obj
+        }
+        Action::A11yListApps { limit } => {
+            let mut obj = json!({"type": "a11y.list_apps", "id": id});
+            if let Some(l) = limit {
+                obj["limit"] = json!(l);
+            }
+            obj
+        }
+        Action::A11yDoctor => json!({"type": "a11y.doctor", "id": id}),
+        Action::A11ySetupAccessibility => json!({"type": "a11y.setup_accessibility", "id": id}),
+        Action::A11yClickElementByRef { object_ref } => {
+            json!({"type": "a11y.click_element_by_ref", "id": id, "object_ref": object_ref})
+        }
 
         // Process
         Action::ProcessList => json!({"type": "process.list", "id": id}),
@@ -785,6 +859,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::WindowsMinimize(_) => "windows.minimize",
         Action::WindowsMaximize(_) => "windows.maximize",
         Action::WindowsMoveResize { .. } => "windows.move_resize",
+        Action::WindowsTile { .. } => "windows.tile",
         Action::WindowsActivateOrLaunch { .. } => "windows.activate_or_launch",
         Action::WorkspacesList => "workspaces.list",
         Action::WorkspaceSwitch(_) => "workspaces.switch",
@@ -874,6 +949,14 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::A11yGetElement { .. } => "a11y.get_element",
         Action::A11yClickElement { .. } => "a11y.click_element",
         Action::A11yGetText { .. } => "a11y.get_text",
+        Action::A11ySnapshotTree { .. } => "a11y.snapshot_tree",
+        Action::A11yPerformAction { .. } => "a11y.perform_action",
+        Action::A11ySetValue { .. } => "a11y.set_value",
+        Action::A11yGetElementText { .. } => "a11y.get_element_text",
+        Action::A11yListApps { .. } => "a11y.list_apps",
+        Action::A11yDoctor => "a11y.doctor",
+        Action::A11ySetupAccessibility => "a11y.setup_accessibility",
+        Action::A11yClickElementByRef { .. } => "a11y.click_element_by_ref",
         Action::ProcessList => "process.list",
         Action::ProcessStart { .. } => "process.start",
         Action::ProcessStop { .. } => "process.stop",

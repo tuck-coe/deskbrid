@@ -78,6 +78,35 @@ cargo build --release
 # Test it
 ./target/release/deskbrid windows list
 ./target/release/deskbrid system info
+
+### MCP Server (AI coding tools)
+
+Deskbrid exposes a full MCP (Model Context Protocol) server so AI coding tools like Claude Code and Cursor can control your desktop:
+
+```bash
+# Build with MCP support
+cargo build --features mcp --release
+
+# Start the MCP server on stdio
+./target/release/deskbrid mcp
+```
+
+Add to your AI coding tool's MCP config:
+
+```json
+{
+  "mcpServers": {
+    "deskbrid": {
+      "command": "deskbrid",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+**MCP tools:** `list_windows`, `focus_window`, `type_text`, `press_keys`, `mouse_move`, `mouse_click`, `screenshot`, `clipboard_read`, `clipboard_write`, `list_apps`, `get_accessibility_tree`, `perform_action`, `set_element_value`, `get_element_text`, `click_element`, `doctor`, `setup_accessibility`, `capabilities`
+
+**AT-SPI accessibility tools** provide full tree snapshots with bounds, actions, value, and text data — matching `computer-use-linux` output format for drop-in migration.
 ```
 
 ### Hyprland
@@ -221,7 +250,7 @@ allow = [
 Full list of available permission names:
 
 ```
-windows.list, windows.focus, windows.get, windows.close, windows.minimize, windows.maximize, windows.move_resize, windows.activate_or_launch
+windows.list, windows.focus, windows.get, windows.close, windows.minimize, windows.maximize, windows.move_resize, windows.tile, windows.activate_or_launch
 workspaces.list, workspaces.switch, workspaces.move_window
 layout_profiles.list, layout_profiles.get, layout_profiles.save, layout_profiles.delete, layout_profiles.restore
 input.keyboard, input.mouse
@@ -286,6 +315,7 @@ Runaway clients are throttled with a per-UID token bucket. Tune it with `DESKBRI
 | `windows.minimize` | Minimize a window where the compositor supports it |
 | `windows.maximize` | Maximize a window |
 | `windows.move_resize` | Move and resize a window |
+| `windows.tile` | Move a window into a named tiling preset |
 | `windows.activate_or_launch` | Focus an app if open, launch it if not |
 | `workspaces.list` | List workspaces |
 | `workspaces.switch` | Switch to a workspace |

@@ -140,6 +140,7 @@ fn apply_monitor_capabilities(
             "windows.close",
             "windows.minimize",
             "windows.move_resize",
+            "windows.tile",
         ] {
             set_requires(actions, action, &["xdotool"]);
         }

@@ -85,6 +85,7 @@ The daemon also applies a per-UID token bucket. Configure it with
 | `windows.list` | — | List all open windows |
 | `windows.focus` | `window_id` (string) | Focus a window by ID |
 | `windows.get` | `window_id` (string) | Get window details |
+| `windows.tile` | `window_id` (string), `preset` (string), `monitor` (number, optional), `padding` (number, optional) | Move a window into a named tiling preset |
 | `workspaces.list` | — | List workspaces |
 | `workspaces.switch` | `workspace_id` (number) | Switch to workspace |
 | `workspaces.move_window` | `window_id` (string), `workspace_id` (number), `follow` (bool, optional) | Move window to workspace |
@@ -336,7 +337,7 @@ allow = ["windows.*", "workspaces.list", "system.*"]
 ### Permission Names
 
 ```
-windows.list, windows.focus, windows.get
+windows.list, windows.focus, windows.get, windows.close, windows.minimize, windows.maximize, windows.move_resize, windows.tile, windows.activate_or_launch
 workspaces.list, workspaces.switch, workspaces.move_window
 input.keyboard, input.mouse
 clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear

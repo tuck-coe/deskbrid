@@ -25,6 +25,17 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
                 width,
                 height,
             },
+            WindowCmd::Tile {
+                window_id,
+                preset,
+                monitor,
+                padding,
+            } => Action::WindowsTile {
+                window_id,
+                preset,
+                monitor,
+                padding,
+            },
             WindowCmd::ActivateOrLaunch { app_id, command } => Action::WindowsActivateOrLaunch {
                 app_id,
                 command,

@@ -1,10 +1,15 @@
 //! AT-SPI2 accessibility tree access for agent UI automation.
 //!
 //! Uses zbus (D-Bus) to query the accessibility tree, find elements by
-//! role/name, click them, and read their text content.
+//! role/name, click them, and read their text content. Supports full
+//! snapshot building with bounds, actions, value, and text data.
 
+pub mod actions;
 mod bus;
+pub mod setup;
+pub mod tree;
 mod util;
+pub mod value;
 
 use bus::{DEST, ROOT, child_path, connect_a11y, element_json, get_i32};
 use serde_json::Value;
@@ -126,7 +131,6 @@ pub async fn click_element(
 
     let obj_path: ObjectPath = ObjectPath::try_from(path.as_str())?;
 
-    // Get action count
     let action_count: i32 = conn
         .call_method(
             Some(DEST),

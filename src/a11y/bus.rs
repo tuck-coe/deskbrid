@@ -4,7 +4,7 @@ use zbus::{Connection, conn::Builder};
 
 use super::util::{parse_states, role_name};
 
-pub const DEST: &str = "org.a11y.atspi.Registry";
+pub(crate) const DEST: &str = "org.a11y.atspi.Registry";
 pub const ROOT: &str = "/org/a11y/atspi/accessible/root";
 
 pub async fn connect_a11y() -> anyhow::Result<Connection> {

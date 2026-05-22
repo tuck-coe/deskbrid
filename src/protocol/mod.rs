@@ -27,6 +27,12 @@ pub enum Action {
         width: u32,
         height: u32,
     },
+    WindowsTile {
+        window_id: String,
+        preset: String,
+        monitor: Option<u32>,
+        padding: Option<u32>,
+    },
     WindowsActivateOrLaunch {
         app_id: String,
         command: Vec<String>,
@@ -365,6 +371,34 @@ pub enum Action {
         index: Option<u32>,
     },
 
+    // Accessibility (AT-SPI2) — expanded computer-use-linux compatible
+    A11ySnapshotTree {
+        app_name: Option<String>,
+        pid: Option<u32>,
+        max_nodes: Option<usize>,
+        max_depth: Option<u32>,
+    },
+    A11yPerformAction {
+        object_ref: String,
+        action_name: Option<String>,
+    },
+    A11ySetValue {
+        object_ref: String,
+        value: String,
+    },
+    A11yGetElementText {
+        object_ref: String,
+        max_chars: Option<i32>,
+    },
+    A11yListApps {
+        limit: Option<usize>,
+    },
+    A11yDoctor,
+    A11ySetupAccessibility,
+    A11yClickElementByRef {
+        object_ref: String,
+    },
+
     // Process
     ProcessList,
     ProcessStart {
@@ -491,6 +525,7 @@ impl Action {
             "windows.minimize",
             "windows.maximize",
             "windows.move_resize",
+            "windows.tile",
             "windows.activate_or_launch",
             "workspaces.list",
             "workspaces.switch",
@@ -578,6 +613,14 @@ impl Action {
             "a11y.get_element",
             "a11y.click_element",
             "a11y.get_text",
+            "a11y.snapshot_tree",
+            "a11y.perform_action",
+            "a11y.set_value",
+            "a11y.get_element_text",
+            "a11y.list_apps",
+            "a11y.doctor",
+            "a11y.setup_accessibility",
+            "a11y.click_element_by_ref",
             "process.list",
             "process.start",
             "process.stop",

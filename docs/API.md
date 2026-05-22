@@ -186,6 +186,17 @@ Move and resize a window.
 }
 ```
 
+### `windows.tile`
+
+Move a window into a named tiling preset on the selected monitor.
+
+**Request:**
+```json
+{"type": "windows.tile", "id": "req-8", "window_id": "0x3a0000b", "preset": "left", "padding": 8}
+```
+
+Presets: `left`, `right`, `top`, `bottom`, `top_left`, `top_right`, `bottom_left`, `bottom_right`, `center`, `fill`.
+
 ### `windows.activate_or_launch`
 
 Focus an app if a matching window is already open; otherwise launch a command.

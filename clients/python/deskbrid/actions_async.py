@@ -202,6 +202,20 @@ class AsyncActionsMixin:
             params["env"] = env
         return await self._request("windows.activate_or_launch", params)
 
+    async def tile_window(
+        self,
+        window_id: str,
+        preset: str,
+        monitor: int | None = None,
+        padding: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"window_id": window_id, "preset": preset}
+        if monitor is not None:
+            params["monitor"] = monitor
+        if padding is not None:
+            params["padding"] = padding
+        return await self._request("windows.tile", params)
+
     async def list_layout_profiles(self) -> list[dict[str, Any]]:
         response = await self._request("layout_profiles.list")
         if isinstance(response, list):
