@@ -207,6 +207,26 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             obj
         }
 
+        // Audit
+        Action::AuditLog {
+            limit,
+            action_type,
+            status,
+        } => {
+            let mut obj = json!({"type": "audit.log", "id": id});
+            if let Some(limit) = limit {
+                obj["limit"] = json!(limit);
+            }
+            if let Some(action_type) = action_type {
+                obj["action_type"] = json!(action_type);
+            }
+            if let Some(status) = status {
+                obj["status"] = json!(status);
+            }
+            obj
+        }
+        Action::AuditClear => json!({"type": "audit.clear", "id": id}),
+
         // Notifications
         Action::NotificationSend {
             app_name,
@@ -723,6 +743,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::Screenshot { .. } => "screenshot",
         Action::ScreenshotOcr { .. } => "screenshot.ocr",
         Action::ScreenshotDiff { .. } => "screenshot.diff",
+        Action::AuditLog { .. } => "audit.log",
+        Action::AuditClear => "audit.clear",
         Action::NotificationSend { .. } => "notification.send",
         Action::NotificationClose { .. } => "notification.close",
         Action::SystemInfo => "system.info",

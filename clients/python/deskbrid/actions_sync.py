@@ -173,6 +173,23 @@ class SyncActionsMixin:
             )
         ).result()
 
+    def audit_log(
+        self,
+        limit: int | None = None,
+        action_type: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._loop.submit(
+            self._client.audit_log(
+                limit=limit,
+                action_type=action_type,
+                status=status,
+            )
+        ).result()
+
+    def audit_clear(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.audit_clear()).result()
+
     def info(self) -> DaemonInfo:
         return self._loop.submit(self._client.info()).result()
 

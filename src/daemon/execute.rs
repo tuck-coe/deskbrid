@@ -234,6 +234,10 @@ pub async fn execute_action(
             .await?
         }
 
+        AuditLog { .. } | AuditClear => {
+            anyhow::bail!("audit actions are handled by the daemon dispatcher")
+        }
+
         NotificationSend {
             ref app_name,
             ref title,

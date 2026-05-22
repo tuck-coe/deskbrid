@@ -100,3 +100,37 @@ fn gnome_x11_keeps_primary_monitor_capability_supported() {
         serde_json::json!(["xrandr-or-wlr-randr"])
     );
 }
+
+#[tokio::test]
+async fn audit_actions_work_without_desktop_backend() {
+    let state = crate::DaemonState::new();
+
+    let first = dispatch_action(
+        crate::protocol::Action::AuditLog {
+            limit: None,
+            action_type: None,
+            status: None,
+        },
+        &state,
+        1000,
+        1,
+    )
+    .await;
+    assert_eq!(first["status"], "ok");
+    assert_eq!(first["data"]["entries"].as_array().unwrap().len(), 0);
+
+    let second = dispatch_action(
+        crate::protocol::Action::AuditLog {
+            limit: None,
+            action_type: None,
+            status: Some("ok".to_string()),
+        },
+        &state,
+        1000,
+        2,
+    )
+    .await;
+    assert_eq!(second["status"], "ok");
+    assert_eq!(second["data"]["entries"][0]["action_type"], "audit.log");
+    assert_eq!(second["data"]["entries"][0]["peer_uid"], 1000);
+}

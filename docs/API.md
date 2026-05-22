@@ -730,6 +730,49 @@ Check a polkit action, or request authorization with user interaction via `pkche
 
 ### `service.*`, `journal.query`, `timer.*`
 
+### `audit.log`
+
+Query recent in-memory action audit entries.
+
+**Request:**
+```json
+{"type": "audit.log", "id": "req-31", "limit": 50, "status": "error"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-31", "seq": 31, "status": "ok",
+  "data": {
+    "entries": [
+      {
+        "id": 1,
+        "timestamp": 1715000000,
+        "seq": 30,
+        "peer_uid": 1000,
+        "action_type": "windows.close",
+        "status": "error",
+        "duration_ms": 4,
+        "error": "window not found"
+      }
+    ],
+    "count": 1,
+    "capacity": 2048
+  }
+}
+```
+
+The audit log records action metadata, outcome, duration, and caller UID. It does not store full action payloads.
+
+### `audit.clear`
+
+Clear in-memory audit entries.
+
+**Request:**
+```json
+{"type": "audit.clear", "id": "req-32"}
+```
+
 ## Systemd Services
 
 ### `service.status`

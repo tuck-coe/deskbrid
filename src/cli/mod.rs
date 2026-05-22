@@ -247,6 +247,13 @@ pub enum Command {
         interval_ms: Option<u64>,
     },
 
+    // ─── Audit ──────────────────────────────────────────
+    #[command(name = "audit")]
+    Audit {
+        #[command(subcommand)]
+        cmd: AuditCmd,
+    },
+
     // ─── Clients ────────────────────────────────────────
     #[command(name = "clients")]
     Clients,
@@ -561,6 +568,21 @@ pub enum MonitorCmd {
     Enable { output: String },
     /// Disable an output
     Disable { output: String },
+}
+
+#[derive(Subcommand)]
+pub enum AuditCmd {
+    /// Show recent action audit entries
+    Log {
+        #[arg(long)]
+        limit: Option<usize>,
+        #[arg(long)]
+        action_type: Option<String>,
+        #[arg(long)]
+        status: Option<String>,
+    },
+    /// Clear in-memory audit entries
+    Clear,
 }
 
 pub fn parse() -> Args {

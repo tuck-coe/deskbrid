@@ -176,6 +176,14 @@ pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
             window_id: raw["window_id"].as_str().map(String::from),
         },
 
+        // Audit
+        "audit.log" => Action::AuditLog {
+            limit: raw["limit"].as_u64().map(|value| value as usize),
+            action_type: optional_non_empty_string(&raw, "action_type")?,
+            status: optional_non_empty_string(&raw, "status")?,
+        },
+        "audit.clear" => Action::AuditClear,
+
         // Notifications
         "notification.send" => Action::NotificationSend {
             app_name: raw["app_name"].as_str().unwrap_or("deskbrid").into(),

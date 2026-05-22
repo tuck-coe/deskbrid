@@ -354,6 +354,19 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             interval_ms,
         },
 
+        Command::Audit { cmd } => match cmd {
+            AuditCmd::Log {
+                limit,
+                action_type,
+                status,
+            } => Action::AuditLog {
+                limit,
+                action_type,
+                status,
+            },
+            AuditCmd::Clear => Action::AuditClear,
+        },
+
         _ => bail!(
             "unexpected command in client mode: {:?}",
             std::mem::discriminant(&cmd)

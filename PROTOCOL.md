@@ -148,6 +148,10 @@ All action names use dot notation: `domain.action`. Every action is sent with `"
 | `system.remediate` | — | Auto-fix missing dependencies |
 | `system.normalize_coords` | `x` (number), `y` (number), `from` (object) | Convert monitor-relative coords to absolute |
 | `wait.for` | `condition` (string), `params` (object), `timeout_ms` (number), `interval_ms` (number, optional) | Wait for windows, clipboard, process, file, idle, or screenshot-stable conditions |
+| `audit.log` | `limit` (number, optional), `action_type` (string, optional), `status` (string, optional) | Query recent in-memory audit entries |
+| `audit.clear` | — | Clear the in-memory audit log |
+
+Audit entries intentionally store action type and outcome metadata, not full action payloads, so clipboard contents and command text are not duplicated into the log.
 
 ### Network
 

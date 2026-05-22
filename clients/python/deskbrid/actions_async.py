@@ -213,6 +213,26 @@ class AsyncActionsMixin:
             request["interval_ms"] = interval_ms
         return await self._request("wait.for", request)
 
+    async def audit_log(
+        self,
+        limit: int | None = None,
+        action_type: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
+        for key, value in {
+            "limit": limit,
+            "action_type": action_type,
+            "status": status,
+        }.items():
+            if value is not None:
+                params[key] = value
+        response = await self._request("audit.log", params)
+        return list(response.get("entries", []))
+
+    async def audit_clear(self) -> dict[str, Any]:
+        return await self._request("audit.clear")
+
     async def info(self) -> DaemonInfo:
         return decode_info(await self._request("system.info"))
 

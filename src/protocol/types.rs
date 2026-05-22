@@ -114,6 +114,22 @@ pub struct LayoutProfileSummary {
     pub window_count: usize,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct AuditEntry {
+    pub id: u64,
+    pub timestamp: u64,
+    pub seq: u64,
+    pub peer_uid: u32,
+    pub action_type: String,
+    pub status: String,
+    pub duration_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_run: Option<bool>,
+}
+
 // ─── Envelope ───────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

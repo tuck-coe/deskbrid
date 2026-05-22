@@ -7,6 +7,7 @@ use super::helpers::{not_supported_response, permission_denied_response};
 use super::system::{execute_system_control_action, is_system_control_action};
 use super::terminal::{execute_terminal_action, is_terminal_action};
 use super::wait_for_condition;
+use super::{AuditRecord, execute_audit_action, is_audit_action, record_audit_entry};
 
 pub async fn dispatch_action(
     action: Action,
@@ -14,13 +15,19 @@ pub async fn dispatch_action(
     peer_uid: u32,
     seq: u64,
 ) -> serde_json::Value {
+    let started = std::time::Instant::now();
+
     // Check permissions first
     if !state.permissions.check(peer_uid, &action) {
-        return permission_denied_response(seq);
+        let response = permission_denied_response(seq);
+        audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+        return response;
     }
     for implied_action in implied_permission_actions(&action) {
         if !state.permissions.check(peer_uid, &implied_action) {
-            return permission_denied_response(seq);
+            let response = permission_denied_response(seq);
+            audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+            return response;
         }
     }
     if let Action::WindowsActivateOrLaunch {
@@ -36,27 +43,35 @@ pub async fn dispatch_action(
             env: env.clone(),
         };
         if !state.permissions.check(peer_uid, &process_start) {
-            return permission_denied_response(seq);
+            let response = permission_denied_response(seq);
+            audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+            return response;
         }
     }
 
+    if is_audit_action(&action) {
+        let result = execute_audit_action(action.clone(), state).await;
+        return action_response(state, &action, peer_uid, seq, result, started, None).await;
+    }
     if is_system_control_action(&action) {
         let result = execute_system_control_action(action.clone(), state).await;
-        return action_response(state, &action, seq, result);
+        return action_response(state, &action, peer_uid, seq, result, started, None).await;
     }
     if is_terminal_action(&action) {
         let result = execute_terminal_action(action.clone(), state).await;
-        return action_response(state, &action, seq, result);
+        return action_response(state, &action, peer_uid, seq, result, started, None).await;
     }
 
     let backend = state.backend.read().await;
     let backend = match backend.as_ref() {
         Some(b) => b,
         None => {
-            return not_supported_response(
+            let response = not_supported_response(
                 "no desktop backend loaded (start daemon inside a supported Linux session)",
                 seq,
             );
+            audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+            return response;
         }
     };
 
@@ -79,16 +94,19 @@ pub async fn dispatch_action(
     } else {
         execute_action(action.clone(), backend.as_ref()).await
     };
-    action_response(state, &action, seq, result)
+    action_response(state, &action, peer_uid, seq, result, started, None).await
 }
 
-fn action_response(
+async fn action_response(
     state: &DaemonState,
     action: &Action,
+    peer_uid: u32,
     seq: u64,
     result: anyhow::Result<serde_json::Value>,
+    started: std::time::Instant,
+    dry_run: Option<bool>,
 ) -> serde_json::Value {
-    match result {
+    let response = match result {
         Ok(data) => {
             emit_action_event(state, action, &data);
             serde_json::json!({
@@ -102,7 +120,39 @@ fn action_response(
                 "error": { "code": "INTERNAL_ERROR", "message": format!("{}", e) }
             })
         }
-    }
+    };
+    audit_response(state, action, peer_uid, seq, &response, started, dry_run).await;
+    response
+}
+
+async fn audit_response(
+    state: &DaemonState,
+    action: &Action,
+    peer_uid: u32,
+    seq: u64,
+    response: &serde_json::Value,
+    started: std::time::Instant,
+    dry_run: Option<bool>,
+) {
+    let status = response["status"].as_str().unwrap_or("unknown").to_string();
+    let error = response
+        .get("error")
+        .and_then(|error| error.get("message"))
+        .and_then(|message| message.as_str())
+        .map(String::from);
+    record_audit_entry(
+        state,
+        AuditRecord {
+            seq,
+            peer_uid,
+            action_type: action.action_type().to_string(),
+            status,
+            duration_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
+            error,
+            dry_run,
+        },
+    )
+    .await;
 }
 
 pub fn implied_permission_actions(action: &Action) -> Vec<Action> {

@@ -110,6 +110,14 @@ pub enum Action {
         window_id: Option<String>,
     },
 
+    // Audit
+    AuditLog {
+        limit: Option<usize>,
+        action_type: Option<String>,
+        status: Option<String>,
+    },
+    AuditClear,
+
     // Notifications
     NotificationSend {
         app_name: String,
@@ -461,6 +469,8 @@ impl Action {
             "screenshot",
             "screenshot.ocr",
             "screenshot.diff",
+            "audit.log",
+            "audit.clear",
             "notification.send",
             "notification.close",
             "system.info",
@@ -600,6 +610,26 @@ mod tests {
         assert!(actions.contains(&"wait.for"));
         assert!(actions.contains(&"screenshot.ocr"));
         assert!(actions.contains(&"screenshot.diff"));
+        assert!(actions.contains(&"audit.log"));
+    }
+
+    #[test]
+    fn parses_audit_actions() {
+        let (_, log) = Action::from_json(
+            r#"{"type":"audit.log","id":"x","limit":10,"action_type":"windows.list","status":"ok"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            log,
+            Action::AuditLog {
+                limit: Some(10),
+                action_type: Some(action_type),
+                status: Some(status),
+            } if action_type == "windows.list" && status == "ok"
+        ));
+
+        let (_, clear) = Action::from_json(r#"{"type":"audit.clear","id":"x"}"#).unwrap();
+        assert!(matches!(clear, Action::AuditClear));
     }
 
     #[test]

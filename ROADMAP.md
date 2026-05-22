@@ -31,6 +31,7 @@ it to the completed table below.
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [34. Audit Log](#34-audit-log) | In-memory action ring buffer with query/clear actions, duration, status, UID, and error metadata | `src/daemon/audit.rs`, `src/daemon/dispatch.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -86,7 +87,7 @@ These features exist in the codebase already for reference:
 31. [Named Sessions](#31-named-sessions-multi-agent-isolation)
 32. [Remote Screenshot Streaming](#32-remote-screenshot-streaming)
 33. [Dry-Run Mode](#33-dry-run-mode)
-34. [Audit Log](#34-audit-log)
+34. [✅ Audit Log](#34-audit-log)
 35. [Rate Limiting](#35-rate-limiting-per-client)
 36. [Sandboxed Profiles](#36-sandboxed-agent-profiles)
 37. [Action Confirmation](#37-action-confirmation-mode)
@@ -2231,10 +2232,16 @@ Add `dry_run: true` field to the standard envelope. On dry run:
 
 ## 34. Audit Log
 
+**Status:** ✅ Done. Deskbrid records every dispatched action in a bounded in-memory
+ring buffer and exposes `audit.log` / `audit.clear` through the protocol, CLI, and
+Python client. Entries include action type, caller UID, sequence, status, duration,
+and error message, but intentionally omit full action payloads to avoid copying
+clipboard text, command arguments, or future secrets into the log.
+
 ### What's Missing
 
-Every action passes permission checks but nothing is logged. No trail when
-something goes wrong.
+Persistent JSONL/journald export and subscription events are still future work.
+The current shipped scope is the queryable in-memory audit trail.
 
 ### Implementation
 
@@ -6026,7 +6033,7 @@ SnapshotClone { id: String, target_path: String },
 
 | Feature | Status | Effort | Impact | Reason |
 |---|---|---|---|---|
-| **Audit log** | 🧭 Planned | Low (~200 lines, ring buffer) | High | Trail for debugging and security as agent actions get more powerful |
+| **Audit log** | ✅ Done | Low (~200 lines, ring buffer) | High | Trail for debugging and security as agent actions get more powerful |
 | **Action timeouts** | 🧭 Planned | Low (~150 lines, timeout wrapper) | High | Prevents hung commands and long-running backend calls from wedging workflows |
 | **Dry-run mode** | 🧭 Planned | Trivial (~80 lines, dispatch flag) | Medium | Validates sequences before executing them |
 | **Rate limiting** | 🧭 Planned | Low (~200 lines, token bucket) | Medium | Prevents runaway agents from saturating the daemon |

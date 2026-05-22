@@ -321,6 +321,7 @@ Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare m
 | `system.sessions` / `system.lock_session` / `system.switch_user` | List, lock, and switch logind sessions |
 | `system.check_auth` / `system.elevate` | Check or request polkit authorization |
 | `wait.for` | Wait for windows, clipboard, process, file, idle, and screenshot stability conditions |
+| `audit.log` / `audit.clear` | Inspect or clear the in-memory action audit log |
 | `service.*` | List/status/start/stop/restart/enable/disable systemd units |
 | `journal.query` | Read recent journald lines with unit, priority, time, and tail filters |
 | `timer.*` | List/start/stop systemd timers |

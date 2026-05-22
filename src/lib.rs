@@ -13,9 +13,9 @@ pub mod visual;
 
 use permissions::Permissions;
 use protocol::DeskbridEvent;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock, broadcast};
 
@@ -30,8 +30,12 @@ pub struct DaemonState {
     pub inhibitors: Arc<Mutex<HashMap<u32, Child>>>,
     /// Active pseudo-terminal sessions keyed by Deskbrid terminal ID.
     pub terminals: Arc<Mutex<HashMap<String, daemon::terminal::TerminalSession>>>,
+    /// Recent action audit entries, kept in memory as a bounded ring.
+    pub audit_log: Arc<Mutex<VecDeque<protocol::AuditEntry>>>,
+    pub audit_capacity: usize,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
+    next_audit_id: AtomicU64,
 }
 
 impl DaemonState {
@@ -43,8 +47,11 @@ impl DaemonState {
             permissions: Permissions::load(),
             inhibitors: Arc::new(Mutex::new(HashMap::new())),
             terminals: Arc::new(Mutex::new(HashMap::new())),
+            audit_log: Arc::new(Mutex::new(VecDeque::new())),
+            audit_capacity: daemon::audit_capacity_from_env(),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),
+            next_audit_id: AtomicU64::new(1),
         }
     }
 
@@ -57,6 +64,10 @@ impl DaemonState {
             "term-{}",
             self.next_terminal_id.fetch_add(1, Ordering::Relaxed)
         )
+    }
+
+    pub fn next_audit_id(&self) -> u64 {
+        self.next_audit_id.fetch_add(1, Ordering::Relaxed)
     }
 }
 
