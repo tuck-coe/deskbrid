@@ -282,7 +282,7 @@ pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow:
             let x = args["x"].as_f64().unwrap_or(0.0);
             let y = args["y"].as_f64().unwrap_or(0.0);
             let button = args["button"].as_str().unwrap_or("left");
-            do_click_coordinate(x, y, button)?
+            do_click_coordinate(x, y, button).await?
         }
         "drag" => {
             let from_x = args["from_x"].as_f64().unwrap_or(0.0);
@@ -290,7 +290,7 @@ pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow:
             let to_x = args["to_x"].as_f64().unwrap_or(0.0);
             let to_y = args["to_y"].as_f64().unwrap_or(0.0);
             let button = args["button"].as_str().unwrap_or("left");
-            do_drag(from_x, from_y, to_x, to_y, button)?
+            do_drag(from_x, from_y, to_x, to_y, button).await?
         }
         _ => anyhow::bail!("unknown tool: {name}"),
     };
@@ -458,16 +458,24 @@ async fn do_capabilities(state: &DaemonState) -> anyhow::Result<Value> {
 
 // --- Absolute Pointer tools ---
 
-fn do_click_coordinate(x: f64, y: f64, button: &str) -> anyhow::Result<Value> {
+async fn do_click_coordinate(x: f64, y: f64, button: &str) -> anyhow::Result<Value> {
     let mut pointer = crate::abs_pointer::create_for_screen()
+        .await
         .context("uinput not available — is the uinput kernel module loaded?")?;
     let btn = crate::abs_pointer::button_code(button);
     pointer.click_at(x, y, btn)?;
     Ok(json!({"clicked": true, "x": x, "y": y, "button": button}))
 }
 
-fn do_drag(from_x: f64, from_y: f64, to_x: f64, to_y: f64, button: &str) -> anyhow::Result<Value> {
+async fn do_drag(
+    from_x: f64,
+    from_y: f64,
+    to_x: f64,
+    to_y: f64,
+    button: &str,
+) -> anyhow::Result<Value> {
     let mut pointer = crate::abs_pointer::create_for_screen()
+        .await
         .context("uinput not available — is the uinput kernel module loaded?")?;
     let btn = crate::abs_pointer::button_code(button);
     pointer.drag(from_x, from_y, to_x, to_y, btn)?;

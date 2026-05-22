@@ -1,4 +1,5 @@
 use anyhow::Context;
+use tokio::sync::OnceCell;
 use zbus::zvariant::ObjectPath;
 use zbus::{Connection, conn::Builder};
 
@@ -7,28 +8,36 @@ use super::util::{parse_states, role_name};
 pub(crate) const DEST: &str = "org.a11y.atspi.Registry";
 pub const ROOT: &str = "/org/a11y/atspi/accessible/root";
 
+/// Cached AT-SPI2 connection — created once, cloned cheaply thereafter.
+static A11Y_CONN: OnceCell<Connection> = OnceCell::const_new();
+
 pub async fn connect_a11y() -> anyhow::Result<Connection> {
-    let session = Connection::session()
-        .await
-        .context("D-Bus session bus unavailable")?;
+    let conn = A11Y_CONN
+        .get_or_try_init(|| async {
+            let session = Connection::session()
+                .await
+                .context("D-Bus session bus unavailable")?;
 
-    let addr: String = session
-        .call_method(
-            Some("org.a11y.Bus"),
-            "/org/a11y/bus",
-            Some("org.a11y.Bus"),
-            "GetAddress",
-            &(),
-        )
-        .await
-        .context("AT-SPI2 bus not available - is accessibility enabled?")?
-        .body()
-        .deserialize()?;
+            let addr: String = session
+                .call_method(
+                    Some("org.a11y.Bus"),
+                    "/org/a11y/bus",
+                    Some("org.a11y.Bus"),
+                    "GetAddress",
+                    &(),
+                )
+                .await
+                .context("AT-SPI2 bus not available - is accessibility enabled?")?
+                .body()
+                .deserialize()?;
 
-    Builder::address(addr.as_str())?
-        .build()
-        .await
-        .context("failed to connect to AT-SPI2 bus")
+            Builder::address(addr.as_str())?
+                .build()
+                .await
+                .context("failed to connect to AT-SPI2 bus")
+        })
+        .await?;
+    Ok(conn.clone())
 }
 
 async fn get_str(conn: &Connection, path: &ObjectPath<'_>, prop: &str) -> String {

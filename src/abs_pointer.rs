@@ -143,15 +143,16 @@ impl AbsPointer {
     }
 }
 
-pub fn create_for_screen() -> Option<AbsPointer> {
-    let (w, h) = detect_screen_dimensions();
+pub async fn create_for_screen() -> Option<AbsPointer> {
+    let (w, h) = detect_screen_dimensions().await;
     AbsPointer::new(w, h).ok()
 }
 
-fn detect_screen_dimensions() -> (u32, u32) {
-    if let Ok(output) = std::process::Command::new("xrandr")
+async fn detect_screen_dimensions() -> (u32, u32) {
+    if let Ok(output) = tokio::process::Command::new("xrandr")
         .args(["--current"])
         .output()
+        .await
     {
         let text = String::from_utf8_lossy(&output.stdout);
         for line in text.lines() {
