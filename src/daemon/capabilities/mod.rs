@@ -69,7 +69,7 @@ pub async fn build_system_health(
     } else if desktop.contains("hyprland") {
         insert_hyprland_deps(&mut deps).await;
     } else if desktop.contains("x11") {
-        deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
+        insert_x11_deps(&mut deps).await;
     }
 
     Ok(serde_json::json!({
@@ -125,22 +125,20 @@ fn apply_monitor_capabilities(
         for action in MONITOR_CONTROL_ACTIONS {
             set_requires(actions, action, &["xrandr"]);
         }
-        set_degraded(
-            actions,
-            "windows.activate_or_launch",
-            "x11_window_enumeration_unavailable_launch_only",
-        );
-        set_degraded(
-            actions,
-            "layout_profiles.save",
-            "x11_window_enumeration_unavailable",
-        );
-        set_degraded(
-            actions,
-            "layout_profiles.restore",
-            "x11_window_enumeration_unavailable",
-        );
+        for action in ["windows.list", "windows.get", "windows.activate_or_launch"] {
+            set_requires(actions, action, &["wmctrl"]);
+        }
+        for action in [
+            "windows.focus",
+            "windows.close",
+            "windows.minimize",
+            "windows.move_resize",
+        ] {
+            set_requires(actions, action, &["xdotool"]);
+        }
         set_requires(actions, "windows.maximize", &["wmctrl"]);
+        set_requires(actions, "layout_profiles.save", &["wmctrl"]);
+        set_requires(actions, "layout_profiles.restore", &["wmctrl", "xdotool"]);
         set_unsupported(actions, "notification.send", "x11_unsupported");
         set_unsupported(actions, "notification.close", "x11_unsupported");
         set_unsupported(actions, "screencast.start", "x11_unsupported");
@@ -227,4 +225,14 @@ async fn insert_hyprland_deps(deps: &mut serde_json::Map<String, serde_json::Val
     deps.insert("ydotool".to_string(), check_in_path("ydotool").await);
     deps.insert("uinput".to_string(), check_uinput().await);
     deps.insert("grim".to_string(), check_in_path("grim").await);
+}
+
+async fn insert_x11_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
+    deps.insert("xdotool".to_string(), check_in_path("xdotool").await);
+    deps.insert("wmctrl".to_string(), check_in_path("wmctrl").await);
+    deps.insert("xclip".to_string(), check_in_path("xclip").await);
+    deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
+    deps.insert("import".to_string(), check_in_path("import").await);
+    deps.insert("identify".to_string(), check_in_path("identify").await);
+    deps.insert("notify-send".to_string(), check_in_path("notify-send").await);
 }

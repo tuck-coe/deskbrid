@@ -94,12 +94,12 @@ sudo usermod -aG input $USER
 
 ## X11
 
-The X11 backend uses xdotool for input and most window operations, wmctrl for maximize, xclip for clipboard, and ImageMagick for screenshots — no ydotoold required since X11 grants direct XTest extension access.
+The X11 backend uses xdotool for input and most window operations, wmctrl for window listing and maximize, xclip for clipboard, and ImageMagick for screenshots — no ydotoold required since X11 grants direct XTest extension access.
 
 | Dependency | Package | Purpose |
 |---|---|---|
 | `xdotool` | `xdotool` | Window focus/get/close/minimize/move/resize, keyboard input (type/key/combo), mouse (move/click/scroll), workspace switch |
-| `wmctrl` | `wmctrl` | X11 window maximize |
+| `wmctrl` | `wmctrl` | X11 window listing and maximize |
 | `xclip` | `xclip` | Clipboard read/write |
 | `import` | `imagemagick` | Screenshot capture (fullscreen and region crop) |
 | `notify-send` | `libnotify` | Desktop notifications |

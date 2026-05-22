@@ -253,9 +253,9 @@ When an action is denied, the daemon returns:
 | **GNOME 46–50** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
 | **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
 | **KDE Plasma** | Wayland | ✅ Supported (v0.4.0) | KWin D-Bus + ydotool + spectacle |
-| Cinnamon | X11 | 🔄 Planned | xdotool + wmctrl + xprop + xclip |
-| MATE | X11 | 🔄 Planned | xdotool + wmctrl + xprop + xclip |
-| X11 (generic) | X11 | 🔄 Planned | xdotool + wmctrl + import |
+| Cinnamon | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
+| MATE | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
+| X11 (generic) | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
 
 Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → process scan → GNOME fallback). No config files, no flags.
 
@@ -412,7 +412,7 @@ At startup, deskbrid auto-detects your desktop environment and loads the matchin
 - **GNOME** — talks to Mutter RemoteDesktop (input injection), the GNOME Shell extension (windows/workspaces), and standard Linux utilities (grim, wl-clipboard, NetworkManager, BlueZ)
 - **Hyprland** — uses `hyprctl` (JSON CLI) for windows/workspaces, `ydotool` for input, `grim` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
 - **KDE** — uses KWin D-Bus + scripting API for windows/workspaces, `ydotool` for input (run ydotoold as user, not root), `spectacle` + ImageMagick `convert` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
-- **Cinnamon / MATE / X11** — planned, will use xdotool, wmctrl, xclip, and X11 utilities
+- **Cinnamon / MATE / X11** — uses `wmctrl` for window listing/maximize, `xdotool` for input and window actions, `xclip` for clipboard, and ImageMagick for screenshots
 
 ## Compared to alternatives
 
@@ -426,7 +426,7 @@ At startup, deskbrid auto-detects your desktop environment and loads the matchin
 | wl-clipboard | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | atspi | limited | ❌ | ❌ | limited | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use — and it works on GNOME, Hyprland, and KDE.
+Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use — and it works on GNOME, Hyprland, KDE, and shared X11 desktops.
 
 ## Full protocol
 

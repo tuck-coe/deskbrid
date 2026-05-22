@@ -67,24 +67,36 @@ impl X11Backend {
 #[async_trait]
 impl DesktopBackend for X11Backend {
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
-        Ok(Vec::new())
+        let active_window_id = self.sh("xdotool", &["getactivewindow"]).await.ok();
+        let raw = self.sh("wmctrl", &["-lGpx"]).await?;
+        Ok(parse_wmctrl_windows(&raw, active_window_id.as_deref()))
     }
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
         Self::ensure_window_id(id)?;
-        self.sh("xdotool", &["search", "--name", id, "windowactivate"])
+        let normalized = normalize_window_id(id);
+        self.sh("xdotool", &["windowactivate", &normalized])
             .await
             .map(|_| ())
     }
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
         Self::ensure_window_id(id)?;
+        let normalized = normalize_window_id(id);
+        if let Ok(windows) = self.windows_list().await
+            && let Some(window) = windows
+                .into_iter()
+                .find(|window| normalize_window_id(&window.id) == normalized)
+        {
+            return Ok(window);
+        }
+
         // xdotool getwindowname verifies existence AND returns the real window title
         let title = self
-            .sh("xdotool", &["getwindowname", id])
+            .sh("xdotool", &["getwindowname", &normalized])
             .await
             .map_err(|_| anyhow::anyhow!("window not found: {}", id))?;
 
         Ok(protocol::WindowInfo {
-            id: id.to_string(),
+            id: normalized,
             title,
             app_id: String::new(),
             workspace_id: 0,

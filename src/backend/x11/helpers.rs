@@ -1,5 +1,82 @@
 use crate::protocol;
 
+pub(super) fn parse_wmctrl_windows(
+    raw: &str,
+    active_window_id: Option<&str>,
+) -> Vec<protocol::WindowInfo> {
+    raw.lines()
+        .filter_map(|line| parse_wmctrl_line(line, active_window_id))
+        .collect()
+}
+
+pub(super) fn parse_wmctrl_line(
+    line: &str,
+    active_window_id: Option<&str>,
+) -> Option<protocol::WindowInfo> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() < 9 {
+        return None;
+    }
+
+    let id = normalize_window_id(parts[0]);
+    let workspace_id = parts[1]
+        .parse::<i32>()
+        .ok()
+        .map(|d| if d < 0 { 0 } else { d as u32 })
+        .unwrap_or(0);
+    let pid = parts[2].parse::<u32>().ok();
+    let x = parts[3].parse::<i32>().ok()?;
+    let y = parts[4].parse::<i32>().ok()?;
+    let width = parts[5].parse::<u32>().ok()?;
+    let height = parts[6].parse::<u32>().ok()?;
+    let app_id = normalize_wm_class(parts[7]);
+    let title = parts.get(9..).map(|tail| tail.join(" ")).unwrap_or_default();
+
+    Some(protocol::WindowInfo {
+        is_focused: active_window_id
+            .map(normalize_window_id)
+            .is_some_and(|active| active == id),
+        id,
+        title,
+        app_id,
+        workspace_id,
+        is_minimized: false,
+        geometry: Some(protocol::Geometry {
+            x,
+            y,
+            width,
+            height,
+        }),
+        pid,
+    })
+}
+
+pub(super) fn normalize_window_id(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
+        return trimmed.to_ascii_lowercase();
+    }
+    trimmed
+        .parse::<u64>()
+        .map(|id| format!("0x{:08x}", id))
+        .unwrap_or_else(|_| trimmed.to_ascii_lowercase())
+}
+
+fn normalize_wm_class(raw: &str) -> String {
+    let class = raw.trim();
+    if class.is_empty() || class.eq_ignore_ascii_case("n/a") {
+        return String::new();
+    }
+    class
+        .rsplit('.')
+        .find(|part| !part.trim().is_empty())
+        .unwrap_or(class)
+        .to_ascii_lowercase()
+}
+
 pub(super) fn shell_escape(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
