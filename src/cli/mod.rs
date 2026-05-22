@@ -1,6 +1,40 @@
 use anyhow::bail;
 use clap::{Parser, Subcommand};
 
+mod apps;
+mod audio;
+mod audit;
+mod bluetooth;
+mod clipboard;
+mod color;
+mod files;
+mod input;
+mod monitor;
+mod mpris;
+mod network;
+mod notify;
+mod system;
+mod terminal;
+mod windows;
+mod workspace;
+
+use apps::AppCmd;
+use audio::AudioCmd;
+use audit::AuditCmd;
+use bluetooth::BluetoothCmd;
+use clipboard::ClipboardCmd;
+use color::ColorCmd;
+use files::FilesCmd;
+use input::{InputCmd, MouseCmd};
+use monitor::MonitorCmd;
+use mpris::MprisCmd;
+use network::{NetworkCmd, WifiCmd};
+use notify::NotifyCmd;
+use system::{JournalCmd, ServiceCmd, SystemCmd, TimerCmd};
+use terminal::TerminalCmd;
+use windows::WindowCmd;
+use workspace::{ProfileCmd, WorkspaceCmd};
+
 #[derive(Parser)]
 #[command(
     name = "deskbrid",
@@ -27,7 +61,6 @@ pub enum Command {
         #[arg(long)]
         verbose: bool,
 
-        /// Enable MCP TCP listener on the given port (default: 18796)
         #[arg(long)]
         mcp_port: Option<u16>,
     },
@@ -293,398 +326,6 @@ pub enum Command {
     // ─── Clients ────────────────────────────────────────
     #[command(name = "clients")]
     Clients,
-}
-
-#[derive(Subcommand)]
-pub enum WindowCmd {
-    /// List all windows
-    List,
-    /// Focus a window
-    Focus { window_id: String },
-    /// Get window details
-    Get { window_id: String },
-    /// Close a window
-    Close { window_id: String },
-    /// Minimize a window
-    Minimize { window_id: String },
-    /// Maximize a window
-    Maximize { window_id: String },
-    /// Move and resize a window
-    MoveResize {
-        window_id: String,
-        x: i32,
-        y: i32,
-        width: u32,
-        height: u32,
-    },
-    /// Tile a window to a preset: left, right, top, bottom, top_left, top_right, bottom_left, bottom_right, center, fill
-    Tile {
-        window_id: String,
-        preset: String,
-        #[arg(long)]
-        monitor: Option<u32>,
-        #[arg(long)]
-        padding: Option<u32>,
-    },
-    /// Focus an app if open, launch it if not
-    ActivateOrLaunch {
-        app_id: String,
-        /// Command to launch when no matching window exists. Defaults to app_id.
-        #[arg(last = true)]
-        command: Vec<String>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum WorkspaceCmd {
-    /// List workspaces
-    List,
-    /// Switch to a workspace
-    Switch { workspace_id: u32 },
-    /// Move window to workspace
-    Move {
-        window_id: String,
-        workspace_id: u32,
-        #[arg(long)]
-        follow: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum ProfileCmd {
-    /// List saved layout profiles
-    List,
-    /// Save the current window/workspace layout
-    Save {
-        name: String,
-        #[arg(long)]
-        overwrite: bool,
-    },
-    /// Show one saved layout profile
-    Get { name: String },
-    /// Delete a saved layout profile
-    Delete { name: String },
-    /// Restore a saved layout profile
-    Restore { name: String },
-}
-
-#[derive(Subcommand)]
-pub enum InputCmd {
-    /// Type a string
-    Type { text: String },
-    /// Press a single key
-    Key { key: String },
-}
-
-#[derive(Subcommand)]
-pub enum MouseCmd {
-    /// Move cursor to position
-    Move { x: f64, y: f64 },
-    /// Click: left, middle, right
-    Click { button: String },
-    /// Scroll: dx dy
-    Scroll { dx: f64, dy: f64 },
-}
-
-#[derive(Subcommand)]
-pub enum ClipboardCmd {
-    /// Read clipboard contents
-    Read,
-    /// Write to clipboard
-    Write { text: String },
-    /// List clipboard entries observed through Deskbrid
-    History {
-        #[arg(long)]
-        limit: Option<usize>,
-        #[arg(long)]
-        query: Option<String>,
-    },
-    /// Clear Deskbrid clipboard history
-    ClearHistory,
-}
-
-#[derive(Subcommand)]
-pub enum AppCmd {
-    /// List installed launchable applications
-    List {
-        #[arg(long = "category")]
-        categories: Vec<String>,
-        #[arg(long = "mime-type")]
-        mime_types: Vec<String>,
-        #[arg(long)]
-        include_hidden: bool,
-        #[arg(long)]
-        limit: Option<usize>,
-    },
-    /// Search installed applications
-    Search {
-        query: String,
-        #[arg(long)]
-        limit: Option<usize>,
-    },
-    /// Show one application by desktop ID
-    Get { app_id: String },
-}
-
-#[derive(Subcommand)]
-pub enum MprisCmd {
-    /// List MPRIS media players
-    List,
-    /// Show one player, or the first active player
-    Get { player: Option<String> },
-    /// Send a playback command: play_pause, play, pause, stop, next, previous
-    Control {
-        action: String,
-        #[arg(long)]
-        player: Option<String>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum ColorCmd {
-    /// Pick a pixel color from the screen or an image path
-    Pick {
-        x: u32,
-        y: u32,
-        #[arg(long)]
-        path: Option<String>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum NotifyCmd {
-    /// Send a notification
-    Send {
-        #[arg(long)]
-        title: String,
-        #[arg(long)]
-        body: String,
-        #[arg(long, default_value = "normal")]
-        urgency: String,
-    },
-    /// Close a notification
-    Close { notification_id: u32 },
-}
-
-#[derive(Subcommand)]
-pub enum SystemCmd {
-    /// Show system info
-    Info,
-    /// Get idle seconds
-    Idle,
-    /// Power action
-    Power { action: String },
-    /// Battery status
-    Battery,
-    /// Inhibit sleep/shutdown/idle while work is active
-    Inhibit {
-        what: String,
-        #[arg(long, default_value = "deskbrid")]
-        who: String,
-        #[arg(long)]
-        why: Option<String>,
-        #[arg(long)]
-        mode: Option<String>,
-    },
-    /// Release a Deskbrid-created inhibitor
-    ReleaseInhibit { inhibitor_id: u32 },
-    /// List logind sessions
-    Sessions,
-    /// Lock the current or specified logind session
-    LockSession { session_id: Option<String> },
-    /// Switch to another display-manager user
-    SwitchUser { username: String },
-    /// Check a polkit action without prompting
-    CheckAuth { action_id: String },
-    /// Request polkit authorization with user interaction
-    Elevate {
-        action_id: String,
-        #[arg(long)]
-        reason: Option<String>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum ServiceCmd {
-    /// Show one unit's status
-    Status { name: String },
-    /// Start a unit
-    Start { name: String },
-    /// Stop a unit
-    Stop { name: String },
-    /// Restart a unit
-    Restart { name: String },
-    /// Enable a unit
-    Enable {
-        name: String,
-        #[arg(long)]
-        runtime: bool,
-    },
-    /// Disable a unit
-    Disable {
-        name: String,
-        #[arg(long)]
-        runtime: bool,
-    },
-    /// List units by type
-    List { unit_type: Option<String> },
-}
-
-#[derive(Subcommand)]
-pub enum JournalCmd {
-    /// Query journald lines
-    Query {
-        #[arg(long)]
-        since: Option<u64>,
-        #[arg(long)]
-        until: Option<u64>,
-        #[arg(long)]
-        unit: Option<String>,
-        #[arg(long)]
-        priority: Option<u8>,
-        #[arg(long)]
-        tail: Option<u32>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum TimerCmd {
-    /// List systemd timers
-    List,
-    /// Start a timer
-    Start { name: String },
-    /// Stop a timer
-    Stop { name: String },
-}
-
-#[derive(Subcommand)]
-pub enum TerminalCmd {
-    /// Create an interactive PTY session
-    Create {
-        #[arg(long)]
-        shell: Option<String>,
-        #[arg(long)]
-        cwd: Option<String>,
-        #[arg(long)]
-        rows: Option<u16>,
-        #[arg(long)]
-        cols: Option<u16>,
-    },
-    /// Write text to a terminal session
-    Write { terminal_id: String, input: String },
-    /// Read buffered terminal output
-    Read {
-        terminal_id: String,
-        #[arg(long)]
-        max_bytes: Option<u64>,
-        #[arg(long, default_value_t = true)]
-        flush: bool,
-    },
-    /// Resize a terminal session
-    Resize {
-        terminal_id: String,
-        rows: u16,
-        cols: u16,
-    },
-    /// List active terminal sessions
-    List,
-    /// Kill a terminal session
-    Kill {
-        terminal_id: String,
-        #[arg(long)]
-        signal: Option<String>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum NetworkCmd {
-    /// Connection status
-    Status,
-    /// List interfaces
-    Interfaces,
-}
-
-#[derive(Subcommand)]
-pub enum WifiCmd {
-    /// Scan for networks
-    Scan,
-    /// Connect to a network
-    Connect { ssid: String },
-}
-
-#[derive(Subcommand)]
-pub enum BluetoothCmd {
-    /// List known devices
-    List,
-    /// Scan for devices
-    Scan,
-    /// Connect to device
-    Connect { address: String },
-    /// Disconnect device
-    Disconnect { address: String },
-}
-
-#[derive(Subcommand)]
-pub enum FilesCmd {
-    /// Search for files
-    Search {
-        pattern: String,
-        #[arg(long)]
-        root: Option<String>,
-        #[arg(long, default_value = "50")]
-        max_results: u32,
-    },
-    /// Watch a path for changes
-    Watch { path: String },
-    /// Stop watching a path
-    Unwatch { path: String },
-}
-
-#[derive(Subcommand)]
-pub enum AudioCmd {
-    /// List audio sinks
-    Sinks,
-    /// Set sink volume
-    Volume { sink_id: u32, volume: f64 },
-}
-
-#[derive(Subcommand)]
-pub enum MonitorCmd {
-    /// List monitors and outputs
-    List,
-    /// Set the primary monitor/output
-    Primary { output: String },
-    /// Set output resolution
-    Resolution {
-        output: String,
-        width: u32,
-        height: u32,
-        #[arg(long)]
-        refresh: Option<f64>,
-    },
-    /// Set output scale
-    Scale { output: String, scale: f64 },
-    /// Set output rotation: normal, left, right, inverted
-    Rotate { output: String, rotation: String },
-    /// Enable an output
-    Enable { output: String },
-    /// Disable an output
-    Disable { output: String },
-}
-
-#[derive(Subcommand)]
-pub enum AuditCmd {
-    /// Show recent action audit entries
-    Log {
-        #[arg(long)]
-        limit: Option<usize>,
-        #[arg(long)]
-        action_type: Option<String>,
-        #[arg(long)]
-        status: Option<String>,
-    },
-    /// Clear in-memory audit entries
-    Clear,
 }
 
 pub fn parse() -> Args {
