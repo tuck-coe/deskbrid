@@ -1,10 +1,9 @@
 //! MCP tool implementations — no external MCP crate dependencies.
 mod helpers;
-use helpers::*;
-//! Pure serde_json + tokio bridging to Deskbrid's backend and a11y modules.
-
+/// Pure serde_json + tokio bridging to Deskbrid's backend and a11y modules.
 use crate::DaemonState;
 use anyhow::Context;
+use helpers::*;
 use serde_json::{Value, json};
 
 pub fn list_tools() -> Vec<Value> {
@@ -298,4 +297,3 @@ pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow:
     };
     Ok(serde_json::to_string(&result)?)
 }
-

@@ -1,10 +1,14 @@
 use crate::DaemonState;
 use anyhow::Context;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 // --- Action helpers ---
 
-pub(super) async fn do_execute(state: &DaemonState, action_type: &str, _args: Value) -> anyhow::Result<Value> {
+pub(super) async fn do_execute(
+    state: &DaemonState,
+    action_type: &str,
+    _args: Value,
+) -> anyhow::Result<Value> {
     let action =
         crate::protocol::Action::from_json(&format!(r#"{{"type":"{}","id":"mcp"}}"#, action_type))
             .map(|(_, a)| a)?;
@@ -138,7 +142,10 @@ pub(super) async fn do_get_element_text(
     crate::a11y::value::get_element_text(object_ref, max_chars).await
 }
 
-pub(super) async fn do_click_element(_state: &DaemonState, object_ref: &str) -> anyhow::Result<Value> {
+pub(super) async fn do_click_element(
+    _state: &DaemonState,
+    object_ref: &str,
+) -> anyhow::Result<Value> {
     crate::a11y::actions::click_element(object_ref).await
 }
 

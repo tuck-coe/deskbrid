@@ -1,7 +1,9 @@
-
 // Helper functions for JSON validation
 
-pub(super) fn required_non_empty_string(raw: &serde_json::Value, field: &str) -> anyhow::Result<String> {
+pub(super) fn required_non_empty_string(
+    raw: &serde_json::Value,
+    field: &str,
+) -> anyhow::Result<String> {
     let value = raw[field]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("missing or invalid '{}' field", field))?;
@@ -88,7 +90,10 @@ pub(super) fn required_positive_u16(raw: &serde_json::Value, field: &str) -> any
     Ok(value as u16)
 }
 
-pub(super) fn optional_positive_u16(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<u16>> {
+pub(super) fn optional_positive_u16(
+    raw: &serde_json::Value,
+    field: &str,
+) -> anyhow::Result<Option<u16>> {
     let Some(value) = raw.get(field) else {
         return Ok(None);
     };
@@ -104,7 +109,10 @@ pub(super) fn optional_positive_u16(raw: &serde_json::Value, field: &str) -> any
     Ok(Some(value as u16))
 }
 
-pub(super) fn optional_priority(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<u8>> {
+pub(super) fn optional_priority(
+    raw: &serde_json::Value,
+    field: &str,
+) -> anyhow::Result<Option<u8>> {
     let Some(value) = raw.get(field) else {
         return Ok(None);
     };
@@ -146,7 +154,10 @@ pub(super) fn required_positive_f64(raw: &serde_json::Value, field: &str) -> any
     Ok(value)
 }
 
-pub(super) fn optional_positive_f64(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<f64>> {
+pub(super) fn optional_positive_f64(
+    raw: &serde_json::Value,
+    field: &str,
+) -> anyhow::Result<Option<f64>> {
     let Some(value) = raw.get(field) else {
         return Ok(None);
     };
@@ -170,7 +181,10 @@ pub(super) fn required_rotation(raw: &serde_json::Value, field: &str) -> anyhow:
     }
 }
 
-pub(super) fn optional_string_array(raw: &serde_json::Value, field: &str) -> anyhow::Result<Vec<String>> {
+pub(super) fn optional_string_array(
+    raw: &serde_json::Value,
+    field: &str,
+) -> anyhow::Result<Vec<String>> {
     let Some(value) = raw.get(field) else {
         return Ok(Vec::new());
     };

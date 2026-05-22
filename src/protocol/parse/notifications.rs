@@ -1,7 +1,11 @@
 use crate::protocol::Action;
 use serde_json::Value;
 
-pub(super) fn parse_notifications(raw: &Value, _id: &str, type_str: &str) -> anyhow::Result<Action> {
+pub(super) fn parse_notifications(
+    raw: &Value,
+    _id: &str,
+    type_str: &str,
+) -> anyhow::Result<Action> {
     Ok(match type_str {
         // Notifications
         "notification.send" => Action::NotificationSend {

@@ -1,7 +1,7 @@
 use super::helpers::*;
 use crate::protocol::Action;
-use serde_json::Value;
 use crate::protocol::types::Region;
+use serde_json::Value;
 
 pub(super) fn parse_screenshot(raw: &Value, _id: &str, type_str: &str) -> anyhow::Result<Action> {
     Ok(match type_str {
