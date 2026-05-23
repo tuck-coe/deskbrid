@@ -1,0 +1,51 @@
+name: Feature Request
+description: Suggest an idea for Deskbrid
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea? Love it. Tell us what you're thinking.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What's the use case? What are you trying to do that Deskbrid can't do yet?
+      placeholder: "I want to be able to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How would you envision this working?
+      placeholder: "A new action like `windows.snap` that..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Desktop Environment
+      description: Which DE/compositor is this for? (leave blank if universal)
+      multiple: true
+      options:
+        - GNOME
+        - KDE Plasma
+        - Hyprland
+        - COSMIC
+        - Sway
+        - Niri
+        - Wayfire
+        - Labwc
+        - X11
+        - Universal
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What workarounds have you tried?
+      placeholder: "I tried using xdotool but..."

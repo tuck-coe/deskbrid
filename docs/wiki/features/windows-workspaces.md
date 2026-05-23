@@ -11,7 +11,7 @@ deskbrid windows list
 ```
 
 ```json
-{"action": "windows.list"}
+{"type": "windows.list"}
 ```
 
 Response:
@@ -46,7 +46,7 @@ deskbrid windows focus --title "VS Code" --exact
 
 Protocol:
 ```json
-{"action": "windows.focus", "window_id": "code"}
+{"type": "windows.focus", "window_id": "code"}
 ```
 
 ### Get Window Details
@@ -57,7 +57,7 @@ deskbrid windows get 12345678
 
 Protocol:
 ```json
-{"action": "windows.get", "window_id": "12345678"}
+{"type": "windows.get", "window_id": "12345678"}
 ```
 
 ### Close Window
@@ -68,7 +68,7 @@ deskbrid windows close --app code
 
 Protocol:
 ```json
-{"action": "windows.close", "window_id": "code"}
+{"type": "windows.close", "window_id": "code"}
 ```
 
 ### Minimize/Maximize
@@ -80,8 +80,8 @@ deskbrid windows maximize 12345678
 
 Protocol:
 ```json
-{"action": "windows.minimize", "window_id": "12345678"}
-{"action": "windows.maximize", "window_id": "12345678"}
+{"type": "windows.minimize", "window_id": "12345678"}
+{"type": "windows.maximize", "window_id": "12345678"}
 ```
 
 ### Move and Resize
@@ -93,7 +93,7 @@ deskbrid windows move-resize 12345678 --x 100 --y 100 --width 800 --height 600
 Protocol:
 ```json
 {
-  "action": "windows.move_resize",
+  "type": "windows.move_resize",
   "window_id": "12345678",
   "x": 100,
   "y": 100,
@@ -119,7 +119,7 @@ Presets:
 Protocol:
 ```json
 {
-  "action": "windows.tile",
+  "type": "windows.tile",
   "window_id": "12345678",
   "preset": "left",
   "monitor": 0,
@@ -137,7 +137,7 @@ deskbrid windows activate-or-launch firefox --command ["firefox", "--new-window"
 Protocol:
 ```json
 {
-  "action": "windows.activate_or_launch",
+  "type": "windows.activate_or_launch",
   "app_id": "code",
   "command": ["code", "--new-window"],
   "workdir": "/home/user/projects"
@@ -154,7 +154,7 @@ deskbrid workspaces list
 
 Protocol:
 ```json
-{"action": "workspaces.list"}
+{"type": "workspaces.list"}
 ```
 
 Response:
@@ -178,7 +178,7 @@ deskbrid workspaces switch 2
 
 Protocol:
 ```json
-{"action": "workspaces.switch", "workspace_id": 2}
+{"type": "workspaces.switch", "workspace_id": 2}
 ```
 
 ### Move Window to Workspace
@@ -191,7 +191,7 @@ deskbrid workspaces move-window 12345678 --workspace 3 --follow
 Protocol:
 ```json
 {
-  "action": "workspaces.move_window",
+  "type": "workspaces.move_window",
   "window_id": "12345678",
   "workspace_id": 3,
   "follow": true
@@ -216,11 +216,11 @@ if code_window:
 ## AI Agent Example
 
 ```json
-→ {"action": "windows.list"}
+→ {"type": "windows.list"}
 ← [{"id": "abc123", "title": "VS Code", "app_id": "code", ...}]
 
-→ {"action": "windows.focus", "window_id": "abc123"}
+→ {"type": "windows.focus", "window_id": "abc123"}
 ← {"type": "response", "status": "ok"}
 
-→ {"action": "input.keyboard", "action": "type", "text": "git status\n"}
+→ {"type": "input.keyboard", "action": "type", "text": "git status\n"}
 ```

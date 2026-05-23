@@ -12,7 +12,7 @@ deskbrid input keyboard type "Hello, world!"
 
 Protocol:
 ```json
-{"action": "input.keyboard", "action": "type", "text": "Hello, world!"}
+{"type": "input.keyboard", "action": "type", "text": "Hello, world!"}
 ```
 
 ### Press a Single Key
@@ -25,7 +25,7 @@ deskbrid input keyboard key F5
 
 Protocol:
 ```json
-{"action": "input.keyboard", "action": "key", "key": "Return"}
+{"type": "input.keyboard", "action": "key", "key": "Return"}
 ```
 
 ### Send Key Combinations
@@ -39,7 +39,7 @@ deskbrid combo Ctrl_L+Shift_L+Left  # Select word left
 
 Protocol:
 ```json
-{"action": "input.keyboard", "action": "combo", "keys": ["Ctrl_L", "c"]}
+{"type": "input.keyboard", "action": "combo", "keys": ["Ctrl_L", "c"]}
 ```
 
 ### Available Key Names
@@ -72,7 +72,7 @@ deskbrid mouse click --x 100 --y 200
 
 Protocol:
 ```json
-{"action": "input.mouse", "action": "click", "x": 100, "y": 200, "button": "left"}
+{"type": "input.mouse", "action": "click", "x": 100, "y": 200, "button": "left"}
 ```
 
 ### Move Mouse
@@ -83,7 +83,7 @@ deskbrid mouse move --x 500 --y 300
 
 Protocol:
 ```json
-{"action": "input.mouse", "action": "move", "x": 500, "y": 300}
+{"type": "input.mouse", "action": "move", "x": 500, "y": 300}
 ```
 
 ### Scroll
@@ -96,7 +96,7 @@ deskbrid mouse scroll --dy 10      # Scroll down 10 lines
 
 Protocol:
 ```json
-{"action": "input.mouse", "action": "scroll", "dx": 0, "dy": 3}
+{"type": "input.mouse", "action": "scroll", "dx": 0, "dy": 3}
 ```
 
 ## Desktop-Specific Notes
@@ -148,9 +148,9 @@ client.mouse_scroll(dy=5)
 ## AI Agent Example
 
 ```json
-→ {"action": "input.keyboard", "action": "type", "text": "npm test\n"}
+→ {"type": "input.keyboard", "action": "type", "text": "npm test\n"}
 ← {"type": "response", "status": "ok"}
 
-→ {"action": "input.keyboard", "action": "combo", "keys": ["Alt_L", "F4"]}
+→ {"type": "input.keyboard", "action": "combo", "keys": ["Alt_L", "F4"]}
 ← {"type": "response", "status": "ok"}
 ```

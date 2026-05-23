@@ -14,19 +14,22 @@ Response:
   "type": "response",
   "status": "ok",
   "data": {
-    "hostname": "mycomputer",
-    "os": "linux",
     "desktop": "gnome",
-    "shell": "/bin/bash",
-    "uptime": 86400,
-    "load_avg": [0.5, 0.3, 0.2]
+    "desktop_version": "45.0",
+    "compositor": "gnome-shell",
+    "session_type": "wayland",
+    "monitors": [
+      {"id": 0, "name": "DP-1", "width": 1920, "height": 1080, "scale": 1.0, "primary": true}
+    ],
+    "workspace_count": 4,
+    "current_workspace": 0
   }
 }
 ```
 
 Protocol:
 ```json
-{"action": "system.info"}
+{"type": "system.info"}
 ```
 
 ## System Capabilities
@@ -53,36 +56,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "system.capabilities"}
-```
-
-## System Health
-
-Check system health and diagnose issues:
-
-```bash
-deskbrid system health
-```
-
-Response:
-```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": {
-    "healthy": true,
-    "checks": [
-      {"name": "socket", "status": "ok"},
-      {"name": "permissions", "status": "ok"},
-      {"name": "backends", "status": "ok"}
-    ]
-  }
-}
-```
-
-Protocol:
-```json
-{"action": "system.health"}
+{"type": "system.capabilities"}
 ```
 
 ## Power Management
@@ -97,7 +71,7 @@ deskbrid system power shutdown
 
 Protocol:
 ```json
-{"action": "system.power", "action": "suspend"}
+{"type": "system.power", "action": "suspend"}
 ```
 
 Actions:
@@ -119,16 +93,17 @@ Response:
   "type": "response",
   "status": "ok",
   "data": {
-    "percentage": 85,
-    "charging": true,
-    "time_remaining": 3600
+    "source": "BAT0",
+    "percentage": 85.0,
+    "state": "charging",
+    "time_remaining_minutes": 120
   }
 }
 ```
 
 Protocol:
 ```json
-{"action": "system.battery"}
+{"type": "system.battery"}
 ```
 
 ## Idle Detection
@@ -145,15 +120,14 @@ Response:
   "type": "response",
   "status": "ok",
   "data": {
-    "idle_ms": 300000,
-    "idle": true
+    "idle_ms": 300000
   }
 }
 ```
 
 Protocol:
 ```json
-{"action": "system.idle"}
+{"type": "system.idle"}
 ```
 
 ## Inhibit System
@@ -178,7 +152,7 @@ Response:
 Protocol:
 ```json
 {
-  "action": "system.inhibit",
+  "type": "system.inhibit",
   "what": "suspend",
   "who": "backup-script",
   "why": "long-running backup"
@@ -191,11 +165,6 @@ What to inhibit:
 - `idle` - Prevent idle activation
 - `logout` - Prevent automatic logout
 
-Modes:
-- `block` - Hard block (default)
-- `delay` - Delay for a time
-- `transient` - Until next session
-
 ### Release Inhibit
 
 ```bash
@@ -204,7 +173,7 @@ deskbrid system release-inhibit 42
 
 Protocol:
 ```json
-{"action": "system.release_inhibit", "inhibitor_id": 42}
+{"type": "system.release_inhibit", "inhibitor_id": 42}
 ```
 
 ## Session Management
@@ -220,15 +189,22 @@ Response:
 {
   "type": "response",
   "status": "ok",
-  "data": [
-    {
-      "session_id": "1",
-      "username": "user",
-      "seat": "seat0",
-      "active": true
-    }
-  ]
+  "data": {
+    "sessions": [
+      {
+        "session_id": "1",
+        "username": "user",
+        "seat": "seat0",
+        "active": true
+      }
+    ]
+  }
 }
+```
+
+Protocol:
+```json
+{"type": "system.sessions"}
 ```
 
 ### Lock Session
@@ -240,7 +216,7 @@ deskbrid system lock-session --session 2
 
 Protocol:
 ```json
-{"action": "system.lock_session"}
+{"type": "system.lock_session"}
 ```
 
 ### Switch User
@@ -251,7 +227,7 @@ deskbrid system switch-user alice
 
 Protocol:
 ```json
-{"action": "system.switch_user", "username": "alice"}
+{"type": "system.switch_user", "username": "alice"}
 ```
 
 ## Privilege Escalation
@@ -316,33 +292,6 @@ Response:
 }
 ```
 
-## Remediate Issues
-
-Fix common problems:
-
-```bash
-deskbrid system remediate --check socket
-deskbrid system remediate --check permissions --apply
-```
-
-Protocol:
-```json
-{"action": "system.remediate", "check": "socket", "apply": true}
-```
-
-## Normalize Coordinates
-
-Convert pixel coordinates between monitor layouts:
-
-```bash
-deskbrid system normalize-coords --x 1000 --y 500
-```
-
-Protocol:
-```json
-{"action": "system.normalize_coords", "x": 1000, "y": 500}
-```
-
 ## Python Example
 
 ```python
@@ -352,13 +301,9 @@ client = Deskbrid()
 
 # Get system status
 info = client.info()
-print(f"Desktop: {info.desktop}, Uptime: {info.uptime}s")
+print(f"Desktop: {info.desktop}, Session: {info.session_type}")
 
-# Check battery
-battery = client.system_battery()
-print(f"Battery: {battery['percentage']}%")
-
-# Prevent sleep during long operation
+# Inhibit sleep during long operation
 inhibit = client.inhibit_system("suspend", who="backup", why="backup running")
 try:
     # ... long running task ...

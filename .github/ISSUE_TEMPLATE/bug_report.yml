@@ -1,0 +1,75 @@
+name: Bug Report
+description: File a bug report to help improve Deskbrid
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please include as much detail as possible.
+
+  - type: input
+    id: version
+    attributes:
+      label: Deskbrid Version
+      description: What version of Deskbrid are you running? (`deskbrid --version`)
+      placeholder: "v0.8.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Desktop Environment
+      description: Which desktop environment / compositor are you using?
+      options:
+        - GNOME
+        - KDE Plasma
+        - Hyprland
+        - COSMIC
+        - Sway
+        - Niri
+        - Wayfire
+        - Labwc
+        - X11 (Xfce/MATE/Cinnamon/i3/bspwm)
+        - Other / Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection Method
+      description: How are you connecting to Deskbrid?
+      options:
+        - Unix socket (deskbrid daemon)
+        - MCP (Hermes agent / Claude / etc.)
+        - Python client
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug — what did you expect to happen and what actually happened?
+      placeholder: "When I run X, it crashes with..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error Output
+      description: Paste any relevant logs, error messages, or stack traces.
+      render: shell
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      placeholder: |
+        1. Start the daemon with `deskbrid daemon`
+        2. Send a request for X
+        3. See error Y

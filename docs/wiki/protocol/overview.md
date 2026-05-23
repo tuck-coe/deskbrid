@@ -18,14 +18,14 @@ All messages are JSON objects terminated by a newline character.
 ### Request
 
 ```json
-{"action": "windows.list"}
+{"type": "windows.list"}
 ```
 
 With parameters:
 
 ```json
 {
-  "action": "input.keyboard",
+  "type": "input.keyboard",
   "action": "type",
   "text": "Hello!"
 }
@@ -123,7 +123,7 @@ See [full action list](../protocol/actions.md) for all available actions.
 Subscribe to real-time events:
 
 ```json
-{"action": "events.subscribe", "events": ["window.*", "input.*"]}
+{"type": "events.subscribe", "events": ["window.*", "input.*"]}
 ```
 
 Available event patterns:
@@ -144,7 +144,7 @@ sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 sock.connect("/run/user/1000/deskbrid.sock")
 
 # Send request
-sock.send(b'{"action": "windows.list"}\n')
+sock.send(b'{"type": "windows.list"}\n')
 
 # Read response
 response = sock.recv(4096)
@@ -168,7 +168,7 @@ print(data)
 For long-running operations, the protocol returns immediately with a request ID:
 
 ```json
-{"action": "terminal.create"}
+{"type": "terminal.create"}
 ```
 
 Response:

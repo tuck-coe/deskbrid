@@ -167,8 +167,8 @@ from deskbrid import Deskbrid
 # Custom socket path
 client = Deskbrid(socket_path="/tmp/custom.sock")
 
-# With timeout
-client = Deskbrid(timeout=30.0)
+# With reconnect delay
+client = Deskbrid(reconnect_delay=2.0)
 ```
 
 ## Running Multiple Clients
@@ -216,4 +216,74 @@ screenshot_tool = FunctionTool.from_defaults(
     name="take_screenshot",
     description="Take a screenshot of the desktop"
 )
+```
+
+## Method Reference
+
+All methods return objects (not raw dicts), with synchronous wrappers provided via `SyncDeskbrid`:
+
+### Windows
+```python
+client.list_windows()           # Returns list[WindowInfo]
+client.focus_window(app_id="code")  # None
+client.activate_or_launch(app_id, command=None, workdir=None, env=None)  # Returns dict
+client.tile_window(window_id, preset, monitor=None, padding=None)  # Returns dict
+```
+
+### Input
+```python
+client.type_text("Hello!")      # None (fire-and-forget)
+client.send_keys(["Ctrl_L", "c"])  # None
+client.mouse_click(x=100, y=200, button="left")  # None
+client.mouse_move(x=500, y=300)  # None
+client.mouse_scroll(dy=3)        # None
+client.mouse_drag(from_x, from_y, to_x, to_y, button="left", duration_ms=None)  # Returns dict
+```
+
+### Clipboard
+```python
+content = client.clipboard_read()  # Returns ClipboardContent object
+client.clipboard_write("New text")  # None
+history = client.clipboard_history(limit=10)  # Returns list[dict]
+```
+
+### Screenshots
+```python
+result = client.screenshot(monitor=None)  # Returns ScreenshotResult with .path attribute
+result = client.screenshot_ocr(path=None, language=None, monitor=None, region=None)  # Returns dict
+result = client.screenshot_diff("/before.png", "/after.png")  # Returns dict
+```
+
+### System
+```python
+info = client.info()  # Returns DaemonInfo object
+```
+
+### Services
+```python
+client.service_status(name)
+client.service_start(name)
+client.service_stop(name)
+client.service_restart(name)
+client.service_enable(name, runtime=False)
+client.service_disable(name, runtime=False)
+client.service_list(unit_type=None)
+```
+
+### Timers
+```python
+client.timer_list()
+client.timer_start(name)
+client.timer_stop(name)
+```
+
+### Audit
+```python
+client.audit_log(limit=None, action_type=None, status=None)  # Returns list[dict]
+client.audit_clear()  # Returns dict
+```
+
+### Wait For
+```python
+client.wait_for(condition, params=None, timeout_ms=30000, interval_ms=None)  # Returns dict
 ```
