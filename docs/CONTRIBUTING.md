@@ -364,8 +364,9 @@ pub trait DesktopBackend: Send + Sync {
    docs(api): document process.wait timeout behavior
    ```
 4. **PR scope**: Single concern per PR. A backend addition is one PR; a protocol change is another.
-5. **Review**: At minimum, the PR author should verify on their own machine. The project doesn't have CI yet.
-6. **Merge**: Squash merge to `main` with a clean commit message.
+5. **Line cap**: Files must stay under 250 lines. Any PR containing a file over 250 lines that can reasonably be split into smaller modules will not be merged until it follows this guideline. Exceptions: exhaustively-matched enums (like `Action`), generated code, or files where splitting would require unsafe/unstable workarounds.
+6. **Review**: At minimum, the PR author should verify on their own machine.
+7. **CI**: All PRs must pass `cargo fmt`, `cargo clippy -- -D warnings`, and `cargo test` before merging.
 
 ## Known Issues & Stubs
 
