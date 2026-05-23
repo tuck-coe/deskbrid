@@ -41,7 +41,13 @@ async fn main() -> anyhow::Result<()> {
         }
         cli::Command::Status => client::send_one_shot(deskbrid::protocol::Action::Ping).await,
         cli::Command::Setup => deskbrid::setup::run().await,
-        cli::Command::Mcp => deskbrid::mcp::run_mcp_server().await,
+        cli::Command::Mcp => {
+            let event_tx = tokio::sync::broadcast::channel(256).0;
+            let state = std::sync::Arc::new(deskbrid::DaemonState::new());
+            let backend = deskbrid::backend::create_backend(event_tx).await?;
+            *state.backend.write().await = Some(backend);
+            deskbrid::mcp::server::run_mcp(state).await
+        }
         _ => {
             let action = cli::into_action(args.command)?;
             client::send_one_shot_with_options(action, request_options).await

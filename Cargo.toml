@@ -49,6 +49,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # File watching
 notify = { version = "7", features = ["macos_kqueue"] }
 
+# MCP server (Model Context Protocol)
+rmcp = { version = "1", features = ["server", "transport-io", "macros"] }
+schemars = "1"
+
 # COSMIC desktop environment (Wayland protocol client)
 cosmic-protocols = { version = "0.2", default-features = false, features = ["client"], optional = true }
 wayland-client = { version = "0.31", optional = true }
