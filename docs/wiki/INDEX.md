@@ -1,45 +1,123 @@
-# Deskbrid Wiki
+# Deskbrid Documentation
 
 **The HAL your Linux desktop agents are missing.**
 
-Deskbrid is a single Rust binary that auto-detects your desktop environment and provides a unified JSON-over-Unix-socket protocol for programmatic desktop control. Works on GNOME, Hyprland, KDE, and X11 desktops.
+Deskbrid is a single Rust binary that auto-detects your desktop environment and provides a unified JSON-over-Unix-socket protocol for desktop automation on Linux. One daemon, one protocol, one binary — works across GNOME, Hyprland, KDE, wlroots compositors, and X11.
 
-## Getting Started
+## Quick Links
 
-- [Installation](installation.md) - Download, build, and set up Deskbrid
-- [Quick Start](quick-start.md) - Get running in 5 minutes
+- **[Installation](Installation)** - Install Deskbrid on your system
+- **[Quick Start](Quick-Start)** - Get running in 5 minutes
+- **[Protocol Overview](Protocol-Overview)** - JSON protocol specification
+- **[Python Client](Integrations-Python)** - Python integration guide
 
-## Core Features
+## Features
 
-- [Windows & Workspaces](features/windows-workspaces.md) - Manage windows and virtual desktops
-- [Input Control](features/input.md) - Keyboard and mouse automation
-- [Clipboard](features/clipboard.md) - Read/write clipboard content
-- [Screenshots & OCR](features/screenshots.md) - Capture and analyze screen content
-- [Notifications](features/notifications.md) - Desktop notifications
-- [System Information](features/system.md) - System status and power control
-- [Media Control](features/media.md) - MPRIS media player integration
-- [Audio](features/audio.md) - Audio sink management
-- [Network](features/network.md) - WiFi and network status
-- [Bluetooth](features/bluetooth.md) - Device discovery and connection
-- [File Operations](features/files.md) - File search and watching
-- [Services](features/services.md) - systemd service management
-- [Terminals](features/terminals.md) - PTY session management
-- [Monitors](features/monitors.md) - Display configuration
-- [Layout Profiles](features/layout-profiles.md) - Save and restore workspace layouts
-- [Accessibility](features/accessibility.md) - AT-SPI tree inspection
+### Core Features
+
+| Feature | Description | Documentation |
+|---------|-------------|---------------|
+| **Windows & Workspaces** | List, focus, move, resize, and tile windows; manage workspaces | [docs](Features-Windows-Workspaces) |
+| **Input Control** | Keyboard typing, key combos, mouse movement, clicks, scroll | [docs](Features-Input) |
+| **Clipboard** | Read/write, history, monitoring | [docs](Features-Clipboard) |
+| **Screenshots** | Capture, OCR, diff comparison | [docs](Features-Screenshots) |
+
+### System Features
+
+| Feature | Description | Documentation |
+|---------|-------------|---------------|
+| **System Info** | Desktop info, battery, idle, power actions | [docs](Features-System) |
+| **Media Control** | MPRIS player integration | [docs](Features-Media) |
+| **Audio** | Sink listing and volume control | [docs](Features-Audio) |
+| **Network** | WiFi status and connections | [docs](Features-Network) |
+| **Bluetooth** | Device discovery and pairing | [docs](Features-Bluetooth) |
+| **Services** | systemd unit management | [docs](Features-Services) |
+| **Terminals** | Interactive PTY sessions | [docs](Features-Terminals) |
+| **Monitors** | Display configuration | [docs](Features-Monitors) |
+
+### Advanced Features
+
+| Feature | Description | Documentation |
+|---------|-------------|---------------|
+| **Notifications** | Desktop notification API | [docs](Features-Notifications) |
+| **Files** | File search and watching | [docs](Features-Files) |
+| **Layout Profiles** | Save and restore workspace layouts | [docs](Features-Layout-Profiles) |
+| **Accessibility** | AT-SPI tree inspection | [docs](Features-Accessibility) |
 
 ## Protocol
 
-- [Protocol Overview](protocol/overview.md) - JSON protocol specification
-- [Event Subscription](protocol/events.md) - Real-time event streaming
-- [MCP Integration](protocol/mcp.md) - Model Context Protocol support
+| Document | Description |
+|----------|-------------|
+| [Overview](Protocol-Overview) | JSON protocol fundamentals |
+| [Events](Protocol-Events) | Real-time event subscription |
+| [MCP Integration](Protocol-Mcp) | Model Context Protocol server |
 
 ## Integrations
 
-- [Python Client](integrations/python.md) - Python library usage
-- [AI Agents](integrations/agents.md) - Using with AI coding tools
+| Integration | Description |
+|------------|-------------|
+| [Python Client](Integrations-Python) | Python library usage |
+| [AI Agents](Integrations-Agents) | Claude Code, Cursor, etc. |
 
 ## Development
 
-- [Architecture](development/architecture.md) - System design
-- [Backends](backends.md) - Desktop environment backends (do not modify per instructions)
+| Document | Description |
+|----------|-------------|
+| [Architecture](Development-Architecture) | System design deep dive |
+
+## Supported Desktops
+
+| Desktop | Status | Notes |
+|---------|--------|-------|
+| GNOME 46-50 | ✅ Full | Requires Shell extension |
+| Hyprland | ✅ Full | Requires ydotool |
+| KDE Plasma | ✅ Full | Requires ydotoold |
+| Sway | ✅ Full | Requires ydotool |
+| Niri | ✅ Partial | Geometry degraded |
+| Wayfire | ✅ Partial | No move/resize |
+| Labwc | ✅ Partial | No move/resize |
+| COSMIC | ⚠️ Partial | Some limitations |
+| Cinnamon / MATE | ✅ Full | X11 shared backend |
+
+## Example Usage
+
+### CLI
+
+```bash
+# List windows
+deskbrid windows list
+
+# Focus a window
+deskbrid windows focus --app code
+
+# Type text
+deskbrid input keyboard type "Hello, world!\n"
+
+# Take screenshot
+deskbrid screenshot --output ./screenshot.png
+```
+
+### Python
+
+```python
+from deskbrid import Deskbrid
+
+client = Deskbrid()
+windows = client.windows_list()
+client.focus_window(app_id='code')
+client.type_text("Fixed the bug!\n")
+```
+
+### MCP (AI Agents)
+
+```json
+// In your AI coding tool's MCP config
+{
+  "mcpServers": {
+    "deskbrid": {
+      "command": "deskbrid",
+      "args": ["mcp"]
+    }
+  }
+}
+```
