@@ -26,6 +26,10 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
             SystemCmd::BacklightSet { percent, device } => {
                 Action::SystemBacklightSet { percent, device }
             }
+            SystemCmd::Thermal => Action::SystemThermalGet,
+            SystemCmd::CpuFrequency => Action::SystemCpuFrequency,
+            SystemCmd::CpuGovernor => Action::SystemCpuGovernor,
+            SystemCmd::CpuSetGovernor { governor } => Action::SystemCpuSetGovernor { governor },
             SystemCmd::Inhibit {
                 what,
                 who,

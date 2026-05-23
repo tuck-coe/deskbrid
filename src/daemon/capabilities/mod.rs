@@ -127,6 +127,18 @@ fn apply_sysfs_capabilities(actions: &mut serde_json::Map<String, serde_json::Va
         "system.backlight.set",
         &["/sys/class/backlight", "backlight-write-permission"],
     );
+    set_requires(actions, "system.thermal", &["/sys/class/thermal"]);
+    set_requires(
+        actions,
+        "system.cpu.frequency",
+        &["/sys/devices/system/cpu"],
+    );
+    set_requires(actions, "system.cpu.governor", &["/sys/devices/system/cpu"]);
+    set_requires(
+        actions,
+        "system.cpu.set_governor",
+        &["/sys/devices/system/cpu", "cpufreq-write-permission"],
+    );
 }
 
 fn apply_monitor_capabilities(

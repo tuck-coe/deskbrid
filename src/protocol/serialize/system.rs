@@ -49,6 +49,12 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::SystemThermalGet => json!({"type": "system.thermal", "id": id}),
+        Action::SystemCpuFrequency => json!({"type": "system.cpu.frequency", "id": id}),
+        Action::SystemCpuGovernor => json!({"type": "system.cpu.governor", "id": id}),
+        Action::SystemCpuSetGovernor { governor } => {
+            json!({"type": "system.cpu.set_governor", "id": id, "governor": governor})
+        }
         Action::SystemInhibit {
             what,
             who,

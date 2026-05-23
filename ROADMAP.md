@@ -39,6 +39,7 @@ it to the completed table below.
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [sysfs Backlight](#6-sysfs--procfs--devfs-direct-hardware-access) | Read and set `/sys/class/backlight` devices by percentage with permission-aware metadata | `src/daemon/sysfs.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [sysfs Thermal/CPU](#6-sysfs--procfs--devfs-direct-hardware-access) | Read thermal zones, CPU frequencies, and CPU governors; set writable CPU governors | `src/daemon/sysfs.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [Backend Parity Pass](docs/BACKEND_PARITY.md) | Matrix-backed compositor audit plus X11/COSMIC shared Linux domain implementations and explicit unsupported capability reporting | `src/backend/`, `src/daemon/capabilities/`, `docs/BACKEND_PARITY.md` |
 | [33. Dry-Run Mode](#33-dry-run-mode) | Request-level `dry_run` option validates permissions and reports would-execute metadata without loading a backend | `src/protocol/parse.rs`, `src/daemon/dispatch.rs`, `src/client.rs`, `src/cli/` |
 | [34. Audit Log](#34-audit-log) | In-memory action ring buffer with query/clear actions, duration, status, UID, and error metadata | `src/daemon/audit.rs`, `src/daemon/dispatch.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
@@ -607,8 +608,10 @@ DeviceInfo {
 
 ## 6. sysfs / procfs / devfs (Direct Hardware Access)
 
-**Status:** 🚧 In Progress. Backlight read/write support is done through
-`system.backlight.get` and `system.backlight.set`. Thermal and CPU readouts are next.
+**Status:** ✅ Done for the high-priority sysfs subset. Backlight read/write,
+thermal zone reads, CPU frequency reads, CPU governor reads, and CPU governor writes
+are exposed through protocol, CLI, and Python clients. LEDs, fans, and GPIO remain
+future extensions.
 
 ### What's Missing
 
@@ -6081,7 +6084,7 @@ SnapshotClone { id: String, target_path: String },
 | **Window tiling presets** | ✅ Done | Low (~150 lines, helper over existing) | Medium | Tiles windows without forcing agents to compute pixel coordinates |
 | **Drag & drop** | ✅ Done | Very low (~100 lines, 4 backends) | Medium | Helps with file managers, design tools, and browser upload zones |
 | **sysfs brightness/backlight** | ✅ Done | Very low (std::fs only) | Medium | Works across all DEs, no new deps |
-| **sysfs thermal/CPU** | 🧭 Planned | Very low (std::fs only) | Medium | Useful for monitoring and simple read-only hardware insight |
+| **sysfs thermal/CPU** | ✅ Done | Very low (std::fs only) | Medium | Useful for monitoring and simple read-only hardware insight |
 
 ### Tier 2 — Moderate Value, Moderate Effort
 

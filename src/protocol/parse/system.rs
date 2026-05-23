@@ -42,6 +42,12 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             percent: required_percentage(raw, "percent")?,
             device: optional_non_empty_string(raw, "device")?,
         },
+        "system.thermal" => Action::SystemThermalGet,
+        "system.cpu.frequency" => Action::SystemCpuFrequency,
+        "system.cpu.governor" => Action::SystemCpuGovernor,
+        "system.cpu.set_governor" => Action::SystemCpuSetGovernor {
+            governor: required_non_empty_string(raw, "governor")?,
+        },
         "system.inhibit" => Action::SystemInhibit {
             what: required_non_empty_string(raw, "what")?,
             who: required_non_empty_string(raw, "who")?,

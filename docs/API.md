@@ -888,6 +888,48 @@ Deskbrid uses the first backlight under `/sys/class/backlight`.
 }
 ```
 
+### `system.thermal`
+
+Read thermal zones from `/sys/class/thermal`.
+
+```json
+{"type": "system.thermal", "id": "req-26"}
+```
+```json
+{
+  "type": "response", "id": "req-26", "seq": 26, "status": "ok",
+  "data": {
+    "zones": [
+      { "name": "thermal_zone0", "type": "x86_pkg_temp", "temp_celsius": 49.0, "temp_millidegrees": 49000 }
+    ]
+  }
+}
+```
+
+### `system.cpu.frequency`
+
+Read CPU frequency values from cpufreq sysfs.
+
+```json
+{"type": "system.cpu.frequency", "id": "req-27"}
+```
+
+### `system.cpu.governor`
+
+Read CPU frequency governor state and available governors.
+
+```json
+{"type": "system.cpu.governor", "id": "req-28"}
+```
+
+### `system.cpu.set_governor`
+
+Set the CPU frequency governor on all writable CPUs.
+
+```json
+{"type": "system.cpu.set_governor", "id": "req-29", "governor": "powersave"}
+```
+
 ### `system.inhibit` / `system.release_inhibit`
 
 Hold a systemd inhibitor while an agent task is running, then release it by ID.

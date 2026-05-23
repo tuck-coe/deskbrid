@@ -212,6 +212,12 @@ pub enum Action {
         percent: f64,
         device: Option<String>,
     },
+    SystemThermalGet,
+    SystemCpuFrequency,
+    SystemCpuGovernor,
+    SystemCpuSetGovernor {
+        governor: String,
+    },
     SystemInhibit {
         what: String,
         who: String,
@@ -583,6 +589,10 @@ impl Action {
             "system.battery",
             "system.backlight.get",
             "system.backlight.set",
+            "system.thermal",
+            "system.cpu.frequency",
+            "system.cpu.governor",
+            "system.cpu.set_governor",
             "system.inhibit",
             "system.release_inhibit",
             "system.sessions",
@@ -736,6 +746,10 @@ mod tests {
         assert!(actions.contains(&"input.mouse.drag"));
         assert!(actions.contains(&"system.backlight.get"));
         assert!(actions.contains(&"system.backlight.set"));
+        assert!(actions.contains(&"system.thermal"));
+        assert!(actions.contains(&"system.cpu.frequency"));
+        assert!(actions.contains(&"system.cpu.governor"));
+        assert!(actions.contains(&"system.cpu.set_governor"));
     }
 
     #[test]
@@ -782,6 +796,32 @@ mod tests {
         ));
         assert!(
             Action::from_json(r#"{"type":"system.backlight.set","id":"x","percent":101}"#).is_err()
+        );
+    }
+
+    #[test]
+    fn parses_thermal_and_cpu_actions() {
+        let (_, thermal) = Action::from_json(r#"{"type":"system.thermal","id":"x"}"#).unwrap();
+        assert!(matches!(thermal, Action::SystemThermalGet));
+
+        let (_, freq) = Action::from_json(r#"{"type":"system.cpu.frequency","id":"x"}"#).unwrap();
+        assert!(matches!(freq, Action::SystemCpuFrequency));
+
+        let (_, governor) =
+            Action::from_json(r#"{"type":"system.cpu.governor","id":"x"}"#).unwrap();
+        assert!(matches!(governor, Action::SystemCpuGovernor));
+
+        let (_, set) = Action::from_json(
+            r#"{"type":"system.cpu.set_governor","id":"x","governor":"powersave"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            set,
+            Action::SystemCpuSetGovernor { governor } if governor == "powersave"
+        ));
+        assert!(
+            Action::from_json(r#"{"type":"system.cpu.set_governor","id":"x","governor":""}"#)
+                .is_err()
         );
     }
 

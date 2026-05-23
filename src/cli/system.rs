@@ -18,6 +18,14 @@ pub enum SystemCmd {
         #[arg(long)]
         device: Option<String>,
     },
+    /// Read thermal zones from /sys/class/thermal
+    Thermal,
+    /// Read CPU frequency details
+    CpuFrequency,
+    /// Read CPU frequency governors
+    CpuGovernor,
+    /// Set CPU frequency governor on all writable CPUs
+    CpuSetGovernor { governor: String },
     /// Inhibit sleep/shutdown/idle while work is active
     Inhibit {
         what: String,

@@ -155,7 +155,11 @@ pub async fn execute_action(
         | SystemPower { .. }
         | SystemBattery
         | SystemBacklightGet { .. }
-        | SystemBacklightSet { .. } => {
+        | SystemBacklightSet { .. }
+        | SystemThermalGet
+        | SystemCpuFrequency
+        | SystemCpuGovernor
+        | SystemCpuSetGovernor { .. } => {
             execute_system::execute_system(action, backend, state).await?
         }
 

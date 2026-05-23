@@ -93,6 +93,10 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemBattery
         | Action::SystemBacklightGet { .. }
         | Action::SystemBacklightSet { .. }
+        | Action::SystemThermalGet
+        | Action::SystemCpuFrequency
+        | Action::SystemCpuGovernor
+        | Action::SystemCpuSetGovernor { .. }
         | Action::SystemInhibit { .. }
         | Action::SystemReleaseInhibit { .. }
         | Action::SystemListSessions

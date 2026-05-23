@@ -3,7 +3,10 @@ use crate::backend::DesktopBackend;
 use crate::protocol::Action;
 use serde_json::Value;
 
-use super::{backlight_get, backlight_set, build_system_health, normalize_coords};
+use super::{
+    backlight_get, backlight_set, build_system_health, cpu_frequency, cpu_governor,
+    cpu_set_governor, normalize_coords, thermal_get,
+};
 
 pub(crate) async fn execute_system(
     action: Action,
@@ -27,6 +30,10 @@ pub(crate) async fn execute_system(
             percent,
             ref device,
         } => backlight_set(percent, device.as_deref()).await?,
+        SystemThermalGet => thermal_get().await?,
+        SystemCpuFrequency => cpu_frequency().await?,
+        SystemCpuGovernor => cpu_governor().await?,
+        SystemCpuSetGovernor { ref governor } => cpu_set_governor(governor).await?,
 
         _ => unreachable!("not a system action"),
     })

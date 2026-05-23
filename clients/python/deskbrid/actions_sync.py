@@ -289,6 +289,18 @@ class SyncActionsMixin:
             self._client.backlight_set(percent=percent, device=device)
         ).result()
 
+    def thermal(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.thermal()).result()
+
+    def cpu_frequency(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.cpu_frequency()).result()
+
+    def cpu_governor(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.cpu_governor()).result()
+
+    def cpu_set_governor(self, governor: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.cpu_set_governor(governor)).result()
+
     def inhibit_system(
         self,
         what: str,

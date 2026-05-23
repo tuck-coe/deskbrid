@@ -393,6 +393,18 @@ class AsyncActionsMixin:
             params["device"] = device
         return await self._request("system.backlight.set", params)
 
+    async def thermal(self) -> dict[str, Any]:
+        return await self._request("system.thermal")
+
+    async def cpu_frequency(self) -> dict[str, Any]:
+        return await self._request("system.cpu.frequency")
+
+    async def cpu_governor(self) -> dict[str, Any]:
+        return await self._request("system.cpu.governor")
+
+    async def cpu_set_governor(self, governor: str) -> dict[str, Any]:
+        return await self._request("system.cpu.set_governor", {"governor": governor})
+
     async def service_status(self, name: str) -> dict[str, Any]:
         return await self._request("service.status", {"name": name})
 
