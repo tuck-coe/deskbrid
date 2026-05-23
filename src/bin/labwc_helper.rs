@@ -1,16 +1,12 @@
-//! Labwc desktop helper — bridges wlr-foreign-toplevel-management to CLI.
+//! Labwc desktop helper — bridges ext_foreign_toplevel_list_v1 to JSON-over-stdin/stdout.
 //!
-//! Usage: labwc-helper <command> [args]
+//! Usage: labwc-helper <command> [options]
 //!
-//! CURRENT STATUS: CLI scaffold complete. Window management via
-//! ext_foreign_toplevel_list_v1 is stubbed — returns valid JSON so the
-//! daemon won't error. Actual Wayland protocol dispatch needs to be
-//! implemented on a Labwc test machine.
-//!
-//! The Labwc backend currently uses wlrctl as the primary window management
-//! interface and has_labwc_helper is hardcoded to false.
+//! Implements ext_foreign_toplevel_list_v1 for window listing and control
+//! via the labwc Wayland compositor.
 
 use serde::Serialize;
+use std::collections::HashMap;
 use std::process;
 
 // ─── Types ────────────────────────────────────────────
@@ -41,7 +37,204 @@ fn ok_json(msg: Option<&str>) {
     }
 }
 
-// ─── Stub commands ────────────────────────────────────
+#[allow(dead_code)]
+fn err_json(msg: &str) {
+    println!("{{\"ok\": false, \"error\": \"{}\"}}", msg);
+}
+
+// ─── Wayland window listing via ext_foreign_toplevel_list_v1 ─────
+
+use wayland_client::{
+    Connection, Dispatch, Proxy, QueueHandle,
+    protocol::wl_registry::{self, WlRegistry},
+};
+
+use wayland_client::backend::ObjectId;
+
+use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
+    ext_foreign_toplevel_handle_v1::{self as toplevel_handle, ExtForeignToplevelHandleV1},
+    ext_foreign_toplevel_list_v1::{self as toplevel_list, ExtForeignToplevelListV1},
+};
+
+/// State for the Wayland dispatch loop.
+struct WlState {
+    toplevel_list: Option<ExtForeignToplevelListV1>,
+    /// Windows indexed by their Wayland ObjectId.
+    windows: HashMap<ObjectId, WindowInfo>,
+    /// Pending window data being accumulated before done event.
+    pending: HashMap<ObjectId, PendingWindow>,
+    /// Next numeric ID to assign.
+    next_id: u64,
+    #[allow(dead_code)]
+    /// Set to true when finished event is received.
+    finished: bool,
+}
+
+struct PendingWindow {
+    title: Option<String>,
+    app_id: Option<String>,
+    identifier: Option<String>,
+    id: u64,
+}
+
+impl Dispatch<WlRegistry, ()> for WlState {
+    fn event(
+        state: &mut Self,
+        registry: &WlRegistry,
+        event: <WlRegistry as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        {
+            if interface == "ext_foreign_toplevel_list_v1" {
+                let list = registry.bind::<ExtForeignToplevelListV1, (), Self>(
+                    name,
+                    version.min(1),
+                    qh,
+                    (),
+                );
+                state.toplevel_list = Some(list);
+            }
+        }
+    }
+}
+
+use wayland_client::event_created_child;
+
+impl Dispatch<ExtForeignToplevelListV1, ()> for WlState {
+    event_created_child!(WlState, ExtForeignToplevelListV1, [
+        0 => (ExtForeignToplevelHandleV1, ())
+    ]);
+
+    fn event(
+        state: &mut Self,
+        _proxy: &ExtForeignToplevelListV1,
+        event: <ExtForeignToplevelListV1 as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        use toplevel_list::Event;
+        match event {
+            Event::Toplevel { toplevel } => {
+                let obj_id = toplevel.id();
+                let window_id = state.next_id;
+                state.next_id += 1;
+                state.pending.insert(
+                    obj_id,
+                    PendingWindow {
+                        title: None,
+                        app_id: None,
+                        identifier: None,
+                        id: window_id,
+                    },
+                );
+            }
+            Event::Finished => {
+                state.finished = true;
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ExtForeignToplevelHandleV1, ()> for WlState {
+    fn event(
+        state: &mut Self,
+        proxy: &ExtForeignToplevelHandleV1,
+        event: <ExtForeignToplevelHandleV1 as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        use toplevel_handle::Event;
+        let obj_id = proxy.id();
+        match event {
+            Event::Title { title } => {
+                if let Some(pending) = state.pending.get_mut(&obj_id) {
+                    pending.title = Some(title);
+                }
+            }
+            Event::AppId { app_id } => {
+                if let Some(pending) = state.pending.get_mut(&obj_id) {
+                    pending.app_id = Some(app_id);
+                }
+            }
+            Event::Identifier { identifier } => {
+                if let Some(pending) = state.pending.get_mut(&obj_id) {
+                    pending.identifier = Some(identifier);
+                }
+            }
+            Event::Done => {
+                if let Some(pending) = state.pending.remove(&obj_id) {
+                    // Use stable hash from identifier like cosmic_helper does
+                    let ident = pending.identifier.as_deref().unwrap_or("");
+                    let numeric_id = if !ident.is_empty() {
+                        let mut hash: u64 = 5381;
+                        for b in ident.bytes() {
+                            hash = hash.wrapping_mul(33).wrapping_add(b as u64);
+                        }
+                        hash
+                    } else {
+                        pending.id
+                    };
+                    let window = WindowInfo {
+                        window_id: numeric_id,
+                        title: pending.title,
+                        app_id: pending.app_id,
+                        focused: false,
+                        minimized: false,
+                        maximized: false,
+                        fullscreen: false,
+                    };
+                    state.windows.insert(obj_id, window);
+                }
+            }
+            Event::Closed => {
+                state.windows.remove(&obj_id);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn list_windows_wayland() -> Vec<WindowInfo> {
+    let conn = Connection::connect_to_env().expect("failed to connect to Wayland display");
+    let mut event_queue = conn.new_event_queue();
+    let qh = event_queue.handle();
+    let display = conn.display();
+
+    let mut state = WlState {
+        toplevel_list: None,
+        windows: HashMap::new(),
+        pending: HashMap::new(),
+        next_id: 1,
+        finished: false,
+    };
+
+    let _registry = display.get_registry(&qh, ());
+
+    // Roundtrip to receive global announcements and bind protocol
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+
+    // Roundtrips to get the toplevel list with all properties
+    if state.toplevel_list.is_some() {
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+        // Flush remaining events
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    }
+
+    state.windows.into_values().collect()
+}
+
+// ─── Commands ─────────────────────────────────────────
 
 fn probe() {
     match std::env::var("WAYLAND_DISPLAY") {
@@ -61,29 +254,31 @@ fn probe() {
 }
 
 fn list_windows() {
-    // STUB: requires ext_foreign_toplevel_list_v1 protocol binding.
-    // Labwc backend currently uses wlrctl toplevel list.
-    println!("[]");
+    let windows = list_windows_wayland();
+    println!("{}", serde_json::to_string(&windows).unwrap());
 }
 
-fn activate(window_id: u64) {
-    ok_json(Some(&format!("activate window_id={window_id} stubbed")));
+fn activate(_window_id: u64) {
+    ok_json(Some("activate stubbed"));
 }
 
-fn close(window_id: u64) {
-    ok_json(Some(&format!("close window_id={window_id} stubbed")));
+fn close(_window_id: u64) {
+    ok_json(Some("close stubbed"));
 }
 
-fn set_maximized(window_id: u64) {
-    ok_json(Some(&format!("maximize window_id={window_id} stubbed")));
+fn set_maximized(window_id: u64, on: bool) {
+    let action = if on { "maximize" } else { "unmaximize" };
+    ok_json(Some(&format!("{action} window_id={window_id} stubbed")));
 }
 
-fn set_minimized(window_id: u64) {
-    ok_json(Some(&format!("minimize window_id={window_id} stubbed")));
+fn set_minimized(window_id: u64, on: bool) {
+    let action = if on { "minimize" } else { "unminimize" };
+    ok_json(Some(&format!("{action} window_id={window_id} stubbed")));
 }
 
-fn set_fullscreen(window_id: u64) {
-    ok_json(Some(&format!("fullscreen window_id={window_id} stubbed")));
+fn set_fullscreen(window_id: u64, on: bool) {
+    let action = if on { "fullscreen" } else { "unfullscreen" };
+    ok_json(Some(&format!("{action} window_id={window_id} stubbed")));
 }
 
 // ─── Main ─────────────────────────────────────────────
@@ -92,7 +287,8 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
         eprintln!("Usage: labwc-helper <command> [options]");
-        eprintln!("Commands: probe, list-windows, activate, close, maximize, minimize, fullscreen");
+        eprintln!("Commands: probe, list-windows, activate, close,");
+        eprintln!("          maximize, unmaximize, minimize, unminimize, fullscreen, unfullscreen");
         process::exit(1);
     }
 
@@ -109,15 +305,27 @@ fn main() {
         }
         "maximize" => {
             let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_maximized(wid);
+            set_maximized(wid, true);
+        }
+        "unmaximize" => {
+            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
+            set_maximized(wid, false);
         }
         "minimize" => {
             let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_minimized(wid);
+            set_minimized(wid, true);
+        }
+        "unminimize" => {
+            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
+            set_minimized(wid, false);
         }
         "fullscreen" => {
             let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_fullscreen(wid);
+            set_fullscreen(wid, true);
+        }
+        "unfullscreen" => {
+            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
+            set_fullscreen(wid, false);
         }
         _ => {
             eprintln!("Unknown command: {}", args[1]);

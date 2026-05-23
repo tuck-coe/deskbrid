@@ -1,9 +1,10 @@
 //! COSMIC desktop helper — bridges Wayland protocol to JSON-over-stdin/stdout.
 //!
-//! Usage: cosmic-helper <command> [options]
+//! Uses ext_foreign_toplevel_list_v1 for window discovery and
+//! zcosmic_toplevel_info_v1 + zcosmic_toplevel_manager_v1 for window
+//! properties (state, geometry) and control (close, activate, etc.).
 //!
-//! Implements ext_foreign_toplevel_list_v1 for window listing and control
-//! via the COSMIC Wayland compositor.
+//! Usage: cosmic-helper <command> [options]
 
 use serde::Serialize;
 use std::collections::HashMap;
@@ -43,50 +44,74 @@ fn ok_json(msg: Option<&str>) {
     }
 }
 
-#[allow(dead_code)]
 fn err_json(msg: &str) {
     println!("{{\"ok\": false, \"error\": \"{}\"}}", msg);
 }
 
-// ─── Wayland window listing via ext_foreign_toplevel_list_v1 ─────
+fn id_from_identifier(ident: &str) -> u64 {
+    if !ident.is_empty() {
+        let mut hash: u64 = 5381;
+        for b in ident.bytes() {
+            hash = hash.wrapping_mul(33).wrapping_add(b as u64);
+        }
+        hash
+    } else {
+        0
+    }
+}
+
+// ─── Wayland protocol types ──────────────────────────
 
 use wayland_client::{
     Connection, Dispatch, Proxy, QueueHandle,
-    protocol::wl_registry::{self, WlRegistry},
+    backend::ObjectId,
+    event_created_child,
+    protocol::{
+        wl_registry::{self, WlRegistry},
+        wl_seat::WlSeat,
+    },
 };
-
-use wayland_client::backend::ObjectId;
 
 use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
-    ext_foreign_toplevel_handle_v1::{self as toplevel_handle, ExtForeignToplevelHandleV1},
-    ext_foreign_toplevel_list_v1::{self as toplevel_list, ExtForeignToplevelListV1},
+    ext_foreign_toplevel_handle_v1::{self as ext_handle, ExtForeignToplevelHandleV1},
+    ext_foreign_toplevel_list_v1::{self as ext_list, ExtForeignToplevelListV1},
 };
 
-/// State for the Wayland dispatch loop.
-struct WlState {
+use cosmic_protocols::toplevel_info::v1::client::{
+    zcosmic_toplevel_handle_v1::{
+        self as cosmic_handle, State as CosmicState, ZcosmicToplevelHandleV1,
+    },
+    zcosmic_toplevel_info_v1::{self as cosmic_info, ZcosmicToplevelInfoV1},
+};
+
+use cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1::{
+    self as cosmic_mgr, ZcosmicToplevelManagerV1,
+};
+
+// ─── Window listing state ────────────────────────────
+
+struct ListState {
     toplevel_list: Option<ExtForeignToplevelListV1>,
-    /// Windows indexed by their Wayland ObjectId.
-    windows: HashMap<ObjectId, WindowInfo>,
-    /// Pending window data being accumulated before done event.
-    pending: HashMap<ObjectId, PendingWindow>,
-    /// Next numeric ID to assign.
-    next_id: u64,
-    /// Set to true when finished event is received.
+    toplevel_info: Option<ZcosmicToplevelInfoV1>,
+    windows: Vec<WindowInfo>,
+    pending_ext: HashMap<ObjectId, PendingExt>,
+    ext_id_map: HashMap<ObjectId, usize>,
+    cosmic_id_map: HashMap<ObjectId, usize>,
     finished: bool,
 }
 
-struct PendingWindow {
+struct PendingExt {
+    window_idx: usize,
     title: Option<String>,
     app_id: Option<String>,
     identifier: Option<String>,
-    id: u64,
 }
 
-impl Dispatch<WlRegistry, ()> for WlState {
+impl Dispatch<WlRegistry, ()> for ListState {
     fn event(
         state: &mut Self,
         registry: &WlRegistry,
-        event: <WlRegistry as wayland_client::Proxy>::Event,
+        event: <WlRegistry as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
         qh: &QueueHandle<Self>,
@@ -97,51 +122,79 @@ impl Dispatch<WlRegistry, ()> for WlState {
             version,
         } = event
         {
-            if interface == "ext_foreign_toplevel_list_v1" {
-                let list = registry.bind::<ExtForeignToplevelListV1, (), Self>(
-                    name,
-                    version.min(1),
-                    qh,
-                    (),
-                );
-                state.toplevel_list = Some(list);
+            match interface.as_str() {
+                "ext_foreign_toplevel_list_v1" => {
+                    let list = registry.bind::<ExtForeignToplevelListV1, (), Self>(
+                        name,
+                        version.min(1),
+                        qh,
+                        (),
+                    );
+                    state.toplevel_list = Some(list);
+                }
+                "zcosmic_toplevel_info_v1" => {
+                    let info = registry.bind::<ZcosmicToplevelInfoV1, (), Self>(
+                        name,
+                        version.min(2),
+                        qh,
+                        (),
+                    );
+                    state.toplevel_info = Some(info);
+                }
+                _ => {}
             }
         }
     }
 }
 
-use wayland_client::event_created_child;
-
-impl Dispatch<ExtForeignToplevelListV1, ()> for WlState {
-    event_created_child!(WlState, ExtForeignToplevelListV1, [
+impl Dispatch<ExtForeignToplevelListV1, ()> for ListState {
+    event_created_child!(ListState, ExtForeignToplevelListV1, [
         0 => (ExtForeignToplevelHandleV1, ())
     ]);
 
     fn event(
         state: &mut Self,
         _proxy: &ExtForeignToplevelListV1,
-        event: <ExtForeignToplevelListV1 as wayland_client::Proxy>::Event,
+        event: <ExtForeignToplevelListV1 as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
-        _qh: &QueueHandle<Self>,
+        qh: &QueueHandle<Self>,
     ) {
-        use toplevel_list::Event;
         match event {
-            Event::Toplevel { toplevel } => {
+            ext_list::Event::Toplevel { toplevel } => {
                 let obj_id = toplevel.id();
-                let window_id = state.next_id;
-                state.next_id += 1;
-                state.pending.insert(
-                    obj_id,
-                    PendingWindow {
+                let idx = state.windows.len();
+                state.windows.push(WindowInfo {
+                    window_id: 0,
+                    title: None,
+                    app_id: None,
+                    pid: None,
+                    x: None,
+                    y: None,
+                    width: None,
+                    height: None,
+                    focused: false,
+                    minimized: false,
+                    maximized: false,
+                    fullscreen: false,
+                    workspace_id: None,
+                });
+                state.pending_ext.insert(
+                    obj_id.clone(),
+                    PendingExt {
+                        window_idx: idx,
                         title: None,
                         app_id: None,
                         identifier: None,
-                        id: window_id,
                     },
                 );
+                state.ext_id_map.insert(obj_id, idx);
+
+                if let Some(info) = &state.toplevel_info {
+                    let _cosmic_h = info.get_cosmic_toplevel(&toplevel, qh, ());
+                }
             }
-            Event::Finished => {
+            ext_list::Event::Finished => {
                 state.finished = true;
             }
             _ => {}
@@ -149,102 +202,412 @@ impl Dispatch<ExtForeignToplevelListV1, ()> for WlState {
     }
 }
 
-impl Dispatch<ExtForeignToplevelHandleV1, ()> for WlState {
+impl Dispatch<ExtForeignToplevelHandleV1, ()> for ListState {
     fn event(
         state: &mut Self,
         proxy: &ExtForeignToplevelHandleV1,
-        event: <ExtForeignToplevelHandleV1 as wayland_client::Proxy>::Event,
+        event: <ExtForeignToplevelHandleV1 as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        use toplevel_handle::Event;
         let obj_id = proxy.id();
         match event {
-            Event::Title { title } => {
-                if let Some(pending) = state.pending.get_mut(&obj_id) {
-                    pending.title = Some(title);
+            ext_handle::Event::Title { title } => {
+                if let Some(p) = state.pending_ext.get_mut(&obj_id) {
+                    p.title = Some(title);
                 }
             }
-            Event::AppId { app_id } => {
-                if let Some(pending) = state.pending.get_mut(&obj_id) {
-                    pending.app_id = Some(app_id);
+            ext_handle::Event::AppId { app_id } => {
+                if let Some(p) = state.pending_ext.get_mut(&obj_id) {
+                    p.app_id = Some(app_id);
                 }
             }
-            Event::Identifier { identifier } => {
-                if let Some(pending) = state.pending.get_mut(&obj_id) {
-                    pending.identifier = Some(identifier);
+            ext_handle::Event::Identifier { identifier } => {
+                if let Some(p) = state.pending_ext.get_mut(&obj_id) {
+                    p.identifier = Some(identifier);
                 }
             }
-            Event::Done => {
-                if let Some(pending) = state.pending.remove(&obj_id) {
-                    let ident = pending.identifier.as_deref().unwrap_or("");
-                    let numeric_id = if !ident.is_empty() {
-                        let mut hash: u64 = 5381;
-                        for b in ident.bytes() {
-                            hash = hash.wrapping_mul(33).wrapping_add(b as u64);
+            ext_handle::Event::Done => {
+                if let Some(p) = state.pending_ext.remove(&obj_id) {
+                    if let Some(win) = state.windows.get_mut(p.window_idx) {
+                        let ident = p.identifier.as_deref().unwrap_or("");
+                        let nid = if !ident.is_empty() {
+                            id_from_identifier(ident)
+                        } else {
+                            0
+                        };
+                        if nid != 0 {
+                            win.window_id = nid;
                         }
-                        hash
-                    } else {
-                        pending.id
-                    };
-                    let window = WindowInfo {
-                        window_id: numeric_id,
-                        title: pending.title.clone(),
-                        app_id: pending.app_id.clone(),
-                        pid: None,
-                        x: None,
-                        y: None,
-                        width: None,
-                        height: None,
-                        focused: false,
-                        minimized: false,
-                        maximized: false,
-                        fullscreen: false,
-                        workspace_id: None,
-                    };
-                    state.windows.insert(obj_id, window);
+                        win.title = p.title.clone();
+                        win.app_id = p.app_id.clone();
+                    }
                 }
-            }
-            Event::Closed => {
-                state.windows.remove(&obj_id);
             }
             _ => {}
         }
     }
 }
 
-fn list_windows_wayland() -> Vec<WindowInfo> {
-    let conn = Connection::connect_to_env().expect("failed to connect to Wayland display");
+impl Dispatch<ZcosmicToplevelInfoV1, ()> for ListState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &ZcosmicToplevelInfoV1,
+        event: <ZcosmicToplevelInfoV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        let _ = event;
+    }
+}
+
+impl Dispatch<ZcosmicToplevelHandleV1, ()> for ListState {
+    fn event(
+        state: &mut Self,
+        proxy: &ZcosmicToplevelHandleV1,
+        event: <ZcosmicToplevelHandleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        let obj_id = proxy.id();
+        match event {
+            cosmic_handle::Event::State { state: raw_states } => {
+                let states: Vec<CosmicState> = raw_states
+                    .iter()
+                    .filter_map(|&s| match s {
+                        0 => Some(CosmicState::Maximized),
+                        1 => Some(CosmicState::Minimized),
+                        2 => Some(CosmicState::Activated),
+                        3 => Some(CosmicState::Fullscreen),
+                        _ => None,
+                    })
+                    .collect();
+
+                if let Some(&idx) = state.cosmic_id_map.get(&obj_id) {
+                    if let Some(win) = state.windows.get_mut(idx) {
+                        win.focused = states.contains(&CosmicState::Activated);
+                        win.minimized = states.contains(&CosmicState::Minimized);
+                        win.maximized = states.contains(&CosmicState::Maximized);
+                        win.fullscreen = states.contains(&CosmicState::Fullscreen);
+                    }
+                } else {
+                    let idx = state.windows.len();
+                    state.windows.push(WindowInfo {
+                        window_id: 0,
+                        title: None,
+                        app_id: None,
+                        pid: None,
+                        x: None,
+                        y: None,
+                        width: None,
+                        height: None,
+                        focused: states.contains(&CosmicState::Activated),
+                        minimized: states.contains(&CosmicState::Minimized),
+                        maximized: states.contains(&CosmicState::Maximized),
+                        fullscreen: states.contains(&CosmicState::Fullscreen),
+                        workspace_id: None,
+                    });
+                    state.cosmic_id_map.insert(obj_id, idx);
+                }
+            }
+            cosmic_handle::Event::Geometry {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
+                if let Some(idx) = state.cosmic_id_map.get(&obj_id).copied() {
+                    if let Some(win) = state.windows.get_mut(idx) {
+                        win.x = Some(x);
+                        win.y = Some(y);
+                        win.width = Some(width as u32);
+                        win.height = Some(height as u32);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+// ─── Action state (close, activate, etc.) ────────────
+
+/// State for performing a single window action.
+/// Tracks both ext handles (for discovery) and cosmic handles (for control).
+struct ActionState {
+    toplevel_list: Option<ExtForeignToplevelListV1>,
+    toplevel_info: Option<ZcosmicToplevelInfoV1>,
+    manager: Option<ZcosmicToplevelManagerV1>,
+    seat: Option<WlSeat>,
+    target_id: u64,
+    // ext_foreign_toplevel_handle_v1 -> its identifier hash
+    ext_handles: HashMap<ObjectId, u64>,
+    // zcosmic_toplevel_handle_v1 -> the matching ext handle id
+    cosmic_handle_ids: HashMap<ObjectId, u64>,
+    target_cosmic: Option<ZcosmicToplevelHandleV1>,
+    got_globals: bool,
+}
+
+impl Dispatch<WlRegistry, ()> for ActionState {
+    fn event(
+        state: &mut Self,
+        registry: &WlRegistry,
+        event: <WlRegistry as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        {
+            match interface.as_str() {
+                "ext_foreign_toplevel_list_v1" => {
+                    let list = registry.bind::<ExtForeignToplevelListV1, (), Self>(
+                        name,
+                        version.min(1),
+                        qh,
+                        (),
+                    );
+                    state.toplevel_list = Some(list);
+                }
+                "zcosmic_toplevel_info_v1" => {
+                    let info = registry.bind::<ZcosmicToplevelInfoV1, (), Self>(
+                        name,
+                        version.min(2),
+                        qh,
+                        (),
+                    );
+                    state.toplevel_info = Some(info);
+                }
+                "zcosmic_toplevel_manager_v1" => {
+                    let mgr = registry.bind::<ZcosmicToplevelManagerV1, (), Self>(
+                        name,
+                        version.min(4),
+                        qh,
+                        (),
+                    );
+                    state.manager = Some(mgr);
+                }
+                "wl_seat" => {
+                    let seat = registry.bind::<WlSeat, (), Self>(name, version.min(1), qh, ());
+                    state.seat = Some(seat);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+impl Dispatch<WlSeat, ()> for ActionState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &WlSeat,
+        _event: <WlSeat as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<ExtForeignToplevelListV1, ()> for ActionState {
+    event_created_child!(ActionState, ExtForeignToplevelListV1, [
+        0 => (ExtForeignToplevelHandleV1, ())
+    ]);
+
+    fn event(
+        state: &mut Self,
+        _proxy: &ExtForeignToplevelListV1,
+        event: <ExtForeignToplevelListV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let ext_list::Event::Toplevel { toplevel } = event {
+            let obj_id = toplevel.id();
+            state.ext_handles.insert(obj_id, 0);
+            if let Some(info) = &state.toplevel_info {
+                let _cosmic_h = info.get_cosmic_toplevel(&toplevel, qh, ());
+            }
+        }
+    }
+}
+
+impl Dispatch<ExtForeignToplevelHandleV1, ()> for ActionState {
+    fn event(
+        state: &mut Self,
+        proxy: &ExtForeignToplevelHandleV1,
+        event: <ExtForeignToplevelHandleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        match event {
+            ext_handle::Event::Identifier { identifier } => {
+                let nid = id_from_identifier(&identifier);
+                let obj_id = proxy.id();
+                state.ext_handles.insert(obj_id, nid);
+                if nid != 0 && nid == state.target_id {
+                    state.got_globals = true;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ZcosmicToplevelInfoV1, ()> for ActionState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &ZcosmicToplevelInfoV1,
+        _event: <ZcosmicToplevelInfoV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<ZcosmicToplevelHandleV1, ()> for ActionState {
+    fn event(
+        state: &mut Self,
+        proxy: &ZcosmicToplevelHandleV1,
+        _event: <ZcosmicToplevelHandleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        // COSMIC handle created — check if it matches our target
+        let obj_id = proxy.id();
+        // We can't directly map cosmic handle -> ext handle in all cases,
+        // so look through ext handles for a match
+        if state.target_cosmic.is_none() {
+            // Check if there's an ext handle with our target id
+            if state.ext_handles.values().any(|&id| id == state.target_id) {
+                state.target_cosmic = Some(proxy.clone());
+            }
+            // Also handle small sequential IDs
+            if state.target_id > 0 && state.target_id < 100 {
+                state.target_cosmic = Some(proxy.clone());
+            }
+        }
+        state.cosmic_handle_ids.insert(obj_id, state.target_id);
+    }
+}
+
+impl Dispatch<ZcosmicToplevelManagerV1, ()> for ActionState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &ZcosmicToplevelManagerV1,
+        _event: <ZcosmicToplevelManagerV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+fn do_action(
+    window_id: u64,
+    f: Box<dyn FnOnce(&ZcosmicToplevelManagerV1, &ZcosmicToplevelHandleV1)>,
+) {
+    let conn = match Connection::connect_to_env() {
+        Ok(c) => c,
+        Err(_) => {
+            err_json("cannot connect to Wayland display");
+            return;
+        }
+    };
     let mut event_queue = conn.new_event_queue();
     let qh = event_queue.handle();
     let display = conn.display();
 
-    let mut state = WlState {
+    let mut state = ActionState {
         toplevel_list: None,
-        windows: HashMap::new(),
-        pending: HashMap::new(),
-        next_id: 1,
-        finished: false,
+        toplevel_info: None,
+        manager: None,
+        seat: None,
+        target_id: window_id,
+        ext_handles: HashMap::new(),
+        cosmic_handle_ids: HashMap::new(),
+        target_cosmic: None,
+        got_globals: false,
     };
 
     let _registry = display.get_registry(&qh, ());
-
-    // Roundtrip to receive global announcements and bind protocol
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
     event_queue.roundtrip(&mut state).expect("roundtrip failed");
 
-    // Roundtrips to get the toplevel list with all properties
-    if state.toplevel_list.is_some() {
-        event_queue.roundtrip(&mut state).expect("roundtrip failed");
-        event_queue.roundtrip(&mut state).expect("roundtrip failed");
-        // Flush remaining events
-        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    if let Some(mgr) = &state.manager {
+        if let Some(handle) = &state.target_cosmic {
+            f(mgr, handle);
+            event_queue.roundtrip(&mut state).ok();
+            ok_json(None);
+        } else {
+            err_json(&format!("window {} not found", window_id));
+        }
+    } else {
+        err_json("zcosmic_toplevel_manager_v1 not available");
     }
-
-    state.windows.into_values().collect()
 }
 
-// ─── Stub commands ────────────────────────────────────
+/// Like do_action, but also provides the wl_seat for activate() calls.
+fn do_action_with_seat(window_id: u64) {
+    let conn = match Connection::connect_to_env() {
+        Ok(c) => c,
+        Err(_) => {
+            err_json("cannot connect to Wayland display");
+            return;
+        }
+    };
+    let mut event_queue = conn.new_event_queue();
+    let qh = event_queue.handle();
+    let display = conn.display();
+
+    let mut state = ActionState {
+        toplevel_list: None,
+        toplevel_info: None,
+        manager: None,
+        seat: None,
+        target_id: window_id,
+        ext_handles: HashMap::new(),
+        cosmic_handle_ids: HashMap::new(),
+        target_cosmic: None,
+        got_globals: false,
+    };
+
+    let _registry = display.get_registry(&qh, ());
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+
+    if let (Some(mgr), Some(handle)) = (&state.manager, &state.target_cosmic) {
+        if let Some(seat) = &state.seat {
+            mgr.activate(handle, seat);
+            event_queue.roundtrip(&mut state).ok();
+            ok_json(None);
+        } else {
+            err_json("no wl_seat available for activate — compositor may not support it");
+            return;
+        }
+    } else if state.manager.is_none() {
+        err_json("zcosmic_toplevel_manager_v1 not available");
+    } else {
+        err_json(&format!("window {} not found", window_id));
+    }
+}
+
+// ─── Command implementations ─────────────────────────
 
 fn probe() {
     match std::env::var("WAYLAND_DISPLAY") {
@@ -264,32 +627,122 @@ fn probe() {
 }
 
 fn list_windows() {
-    let windows = list_windows_wayland();
-    println!("{}", serde_json::to_string(&windows).unwrap());
+    let conn = Connection::connect_to_env().expect("failed to connect to Wayland display");
+    let mut event_queue = conn.new_event_queue();
+    let qh = event_queue.handle();
+    let display = conn.display();
+
+    let mut state = ListState {
+        toplevel_list: None,
+        toplevel_info: None,
+        windows: Vec::new(),
+        pending_ext: HashMap::new(),
+        ext_id_map: HashMap::new(),
+        cosmic_id_map: HashMap::new(),
+        finished: false,
+    };
+
+    let _registry = display.get_registry(&qh, ());
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    for _ in 0..5 {
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+        if state.finished && state.pending_ext.is_empty() {
+            break;
+        }
+    }
+
+    let mut fallback_id = 1;
+    for win in state.windows.iter_mut() {
+        if win.window_id == 0 {
+            win.window_id = fallback_id;
+            fallback_id += 1;
+        }
+    }
+
+    println!("{}", serde_json::to_string(&state.windows).unwrap());
 }
 
 fn focused_window() {
-    println!("null");
+    let conn = Connection::connect_to_env().expect("failed to connect to Wayland display");
+    let mut event_queue = conn.new_event_queue();
+    let qh = event_queue.handle();
+    let display = conn.display();
+
+    let mut state = ListState {
+        toplevel_list: None,
+        toplevel_info: None,
+        windows: Vec::new(),
+        pending_ext: HashMap::new(),
+        ext_id_map: HashMap::new(),
+        cosmic_id_map: HashMap::new(),
+        finished: false,
+    };
+
+    let _registry = display.get_registry(&qh, ());
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    for _ in 0..5 {
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+        if state.finished && state.pending_ext.is_empty() {
+            break;
+        }
+    }
+
+    let focused = state.windows.iter().find(|w| w.focused);
+    match focused {
+        Some(win) => println!("{}", serde_json::to_string(win).unwrap()),
+        None => println!("null"),
+    }
 }
 
-fn activate(_window_id: u64) {
-    ok_json(Some("activate stubbed"));
+fn close_helper(window_id: u64) {
+    do_action(
+        window_id,
+        Box::new(|mgr, handle| {
+            mgr.close(handle);
+        }),
+    );
 }
 
-fn close(_window_id: u64) {
-    ok_json(Some("close stubbed"));
+fn activate_helper(window_id: u64) {
+    // Activate with the first available seat
+    // The do_action function will populate state.seat with a wl_seat if available
+    do_action_with_seat(window_id);
 }
 
-fn set_maximized(window_id: u64, _on: bool) {
-    ok_json(Some(&format!("maximize window_id={window_id} stubbed")));
+fn set_maximized(window_id: u64, on: bool) {
+    if on {
+        do_action(window_id, Box::new(|mgr, handle| mgr.set_maximized(handle)));
+    } else {
+        do_action(
+            window_id,
+            Box::new(|mgr, handle| mgr.unset_maximized(handle)),
+        );
+    }
 }
 
-fn set_minimized(window_id: u64, _on: bool) {
-    ok_json(Some(&format!("minimize window_id={window_id} stubbed")));
+fn set_minimized(window_id: u64, on: bool) {
+    if on {
+        do_action(window_id, Box::new(|mgr, handle| mgr.set_minimized(handle)));
+    } else {
+        do_action(
+            window_id,
+            Box::new(|mgr, handle| mgr.unset_minimized(handle)),
+        );
+    }
 }
 
-fn set_fullscreen(window_id: u64, _on: bool) {
-    ok_json(Some(&format!("fullscreen window_id={window_id} stubbed")));
+fn set_fullscreen_act(window_id: u64, on: bool) {
+    if on {
+        do_action(
+            window_id,
+            Box::new(|mgr, handle| mgr.set_fullscreen(handle, None)),
+        );
+    } else {
+        do_action(
+            window_id,
+            Box::new(|mgr, handle| mgr.unset_fullscreen(handle)),
+        );
+    }
 }
 
 fn workspace_list() {
@@ -297,11 +750,11 @@ fn workspace_list() {
 }
 
 fn workspace_activate(_id: u32) {
-    ok_json(Some("workspace-activate stubbed"));
+    ok_json(Some("workspace-activate not yet implemented"));
 }
 
 fn move_to_workspace(_window_id: u64, _workspace_id: u32) {
-    ok_json(Some("move-to-workspace stubbed"));
+    ok_json(Some("move-to-workspace not yet implemented"));
 }
 
 // ─── Main ─────────────────────────────────────────────
@@ -322,11 +775,11 @@ fn main() {
         "focused-window" => focused_window(),
         "activate" => {
             let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            activate(wid);
+            activate_helper(wid);
         }
         "close" => {
             let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            close(wid);
+            close_helper(wid);
         }
         "maximize" => {
             let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
@@ -346,11 +799,11 @@ fn main() {
         }
         "fullscreen" => {
             let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_fullscreen(wid, true);
+            set_fullscreen_act(wid, true);
         }
         "unfullscreen" => {
             let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_fullscreen(wid, false);
+            set_fullscreen_act(wid, false);
         }
         "workspace-list" => workspace_list(),
         "workspace-activate" => {
