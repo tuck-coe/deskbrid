@@ -693,6 +693,7 @@ mod tests {
         assert!(actions.contains(&"system.capabilities"));
         assert!(actions.contains(&"system.health"));
         assert!(actions.contains(&"system.confinement"));
+        assert!(actions.contains(&"windows.tile"));
         assert!(actions.contains(&"windows.activate_or_launch"));
         assert!(actions.contains(&"layout_profiles.save"));
         assert!(actions.contains(&"layout_profiles.restore"));
@@ -752,6 +753,31 @@ mod tests {
         assert!(Action::from_json(r#"{"type":"windows.close","id":"x","window_id":""}"#).is_err());
         assert!(
             Action::from_json(r#"{"type":"windows.move_resize","id":"x","window_id":" ","x":0,"y":0,"width":1,"height":1}"#)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn parses_windows_tile() {
+        let (_, action) = Action::from_json(
+            r#"{"type":"windows.tile","id":"x","window_id":"0x1","preset":"top_left","monitor":2,"padding":8}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            action,
+            Action::WindowsTile {
+                window_id,
+                preset,
+                monitor: Some(2),
+                padding: Some(8),
+            } if window_id == "0x1" && preset == "top_left"
+        ));
+        assert!(
+            Action::from_json(r#"{"type":"windows.tile","id":"x","window_id":"0x1","preset":""}"#)
+                .is_err()
+        );
+        assert!(
+            Action::from_json(r#"{"type":"windows.tile","id":"x","window_id":"0x1","preset":"left","padding":4294967296}"#)
                 .is_err()
         );
     }

@@ -42,8 +42,8 @@ pub(super) fn parse_windows(raw: &Value, _id: &str, type_str: &str) -> anyhow::R
         "windows.tile" => Action::WindowsTile {
             window_id: required_non_empty_string(raw, "window_id")?,
             preset: required_non_empty_string(raw, "preset")?,
-            monitor: raw["monitor"].as_u64().map(|value| value as u32),
-            padding: raw["padding"].as_u64().map(|value| value as u32),
+            monitor: optional_u32(raw, "monitor")?,
+            padding: optional_u32(raw, "padding")?,
         },
         "windows.activate_or_launch" => Action::WindowsActivateOrLaunch {
             app_id: required_non_empty_string(raw, "app_id")?,

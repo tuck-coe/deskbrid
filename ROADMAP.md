@@ -33,6 +33,7 @@ it to the completed table below.
 | [14. MPRIS Media Control](#14-mpris-media-control) | List MPRIS players, inspect playback status/metadata, and send common playback commands | `src/daemon/mpris.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [16. Application Menu Catalog](#16-application-menu-catalog) | List, search, and inspect installed `.desktop` applications from XDG application directories | `src/daemon/apps.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [18. Clipboard History](#18-clipboard-history) | Query and clear bounded text entries observed through Deskbrid clipboard reads/writes | `src/daemon/clipboard.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [19. Window Tiling Presets](#19-window-tiling-presets) | Move windows into named monitor-aware presets with optional padding | `src/tiling.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [20. Color Picker](#20-color-picker) | Sample pixel colors from a screenshot path or live 1x1 capture and return RGBA/hex | `src/color.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
@@ -80,7 +81,7 @@ These features exist in the codebase already for reference:
 16. [✅ Application Menu Catalog](#16-application-menu-catalog)
 17. [Screen Recording (Finish Half-Built)](#17-screen-recording-finish-half-built-implementation)
 18. [✅ Clipboard History](#18-clipboard-history)
-19. [Window Tiling Presets](#19-window-tiling-presets)
+19. [✅ Window Tiling Presets](#19-window-tiling-presets)
 20. [✅ Color Picker](#20-color-picker)
 21. [Desktop Settings](#21-desktop-settings-readwrite-configuration)
 22. [Keyboard Layout Management](#22-keyboard-layout-management)
@@ -1417,16 +1418,14 @@ DeskbridEvent::ClipboardChanged {
 
 ## 19. Window Tiling Presets
 
+**Status:** ✅ Done. Deskbrid exposes `windows.tile` as a helper over
+`window_move_resize`, with monitor selection, named presets, optional padding,
+CLI support, and Python client bindings.
+
 ### What's Missing
 
-Deskbrid has `WindowsMoveResize` for manual positioning, but no quick tiling:
-- Tile left/right (50% width)
-- Tile top/bottom half
-- Quarter-screen corners
-- Fill (maximize preserving aspect ratio)
-
-These are keybindings in every DE. An agent should be able to say "tile that window
-left" without computing pixel coordinates.
+Future refinements: compositor-native tiling integrations where they give better
+results than pixel geometry, smooth transitions, and richer layout presets.
 
 ### Implementation
 
@@ -6070,7 +6069,7 @@ SnapshotClone { id: String, target_path: String },
 | **App catalog (.desktop)** | ✅ Done | Low (~200 lines, ini parser) | Medium | Helps agents discover installed launchable applications |
 | **MPRIS media control** | ✅ Done | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |
 | **Color picker** | ✅ Done | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |
-| **Window tiling presets** | 🧭 Planned | Low (~150 lines, helper over existing) | Medium | Tiles windows without forcing agents to compute pixel coordinates |
+| **Window tiling presets** | ✅ Done | Low (~150 lines, helper over existing) | Medium | Tiles windows without forcing agents to compute pixel coordinates |
 | **Drag & drop** | 🧭 Planned | Very low (~100 lines, 4 backends) | Medium | Helps with file managers, design tools, and browser upload zones |
 | **sysfs brightness/backlight** | 🧭 Planned | Very low (std::fs only) | Medium | Works across all DEs, no new deps |
 | **sysfs thermal/CPU** | 🧭 Planned | Very low (std::fs only) | Medium | Useful for monitoring and simple read-only hardware insight |
