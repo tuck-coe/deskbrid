@@ -51,15 +51,13 @@ fn block<F: std::future::Future<Output = anyhow::Result<Value>>>(rt: &Handle, f:
 fn execute(state: Arc<DaemonState>, rt: &Handle, action: &str, args: Value) -> Json<Value> {
     let action = action.to_string();
     let rt = rt.clone();
-    Json(
-        tokio::task::block_in_place(move || {
-            rt.block_on(async {
-                do_execute_with(&state, &action, args)
-                    .await
-                    .unwrap_or_else(|e| json!({"error": e.to_string()}))
-            })
-        }),
-    )
+    Json(tokio::task::block_in_place(move || {
+        rt.block_on(async {
+            do_execute_with(&state, &action, args)
+                .await
+                .unwrap_or_else(|e| json!({"error": e.to_string()}))
+        })
+    }))
 }
 
 #[tool_router(server_handler)]

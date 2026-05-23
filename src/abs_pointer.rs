@@ -212,6 +212,8 @@ pub fn button_code(name: &str) -> Result<u16, String> {
         "left" => Ok(KeyCode::BTN_LEFT.0),
         "right" => Ok(KeyCode::BTN_RIGHT.0),
         "middle" => Ok(KeyCode::BTN_MIDDLE.0),
-        other => Err(format!("unknown button '{other}': expected 'left', 'right', or 'middle'")),
+        other => Err(format!(
+            "unknown button '{other}': expected 'left', 'right', or 'middle'"
+        )),
     }
 }

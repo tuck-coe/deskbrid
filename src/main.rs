@@ -6,7 +6,9 @@ fn main() -> anyhow::Result<()> {
     let args = cli::parse();
     if let cli::Command::Daemon { verbose: true, .. } = &args.command {
         // SAFETY: called in single-threaded fn main before tokio runtime starts
-        unsafe { std::env::set_var("DESKBRID_LOG", "debug"); }
+        unsafe {
+            std::env::set_var("DESKBRID_LOG", "debug");
+        }
     }
     runtime(args)
 }
@@ -26,7 +28,10 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
     };
 
     match args.command {
-        cli::Command::Daemon { verbose: _, mcp_port } => {
+        cli::Command::Daemon {
+            verbose: _,
+            mcp_port,
+        } => {
             if let Some(port) = mcp_port {
                 // Start daemon + MCP TCP listener in parallel (both use rmcp transport)
                 let daemon_handle = tokio::spawn(async { daemon::run().await });

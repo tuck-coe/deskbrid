@@ -212,8 +212,7 @@ pub(super) async fn do_capabilities(state: &DaemonState) -> anyhow::Result<Value
 // --- Absolute Pointer tools ---
 
 pub(super) async fn do_click_coordinate(x: f64, y: f64, button: &str) -> anyhow::Result<Value> {
-    let btn = crate::abs_pointer::button_code(button)
-        .map_err(|e| anyhow::anyhow!(e))?;
+    let btn = crate::abs_pointer::button_code(button).map_err(|e| anyhow::anyhow!(e))?;
     let button = button.to_string();
     tokio::task::spawn_blocking(move || {
         let mut pointer = crate::abs_pointer::create_for_screen_sync()
@@ -231,8 +230,7 @@ pub(super) async fn do_drag(
     to_y: f64,
     button: &str,
 ) -> anyhow::Result<Value> {
-    let btn = crate::abs_pointer::button_code(button)
-        .map_err(|e| anyhow::anyhow!(e))?;
+    let btn = crate::abs_pointer::button_code(button).map_err(|e| anyhow::anyhow!(e))?;
     let button = button.to_string();
     tokio::task::spawn_blocking(move || {
         let mut pointer = crate::abs_pointer::create_for_screen_sync()

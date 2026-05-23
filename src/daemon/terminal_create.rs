@@ -30,8 +30,14 @@ pub(crate) async fn create_terminal(
 
     // Validate shell against known-safe shells
     let known_shells = [
-        "/bin/bash", "/bin/sh", "/bin/zsh", "/bin/fish",
-        "/usr/bin/bash", "/usr/bin/sh", "/usr/bin/zsh", "/usr/bin/fish",
+        "/bin/bash",
+        "/bin/sh",
+        "/bin/zsh",
+        "/bin/fish",
+        "/usr/bin/bash",
+        "/usr/bin/sh",
+        "/usr/bin/zsh",
+        "/usr/bin/fish",
     ];
     if !known_shells.contains(&shell.as_str()) {
         anyhow::bail!(
@@ -86,17 +92,23 @@ pub(crate) async fn create_terminal(
     if let Some(env) = &env {
         // Block dangerous environment variables
         let blocked = [
-            "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "LD_DEBUG",
-            "LD_OPEN", "LD_PATH", "LD_RUN_PATH", "SHELL",
-            "PATH", "IFS", "BASH_ENV", "ENV",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "LD_AUDIT",
+            "LD_DEBUG",
+            "LD_OPEN",
+            "LD_PATH",
+            "LD_RUN_PATH",
+            "SHELL",
+            "PATH",
+            "IFS",
+            "BASH_ENV",
+            "ENV",
         ];
         for k in env.keys() {
             let upper = k.to_uppercase();
             if blocked.contains(&upper.as_str()) {
-                anyhow::bail!(
-                    "setting '{}' is not permitted for security reasons",
-                    k
-                );
+                anyhow::bail!("setting '{}' is not permitted for security reasons", k);
             }
         }
         command.envs(env);

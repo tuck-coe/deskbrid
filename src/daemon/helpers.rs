@@ -52,16 +52,16 @@ pub async fn spawn_detached_process(
 
     // Validate against command allowlist (env-configured, colon-separated)
     // If DESKBRID_ALLOWED_COMMANDS is unset, only allow known-safe starters
-    let allowed_cmds = std::env::var("DESKBRID_ALLOWED_COMMANDS")
-        .unwrap_or_default();
+    let allowed_cmds = std::env::var("DESKBRID_ALLOWED_COMMANDS").unwrap_or_default();
     if !allowed_cmds.is_empty() {
         let allowed: Vec<&str> = allowed_cmds.split(':').collect();
         let program_str = program.as_str();
         let is_allowed = allowed.iter().any(|a| {
             // Exact match or glob-style prefix match (e.g., "/usr/bin/*")
             *a == program_str
-                || a.strip_suffix("/*")
-                    .is_some_and(|prefix| program_str.starts_with(prefix) && program_str.contains('/'))
+                || a.strip_suffix("/*").is_some_and(|prefix| {
+                    program_str.starts_with(prefix) && program_str.contains('/')
+                })
         });
         if !is_allowed {
             anyhow::bail!(

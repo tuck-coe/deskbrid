@@ -9,9 +9,8 @@ use super::dispatch::dispatch_action_with_options;
 use super::helpers::ok_response;
 
 pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::Result<()> {
-    let peer_uid = socket_peer_uid(&stream).ok_or_else(|| {
-        anyhow::anyhow!("failed to determine peer UID — connection rejected")
-    })?;
+    let peer_uid = socket_peer_uid(&stream)
+        .ok_or_else(|| anyhow::anyhow!("failed to determine peer UID — connection rejected"))?;
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut conn = ConnectionState::default();
