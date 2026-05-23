@@ -777,13 +777,12 @@ impl Dispatch<WlRegistry, ()> for WorkspaceActState {
                     );
                     state.manager = Some(mgr);
                 }
-                "wl_output" => {
-                    if state.output.is_none() {
-                        let output =
-                            registry.bind::<WlOutput, (), Self>(name, version.min(1), qh, ());
-                        state.output = Some(output);
-                    }
+                "wl_output" if state.output.is_none() => {
+                    let output =
+                        registry.bind::<WlOutput, (), Self>(name, version.min(1), qh, ());
+                    state.output = Some(output);
                 }
+                "wl_output" => {}
                 _ => {}
             }
         }
