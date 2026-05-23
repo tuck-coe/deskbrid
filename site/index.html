@@ -280,18 +280,20 @@ footer a:hover{color:var(--accent-light)}
 </nav>
 
 <section class="hero">
-  <div class="hero-badge">🖥️ v0.7.0 — 9 backends, MCP server, AT-SPI2, uinput</div>
+  <div class="hero-badge">🖥️ v0.7.0 — 85 MCP tools · Hermes plugin · 9 backends · AT-SPI2</div>
   <h1>
     The <span class="gradient-text">Linux Desktop HAL</span><br>
     for AI Agents
   </h1>
   <p>
     Deskbrid is the hardware abstraction layer your AI agents are missing.
-    Unix socket daemon, MCP server, 30+ AI tools, nine desktop backends.
+    Unix socket daemon, MCP server, 85 AI tools, nine desktop backends.
     GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11.
-    Control windows, manage keyboard layouts, inject keystrokes with mouse drag,
-    browse accessibility trees, control backlights and CPU governors,
-    talk to browsers, manipulate files — all from your agent.
+    Native Hermes Agent plugin — drop in, enable, all 85 tools appear.
+    Also works with Claude Code, Codex, Cursor — any MCP client.
+    Control windows, inject keystrokes, take screenshots, browse accessibility
+    trees, manage files and terminals, control systemd services and monitors,
+    automate browsers via CDP — all from your agent.
   </p>
   <div class="hero-actions">
     <a href="https://github.com/coe0718/deskbrid/releases" class="btn-primary">⬇️ Download v0.7.0</a>
@@ -315,7 +317,7 @@ footer a:hover{color:var(--accent-light)}
       <span class="prompt">$</span> echo '<span class="str">{"type":"a11y.tree","id":"r1"}</span>' | nc -U /run/user/1000/deskbrid.sock -w 2<br>
       <span class="ok">  ← 142 accessible elements · tree depth 5</span><br>
       <br>
-      <span class="prompt">$</span> deskbrid mcp <span class="cm"># 20-tool MCP server for Claude Code, Cursor, Codex</span><br>
+      <span class="prompt">$</span> deskbrid mcp <span class="cm"># 85-tool MCP server for Hermes Agent, Claude Code, Cursor, Codex</span><br>
       <span class="ok">  ← MCP server ready on stdin/stdout</span><br>
       <br>
       <span class="prompt">$</span> echo '<span class="str">{"type":"files.read","id":"r4","path":"/etc/hostname"}</span>' | nc -U /run/user/1000/deskbrid.sock -w 2<br>
@@ -341,7 +343,12 @@ footer a:hover{color:var(--accent-light)}
       <div class="feature-card reveal">
         <span class="icon">🔌</span>
         <h3>MCP Server</h3>
-        <p>20-tool Model Context Protocol server on stdin/stdout or TCP. Claude Code, Cursor, Codex — any MCP client can control the desktop. Zero external MCP crate dependency.</p>
+        <p>85-tool Model Context Protocol server on stdin/stdout or TCP. Hermes Agent, Claude Code, Codex, Cursor — any MCP client can control the desktop. Zero external MCP crate dependency.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">🤖</span>
+        <h3>Hermes Agent Plugin</h3>
+        <p>First-class Hermes Agent integration. Drop the plugin in, enable it, and all 85 tools appear in every agent session. Bundled skill teaches agents how to use the desktop. Auto-starts the daemon. Direct Unix socket mode — no MCP overhead.</p>
       </div>
       <div class="feature-card reveal">
         <span class="icon">🌳</span>
@@ -472,6 +479,22 @@ footer a:hover{color:var(--accent-light)}
           <div class="label">AGENT PROMPT</div>
           <p>Tell your AI assistant: <strong>"Hey, install Deskbrid for me"</strong></p>
           <code>bash &lt;(curl -fsSL deskbrid.patchhive.dev/install.sh)</code>
+        </div>
+      </div>
+      <div class="install-cmd agent reveal">
+        <span class="icon">🧠</span>
+        <div class="body">
+          <div class="label">HERMES AGENT — PLUGIN</div>
+          <p>Copy the plugin into <code>~/.hermes/plugins/deskbrid/</code>, enable it in <code>config.yaml</code>, restart Hermes. All 85 tools appear. Or use MCP mode with a 5-line config entry.</p>
+          <code>cp -r hermes/plugin ~/.hermes/plugins/deskbrid</code>
+        </div>
+      </div>
+      <div class="install-cmd agent reveal">
+        <span class="icon">🔌</span>
+        <div class="body">
+          <div class="label">HERMES AGENT — MCP (zero plugin)</div>
+          <p>Add to <code>~/.hermes/config.yaml</code> and restart. Hermes discovers every tool automatically. No plugin code needed.</p>
+          <code>mcp_servers:<br>&nbsp;&nbsp;deskbrid:<br>&nbsp;&nbsp;&nbsp;&nbsp;command: deskbrid<br>&nbsp;&nbsp;&nbsp;&nbsp;args: [mcp]</code>
         </div>
       </div>
     </div>
