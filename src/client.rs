@@ -6,7 +6,7 @@ use tokio::net::UnixStream;
 fn socket_path() -> String {
     std::env::var("XDG_RUNTIME_DIR")
         .map(|d| format!("{}/deskbrid.sock", d))
-        .unwrap_or_else(|_| "/run/user/1000/deskbrid.sock".into())
+        .expect("XDG_RUNTIME_DIR must be set — cannot locate daemon socket")
 }
 
 /// Connect to the daemon, send a one-shot action, and print the response.

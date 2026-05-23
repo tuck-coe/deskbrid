@@ -60,8 +60,7 @@ fn err_json(msg: &str) {
 fn probe() {
     match std::env::var("WAYLAND_DISPLAY") {
         Ok(socket) => {
-            let xdg =
-                std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+            let xdg = std::env::var("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
             let path = format!("{xdg}/{socket}");
             if std::path::Path::new(&path).exists() {
                 println!("{{\"ok\": true, \"compositor\": \"cosmic\", \"socket\": \"{path}\"}}");
