@@ -1,13 +1,13 @@
 ---
-name: deskbrid-desktop-control
-description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, workspaces, MCP server, AT-SPI2, browser CDP, file ops, MPRIS, systemd, and more. Backends for GNOME, KDE, Hyprland, COSMIC, and X11.
+name: deskbrid
+description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, 9 backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server, AT-SPI2 a11y, browser CDP, file ops, MPRIS, systemd, terminal.
 ---
 
-# Deskbrid Desktop Control (v0.7.0)
+# Deskbrid Desktop Control (v0.8.0)
 
 Deskbrid is a Unix socket daemon + MCP server that wraps GNOME Shell, KDE, Hyprland, COSMIC, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON protocol. Any agent or script can control the full desktop.
 
-**v0.7.0 highlights (79 commits, +31.6K / −6.5K lines):** COSMIC backend shipped, AT-SPI2 rebuild + MCP server (20 tools), uinput AbsPointer, browser CDP control, file operations, MPRIS media, color picker, app catalog, clipboard history, screenshot OCR + diffing, terminal PTY sessions, systemd/polkit controls, layout profiles, activate-or-launch, monitor controls, 8-file refactor (gnome/kde/hyprland/cosmic/x11/cli/daemon/protocol split into modular dirs).
+**v0.7.0 highlights (79 commits, +31.6K / −6.5K lines):** COSMIC backend shipped, AT-SPI2 rebuild + MCP server (85 tools across 18 categories), uinput AbsPointer, browser CDP control, file operations, MPRIS media, color picker, app catalog, clipboard history, screenshot OCR + diffing, terminal PTY sessions, systemd/polkit controls, layout profiles, activate-or-launch, monitor controls, process management, notifications, hotkeys, 8-file refactor.
 
 ## Installation
 
@@ -36,11 +36,14 @@ echo '{"type":"system.info","id":"1"}' | nc -U    \
   /run/user/1000/deskbrid.sock -w 2               # test the socket
 ```
 
-## AT-SPI + MCP (shipped v0.6.0+)
+## AT-SPI + MCP (always-on since v0.7.0+)
 
 Deskbrid ships an MCP (Model Context Protocol) stdio server and expanded AT-SPI2 accessibility tools. AI coding tools (Claude Code, Cursor, Codex) can control the desktop through Deskbrid's MCP interface.
 
+**MCP is always compiled — no feature flag.** As of May 2026, the `mcp` feature gate was removed. `deskbrid mcp` and `--mcp-port` are always available in release builds. The module has zero external dependencies (pure tokio + serde_json) so there's no reason to gate it.
+
 See `references/mcp-atspi-protocol.md` for the full tool mapping, protocol actions, module structure, and migration path from computer-use-linux.
+See `references/mcp-tool-expansion-workflow.md` for the proven pattern for adding new tool categories, helper functions, safety annotations, and rmcp TCP transport.
 See `references/adding-cli-backend.md` for the proven workflow for adding new CLI-based compositor backends (Sway, Niri, Wayfire pattern).
 
 ### AT-SPI Connection Caching
@@ -58,11 +61,74 @@ pub async fn connect_a11y() -> anyhow::Result<Connection> {
 
 **Pitfall:** If `connect_a11y()` creates a new `Connection::session()` + `GetAddress` + `Builder::address().build()` on every call, it leaks DBus connections. Always cache — zbus `Connection` is cheap to clone.
 
+## Keyboard Layout Management (v0.8.0)
+
+Five actions for cross-desktop keyboard layout management:
+
+| Action | Protocol String | Description |
+|--------|----------------|-------------|
+| `InputListLayouts` | `input.layouts.list` | List all configured keyboard layouts |
+| `InputGetLayout` | `input.layout.get` | Get active layout |
+| `InputSetLayout` | `input.layout.set` | Switch to a layout by index or name |
+| `InputAddLayout` | `input.layout.add` | Add a new layout |
+| `InputRemoveLayout` | `input.layout.remove` | Remove a layout by index |
+
+**Response type** — `KeyboardLayout`:
+```rust
+pub struct KeyboardLayout {
+    pub index: u32,
+    pub name: String,          // e.g. "us", "ru"
+    pub variant: Option<String>,  // e.g. "dvorak"
+    pub display_name: Option<String>, // e.g. "English (US)"
+}
+```
+
+**Backend support:**
+
+| Backend | Mechanism | List | Get | Set | Add | Remove |
+|---------|-----------|------|-----|-----|-----|--------|
+| **GNOME** | `gsettings org.gnome.desktop.input-sources` | ✅ | ✅ | ✅ (by index) | ✅ | ✅ |
+| **X11** | `setxkbmap -query/-layout/-variant` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Hyprland** | `hyprctl devices` + `hyprctl keyword` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Other | Trait defaults | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Implementation files:**
+- `src/backend/gnome/keyboard_layout.rs` — GVariant parser for gsettings
+- `src/backend/x11/keyboard_layout.rs` — setxkbmap output parser
+- `src/backend/hyprland/keyboard_layout.rs` — hyprctl devices parser
+- `src/daemon/execute_input.rs` — dispatch for all 5 actions
+- `src/protocol/types.rs` — `KeyboardLayout` struct
+- `src/protocol/serialize/action_type.rs` — action type mapping
+- `src/backend/mod.rs` — trait defaults (error fallbacks for unsupported backends)
+
+**Adding a new feature to Deskbrid follows this pattern:**
+1. Add `Action` variants in `src/protocol/mod.rs` + command strings
+2. Add response type in `src/protocol/types.rs`
+3. Wire in `src/protocol/serialize/action_type.rs` + `src/protocol/serialize.rs`
+4. Add dispatch in the matching `src/daemon/execute_*.rs`
+5. Add trait methods with default fallbacks in `src/backend/mod.rs`
+6. Implement per-backend in `src/backend/{de}/`
+7. Wire the module in `mod.rs` and the trait in `trait_impl.rs`
+
+### Dispatch architecture pitfall — `execute_stubs` is the core dispatcher
+
+Despite the name, `src/daemon/execute_stubs.rs` is NOT "stubs" — it's the central dispatch for system info, accessibility (AT-SPI2), location, ping, and browser CDP actions. Actions routed here are pre-backend: they don't need a desktop backend or use protocol-specific tooling directly (AT-SPI DBus, geoclue, Chrome DevTools Protocol). The wildcard `_ => unreachable!()` at the bottom is a safety net — if an action reaches `execute_stubs` that should have been handled elsewhere, it panics.
+
+**The name is misleading.** It was originally stubs for planned features, but as the features were implemented, the stubs were replaced with real calls while the module kept its name. New developers reading `execute_stubs` assume it's dead code — in fact it's the most active dispatch path for non-backend actions.
+
+**"Code exists but isn't wired" trap:** The a11y module (`src/a11y/`) had fully implemented snapshot trees, action invocation, value get/set, element text, and click-by-reference — but `execute_stubs` returned `{"supported": false, "reason":"AT-SPI not integrated yet"}`. The browser module (`src/browser.rs`) had a complete CDP-based `click()` via Chrome DevTools Protocol — but `UiElementClick` returned `"not integrated"`. Both were fixed May 2026. **When adding new capabilities, check that `execute_stubs` actually routes to them.** The modules can be fully implemented while the dispatcher ignores them.
+
+**Also check the MCP tools dispatcher (`src/mcp/tools.rs`):** it has its own tool→action routing table. New protocol actions need entries in both `execute_stubs` AND `mcp/tools.rs` to work through both the Unix socket and MCP server. **Exception:** the catch-all fallback (`_ => do_execute_with(state, name, args.clone())`) added in Phase 3 auto-routes any unknown tool name as an action type. This means new `do_execute_with`-compatible tools work in the bare JSON-RPC path without per-tool cases. The rmcp path (`server.rs`) still needs explicit `#[tool]` wrappers.
+
+See `references/execute-stubs-dispatch.md` for the full routing table and implemented-vs-stub status of every action.
+
+**Pitfall — port conflicts with Docker containers:** The Deskbrid daemon is not the only thing that binds ports. If a Docker container (e.g., `trust-gate-frontend-1`) occupies a commonly-used port like 5175, it blocks tooling that expects that port. Check `docker ps` before debugging port conflicts as system-level issues.
+
 ## Compositor Compatibility
 
 Deskbrid v0.3.0 auto-detects the running desktop environment and loads the appropriate backend. Detection order: `$XDG_CURRENT_DESKTOP` → process scan (`pgrep Hyprland`, `pgrep kwin_wayland`) → GNOME fallback.
 
-**Adding new backends:** See `references/adding-cli-backend.md` for the proven CLI-subprocess pattern (shipped Sway + Niri + Wayfire in one session). Covers protocol types, swaymsg argument format, fixture shapes, clippy traps, and the full wiring checklist. See `references/adding-a-backend.md` for the general architecture overview.
+**Adding new backends:** See `references/new-backend-checklist.md` — the proven workflow for shipping 5 CLI and helper-binary backends in one session. Covers three backend patterns (CLI subprocess, helper binary, D-Bus), protocol type matching, mod.rs wiring checklist (with sed pitfall), verify pipeline, commit format, and docs update checklist.
 
 | Compositor | Protocol | Status | Backend |
 |------------|----------|--------|---------|
@@ -73,7 +139,7 @@ Deskbrid v0.3.0 auto-detects the running desktop environment and loads the appro
 | **Sway** | Wayland | ✅ Supported (v0.7.0) | `swaymsg` JSON IPC for windows/workspaces/outputs; `ydotool` for input; `grim` for screenshots; `wl-clipboard`; shares wlroots infra with Hyprland |
 | **Niri** | Wayland | ✅ Supported (v0.7.0) | `niri msg --json` CLI for windows/workspaces/outputs; scrollable-tiling compositor; shares wlroots infra |
 | **Wayfire** | Wayland | ✅ Supported (v0.7.0) | `wf-ipc -j` CLI for views/workspaces/outputs; 3D wlroots compositor; shares wlroots infra |
-| **Labwc** | Wayland | ✅ Supported (v0.7.0) | Helper binary (`labwc-helper`) using wlr-foreign-toplevel-management-v1; stub commands; shares wlroots infra |
+| **Labwc** | Wayland | ✅ Supported (v0.7.1) | `wlrctl` for window ops (standard wlroots CLI); `labwc-helper` optional for full minimize support; shares wlroots infra |
 | **Cinnamon** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing via wmctrl + xdotool; full JS extension track remains |
 | **MATE** | X11 | ✅ Covered (v0.7.0) | X11 backend + wmctrl covers all MATE operations |
 | **Generic X11** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing + xrandr geometry |
@@ -215,6 +281,7 @@ With `cosmic-protocols`, `wayland-client`, `wayland-protocols` behind a `cosmic`
 - Turtle test rig has COSMIC v1.0.13-1 selectable from SDDM
 
 See `references/cosmic-backend-research.md` for full protocol API, implementation checklist, and computer-use-linux source analysis.
+See `references/wayland-helper-internals.md` for wayland-client 0.31 API gotchas, the stub-first development strategy, and module structure fixes for gated code.
 
 **Architecture:**
 ```\nsrc/backend/\n├── mod.rs          — DesktopBackend trait + detect_desktop() + backend factory\n├── gnome.rs        — GnomeBackend (v0.2.0, unchanged)\n├── hyprland.rs     — HyprBackend (v0.3.0)\n└── kde.rs          — KdeBackend (v0.4.0, new)\n```
@@ -255,16 +322,34 @@ See `references/cosmic-backend-research.md` for full protocol API, implementatio
 - **Empty-string env var trap:** `std::process::Command.env("KEY", "")` sets the env var to an *empty string*, which is functionally worse than unset. Always guard with `if !sig.is_empty()` before calling `.env()`.
 - **"Text file busy" when redeploying:** If `scp` fails with "dest open: Failure" when deploying a new deskbrid binary, there's a daemon process still running that holds the old binary open. Kill ALL instances (including orphaned ones from previous SSH sessions): `ssh host "pkill -x deskbrid 2>/dev/null; sleep 1"` before attempting `scp` again. If `scp` still fails, use the pipe-through-SSH workaround: `cat target/release/deskbrid | ssh host "cat > /home/user/deskbrid && chmod +x /home/user/deskbrid"`.
 - Mouse positioning uses absolute coordinates via `ydotool mousemove --absolute` (unlike GNOME which uses relative motion)
+- **XDG_CURRENT_DESKTOP values are mutually exclusive.** Each compositor sets exactly one value (e.g., `sway`, `hyprland`, `niri`, `wayfire`, `labwc`, `COSMIC`). Detection checks MUST be independent `if` blocks at the same level — never nest compositor checks inside each other. Nested checks mean Wayfire and Labwc only match if `XDG_CURRENT_DESKTOP` also contains "niri", which it never will.
+- **Verify CLI tools exist before coding a new backend.** When adding a Wayland compositor backend, confirm the control CLI actually ships with the compositor. `labwc-helper` was invented — it doesn't exist in any Labwc install. The standard wlroots window management CLI is `wlrctl`. Check the compositor's documentation or installed package files before writing code against a tool name. If in doubt, `which <tool>` on a system with that compositor installed.
 - **Always run `cargo fmt` after `cargo clippy --fix`** — clippy's auto-fix scrambles formatting. Without it, `cargo fmt --check` in CI fails. Run `cargo clippy --fix --allow-dirty && cargo fmt` as a single step (use `--allow-dirty` because `clippy --fix` stages changes).
 - **`ydotool rec` is NOT a real ydotool command.** Don't use it. For scroll, use `ydotool mousemove --wheel <dx> <dy>`. The old code had `ydotool rec mousemove ...` which would fail silently (caught by Claude code review).
 - **Shell pipes don't work in `Command::new("find")`.** Passing `|`, `head -n`, `2>/dev/null` as literal arguments to `find` doesn't work — they're not interpreted by a shell. Use Rust's `.take(n)` on the output lines instead. The old `files_search` had this bug in the Hyprland backend; the GNOME backend was already correct.
 - **Hermes config file socket path must match actual daemon socket.** `hermes/deskbrid.toml` had `$XDG_RUNTIME_DIR/deskbrid/socket` (wrong — doesn't exist) instead of `$XDG_RUNTIME_DIR/deskbrid.sock` (correct — this is what the daemon actually binds). The daemon itself always uses the correct path; the bug was only in the Hermes tool config. Verify socket paths in config files independently.
+
+- **Un-gating a feature gate reveals pre-existing module bugs.** When a module was behind `#[cfg(feature = "x")]` and never compiled, it may have structural issues: wrong `mod` declarations, missing imports, orphaned files. After removing a feature gate, always run `cargo check` — don't assume the module was correct just because it existed. Example: `src/mcp/tools.rs` declared `mod helpers;` and `mod tool_list;` but those files were siblings in `src/mcp/`, not children of a `tools/` directory. The module declarations belonged in `mod.rs` instead. This was invisible until the `mcp` feature was removed and the module compiled for the first time.
+
+  **This is a systemic pattern, not a one-off.** When May 2026's `--all-features` check was first run, ALL THREE gated features (`mcp`, `cosmic`, `labwc`) had compilation bugs. `mcp` had wrong module declarations fixed in 1ea2e99; `cosmic`/`labwc` helper binaries had `mod commands;` / `mod dispatch;` declarations for modules that didn't exist. Same root cause: code behind a feature gate receives zero compiler validation. Any code behind `#[cfg(feature)]` must be exercised in CI (`cargo check --all-features`) or it will rot.
 
 See `references/mutter-remotedesktop-session-api.md` for the full Mutter RemoteDesktop DBus Session API (introspection XML, all method signatures, keysym table, connection-lifetime gotcha).
 See `references/mutter-screencast-api.md` for the ScreenCast API exploration — RecordMonitor, RecordVirtual, and why absolute mouse positioning failed on GNOME 46.
 See `templates/waybar-top-only.jsonc` and `templates/waybar-top-only.css` for a minimal waybar config (single top bar) for Hyprland test rigs — prevents the default two-bar layout.
 
 ## Quick Test
+
+### Keyboard Layout Management (v0.8.0)
+```bash
+# List layouts
+echo '{"type":"input.layouts.list","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+
+# Switch layout by index
+echo '{"type":"input.layout.set","id":"2","index":1}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+
+# Add a layout
+echo '{"type":"input.layout.add","id":"3","name":"ru"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+```
 
 ### One-command setup (v0.4.1+)
 
@@ -609,6 +694,7 @@ The CI runs with `RUSTFLAGS: -D warnings`, which means ANY warning (including `d
 
 ```bash
 RUSTFLAGS="-D warnings" cargo check && \
+  cargo check --all-features && \
   cargo clippy --fix --allow-dirty && \
   cargo fmt && \
   cargo test
@@ -828,6 +914,7 @@ The CI runs: `cargo check` → `cargo clippy -- -D warnings` → `cargo fmt --ch
 
 ```bash
 RUSTFLAGS="-D warnings" cargo check && \
+  cargo check --all-features && \
   cargo clippy --fix --allow-dirty && \
   cargo fmt && \
   cargo test
