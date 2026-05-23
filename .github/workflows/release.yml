@@ -46,7 +46,7 @@ jobs:
       - name: Package tarball
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf "deskbrid-${{ matrix.target }}.tar.gz" deskbrid
+          tar czf "deskbrid-${{ matrix.target }}.tar.gz" deskbrid cosmic-helper labwc-helper
 
       - name: Upload tarball to release
         uses: softprops/action-gh-release@v2
