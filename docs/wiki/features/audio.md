@@ -36,7 +36,7 @@ deskbrid audio volume 100 --sink alsa_output.pci-0000_00_1f.3.analog-stereo
 
 Protocol:
 ```json
-{"action": "audio.set_volume", "volume": 50, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
+{"type": "audio.set_volume", "volume": 50, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
 ```
 
 ## Mute Toggle
@@ -48,7 +48,7 @@ deskbrid audio mute --sink alsa_output.pci-0000_00_1f.3.analog-stereo
 
 Protocol:
 ```json
-{"action": "audio.set_mute", "muted": true, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
+{"type": "audio.set_mute", "muted": true, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
 ```
 
 ## Set Default Sink
@@ -59,7 +59,7 @@ deskbrid audio set-default --sink alsa_output.usb-headphones.analog-stereo
 
 Protocol:
 ```json
-{"action": "audio.set_default_sink", "sink": "alsa_output.usb-headphones.analog-stereo"}
+{"type": "audio.set_default_sink", "sink": "alsa_output.usb-headphones.analog-stereo"}
 ```
 
 ## Python Example

@@ -28,7 +28,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "service.list", "unit_type": "service"}
+{"type": "service.list", "unit_type": "service"}
 ```
 
 Unit types:
@@ -45,7 +45,7 @@ deskbrid services status nginx
 
 Protocol:
 ```json
-{"action": "service.status", "name": "nginx.service"}
+{"type": "service.status", "name": "nginx.service"}
 ```
 
 ## Start/Stop/Restart
@@ -58,7 +58,7 @@ deskbrid services restart nginx
 
 Protocol:
 ```json
-{"action": "service.start", "name": "nginx.service"}
+{"type": "service.start", "name": "nginx.service"}
 ```
 
 ## Enable/Disable
@@ -71,7 +71,7 @@ deskbrid services enable --runtime nginx  # Only for this boot
 
 Protocol:
 ```json
-{"action": "service.enable", "name": "nginx.service", "runtime": false}
+{"type": "service.enable", "name": "nginx.service", "runtime": false}
 ```
 
 ## Timers
@@ -84,7 +84,7 @@ deskbrid services timer stop daily-apt      # Stop a timer
 
 Protocol:
 ```json
-{"action": "timer.start", "name": "daily-apt.timer"}
+{"type": "timer.start", "name": "daily-apt.timer"}
 ```
 
 ## Journal Query
@@ -97,7 +97,7 @@ deskbrid journal query --since 2024-01-01 --priority 3  # Errors only
 Protocol:
 ```json
 {
-  "action": "journal.query",
+  "type": "journal.query",
   "since": 3600,
   "unit": "nginx.service",
   "tail": 100

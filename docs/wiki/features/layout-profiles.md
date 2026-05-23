@@ -30,7 +30,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "layout_profiles.list"}
+{"type": "layout_profiles.list"}
 ```
 
 ## Save Profile
@@ -42,7 +42,7 @@ deskbrid profiles save presentation --overwrite
 
 Protocol:
 ```json
-{"action": "layout_profiles.save", "name": "coding", "overwrite": false}
+{"type": "layout_profiles.save", "name": "coding", "overwrite": false}
 ```
 
 Response:
@@ -65,7 +65,7 @@ deskbrid profiles get coding
 
 Protocol:
 ```json
-{"action": "layout_profiles.get", "name": "coding"}
+{"type": "layout_profiles.get", "name": "coding"}
 ```
 
 Response:
@@ -103,7 +103,7 @@ deskbrid profiles restore presentation
 
 Protocol:
 ```json
-{"action": "layout_profiles.restore", "name": "coding"}
+{"type": "layout_profiles.restore", "name": "coding"}
 ```
 
 ## Delete Profile
@@ -114,7 +114,7 @@ deskbrid profiles delete old-profile
 
 Protocol:
 ```json
-{"action": "layout_profiles.delete", "name": "old-profile"}
+{"type": "layout_profiles.delete", "name": "old-profile"}
 ```
 
 ## Python Example

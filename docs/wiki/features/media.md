@@ -30,7 +30,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "mpris.list"}
+{"type": "mpris.list"}
 ```
 
 ## Get Player Status
@@ -42,7 +42,7 @@ deskbrid media get spotify
 
 Protocol:
 ```json
-{"action": "mpris.get", "player": "spotify"}
+{"type": "mpris.get", "player": "spotify"}
 ```
 
 ## Control Playback
@@ -58,7 +58,7 @@ deskbrid media previous
 
 Protocol:
 ```json
-{"action": "mpris.control", "action": "play", "player": "spotify"}
+{"type": "mpris.control", "action": "play", "player": "spotify"}
 ```
 
 ### Seek and Set Position
@@ -71,7 +71,7 @@ deskbrid media control --action set_position --position 60000  # Jump to 1min
 
 Protocol:
 ```json
-{"action": "mpris.control", "action": "set_position", "player": "spotify", "position": 60000}
+{"type": "mpris.control", "action": "set_position", "player": "spotify", "position": 60000}
 ```
 
 ## Python Example
@@ -94,9 +94,9 @@ client.mpris_control("next")
 ## AI Agent Example
 
 ```json
-→ {"action": "mpris.list"}
+→ {"type": "mpris.list"}
 ← {"type": "response", "status": "ok", "data": {"players": [{"name": "spotify", "status": "playing", "title": "Song 1", ...}]}}
 
-→ {"action": "mpris.control", "action": "pause", "player": "spotify"}
+→ {"type": "mpris.control", "action": "pause", "player": "spotify"}
 ← {"type": "response", "status": "ok"}
 ```

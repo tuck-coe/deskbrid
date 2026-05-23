@@ -127,8 +127,8 @@ diff = client.screenshot_diff("/before.png", "/after.png")
 
 ### System
 ```python
-info = client.info()  # Returns DaemonInfo
-battery = client.system_battery()
+info = client.info()  # Returns DaemonInfo object
+battery = client.battery()  # Returns dict with battery info
 client.system_power("suspend")
 ```
 
@@ -257,6 +257,23 @@ result = client.screenshot_diff("/before.png", "/after.png")  # Returns dict
 ### System
 ```python
 info = client.info()  # Returns DaemonInfo object
+battery = client.battery()  # Returns dict
+backlight = client.backlight_get()  # Returns dict
+client.backlight_set(percent=0.5)  # Returns dict
+thermal = client.thermal()  # Returns dict
+freq = client.cpu_frequency()  # Returns dict
+gov = client.cpu_governor()  # Returns dict
+client.cpu_set_governor("performance")  # Returns dict
+
+# Session/system control
+inhibit = client.inhibit_system("suspend", who="backup", why="backup running")
+client.release_inhibit(inhibit["inhibitor_id"])
+sessions = client.list_sessions()
+client.lock_session()
+client.switch_user("alice")
+auth = client.check_auth("system.power")
+client.elevate("system.power", reason="rebooting")
+conf = client.confinement()
 ```
 
 ### Services

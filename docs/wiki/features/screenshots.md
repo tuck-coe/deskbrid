@@ -23,7 +23,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "screenshot", "monitor": 0}
+{"type": "screenshot", "monitor": 0}
 ```
 
 Python:
@@ -41,7 +41,7 @@ deskbrid screenshot --region --x 100 --y 100 --width 800 --height 600
 Protocol:
 ```json
 {
-  "action": "screenshot",
+  "type": "screenshot",
   "region": {"x": 100, "y": 100, "width": 800, "height": 600}
 }
 ```
@@ -54,7 +54,7 @@ deskbrid screenshot --window 12345678
 
 Protocol:
 ```json
-{"action": "screenshot", "window_id": "12345678"}
+{"type": "screenshot", "window_id": "12345678"}
 ```
 
 ## OCR (Optical Character Recognition)
@@ -93,7 +93,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "screenshot.ocr", "bounding_boxes": false}
+{"type": "screenshot.ocr", "bounding_boxes": false}
 ```
 
 ### OCR with Bounding Boxes
@@ -125,7 +125,7 @@ deskbrid screenshot ocr --region --x 100 --y 100 --width 800 --height 600
 Protocol:
 ```json
 {
-  "action": "screenshot.ocr",
+  "type": "screenshot.ocr",
   "region": {"x": 100, "y": 100, "width": 800, "height": 600},
   "language": "eng"
 }
@@ -196,7 +196,7 @@ Response:
 Protocol:
 ```json
 {
-  "action": "screenshot.diff",
+  "type": "screenshot.diff",
   "before_path": "/tmp/before.png",
   "after_path": "/tmp/after.png",
   "tolerance": 0,
@@ -237,7 +237,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "color.pick", "x": 100, "y": 200}
+{"type": "color.pick", "x": 100, "y": 200}
 ```
 
 Python:
@@ -250,9 +250,9 @@ print(color["hex"])  # "#7b2d43"
 ## AI Agent Example
 
 ```json
-→ {"action": "screenshot.ocr", "region": {"x": 0, "y": 0, "width": 1920, "height": 1080}}
+→ {"type": "screenshot.ocr", "region": {"x": 0, "y": 0, "width": 1920, "height": 1080}}
 ← {"type": "response", "status": "ok", "data": {"text": "Build succeeded"}}
 
-→ {"action": "screenshot.diff", "before_path": "/tmp/prev.png", "after_path": "/tmp/curr.png"}
+→ {"type": "screenshot.diff", "before_path": "/tmp/prev.png", "after_path": "/tmp/curr.png"}
 ← {"type": "response", "status": "ok", "data": {"identical": true}}
 ```

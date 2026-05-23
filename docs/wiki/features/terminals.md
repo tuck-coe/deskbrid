@@ -24,7 +24,7 @@ Response:
 Protocol:
 ```json
 {
-  "action": "terminal.create",
+  "type": "terminal.create",
   "shell": "/bin/bash",
   "cwd": "/home/user/project",
   "rows": 24,
@@ -56,7 +56,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "terminal.list"}
+{"type": "terminal.list"}
 ```
 
 ## Write to Terminal
@@ -68,7 +68,7 @@ deskbrid terminal write term_123456 --input "echo 'Hello'\n"
 
 Protocol:
 ```json
-{"action": "terminal.write", "terminal_id": "term_123456", "input": "ls -la\n"}
+{"type": "terminal.write", "terminal_id": "term_123456", "input": "ls -la\n"}
 ```
 
 ## Read from Terminal
@@ -92,7 +92,7 @@ Response:
 Protocol:
 ```json
 {
-  "action": "terminal.read",
+  "type": "terminal.read",
   "terminal_id": "term_123456",
   "max_bytes": 4096,
   "flush": true
@@ -108,7 +108,7 @@ deskbrid terminal resize term_123456 --rows 40 --cols 120
 Protocol:
 ```json
 {
-  "action": "terminal.resize",
+  "type": "terminal.resize",
   "terminal_id": "term_123456",
   "rows": 40,
   "cols": 120
@@ -126,7 +126,7 @@ deskbrid terminal kill term_123456 --signal SIGTERM
 Protocol:
 ```json
 {
-  "action": "terminal.kill",
+  "type": "terminal.kill",
   "terminal_id": "term_123456",
   "signal": "SIGTERM"
 }

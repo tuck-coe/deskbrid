@@ -40,7 +40,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "monitor.list"}
+{"type": "monitor.list"}
 ```
 
 ## Set Primary Monitor
@@ -51,7 +51,7 @@ deskbrid monitors set-primary DP-1
 
 Protocol:
 ```json
-{"action": "monitor.set_primary", "output": "DP-1"}
+{"type": "monitor.set_primary", "output": "DP-1"}
 ```
 
 ## Set Resolution
@@ -64,7 +64,7 @@ deskbrid monitors set-resolution DP-1 --width 2560 --height 1440 --rate 144
 Protocol:
 ```json
 {
-  "action": "monitor.set_resolution",
+  "type": "monitor.set_resolution",
   "output": "DP-1",
   "width": 2560,
   "height": 1440,
@@ -81,7 +81,7 @@ deskbrid monitors set-scale DP-1 --scale 2.0  # HiDPI
 
 Protocol:
 ```json
-{"action": "monitor.set_scale", "output": "DP-1", "scale": 2.0}
+{"type": "monitor.set_scale", "output": "DP-1", "scale": 2.0}
 ```
 
 ## Set Rotation
@@ -95,7 +95,7 @@ deskbrid monitors set-rotation DP-1 --rotation upside-down
 
 Protocol:
 ```json
-{"action": "monitor.set_rotation", "output": "DP-1", "rotation": "left"}
+{"type": "monitor.set_rotation", "output": "DP-1", "rotation": "left"}
 ```
 
 ## Enable/Disable Monitor
@@ -107,7 +107,7 @@ deskbrid monitors disable DP-1
 
 Protocol:
 ```json
-{"action": "monitor.enable", "output": "DP-1"}
+{"type": "monitor.enable", "output": "DP-1"}
 ```
 
 ## Python Example

@@ -23,7 +23,7 @@ Response:
 Protocol:
 ```json
 {
-  "action": "notification.send",
+  "type": "notification.send",
   "app_name": "deskbrid",
   "title": "Build Complete",
   "body": "All tests passed!",
@@ -44,7 +44,7 @@ deskbrid notify close 42
 
 Protocol:
 ```json
-{"action": "notification.close", "notification_id": 42}
+{"type": "notification.close", "notification_id": 42}
 ```
 
 ## Python Example
@@ -64,6 +64,6 @@ client.notify("Error", "Failed to process file", urgency="critical")
 ## AI Agent Example
 
 ```json
-→ {"action": "notification.send", "app_name": "agent", "title": "Task Complete", "body": "PR created successfully"}
+→ {"type": "notification.send", "app_name": "agent", "title": "Task Complete", "body": "PR created successfully"}
 ← {"type": "response", "status": "ok", "data": {"notification_id": 5}}
 ```

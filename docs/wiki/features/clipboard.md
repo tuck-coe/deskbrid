@@ -22,7 +22,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "clipboard.read"}
+{"type": "clipboard.read"}
 ```
 
 Python:
@@ -42,7 +42,7 @@ deskbrid clipboard write "Hello from Deskbrid!"
 
 Protocol:
 ```json
-{"action": "clipboard.write", "text": "Hello from Deskbrid!"}
+{"type": "clipboard.write", "text": "Hello from Deskbrid!"}
 ```
 
 Python:
@@ -66,7 +66,7 @@ deskbrid clipboard history --query "error"
 
 Protocol:
 ```json
-{"action": "clipboard.history", "limit": 10, "query": "error"}
+{"type": "clipboard.history", "limit": 10, "query": "error"}
 ```
 
 Response:
@@ -101,7 +101,7 @@ deskbrid clipboard history clear
 
 Protocol:
 ```json
-{"action": "clipboard.history.clear"}
+{"type": "clipboard.history.clear"}
 ```
 
 Python:
@@ -143,9 +143,9 @@ systemctl --user enable --now deskbrid-history.service
 ## AI Agent Example
 
 ```json
-→ {"action": "clipboard.read"}
+→ {"type": "clipboard.read"}
 ← {"type": "response", "status": "ok", "data": {"text": "def hello():"}}
 
-→ {"action": "clipboard.write", "text": "def hello():\n    print('world')"}
+→ {"type": "clipboard.write", "text": "def hello():\n    print('world')"}
 ← {"type": "response", "status": "ok"}
 ```

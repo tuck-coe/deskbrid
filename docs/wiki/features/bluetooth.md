@@ -26,7 +26,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "bluetooth.list"}
+{"type": "bluetooth.list"}
 ```
 
 ## Connect/Disconnect
@@ -38,7 +38,7 @@ deskbrid bluetooth disconnect 00:11:22:33:44:55
 
 Protocol:
 ```json
-{"action": "bluetooth.connect", "mac": "00:11:22:33:44:55"}
+{"type": "bluetooth.connect", "mac": "00:11:22:33:44:55"}
 ```
 
 ## Pair Device
@@ -49,7 +49,7 @@ deskbrid bluetooth pair 00:11:22:33:44:55
 
 Protocol:
 ```json
-{"action": "bluetooth.pair", "mac": "00:11:22:33:44:55"}
+{"type": "bluetooth.pair", "mac": "00:11:22:33:44:55"}
 ```
 
 ## Python Example

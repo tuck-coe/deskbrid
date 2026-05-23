@@ -39,7 +39,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "a11y.tree", "app": "code"}
+{"type": "a11y.tree", "app": "code"}
 ```
 
 ## Find Accessibility Node
@@ -51,7 +51,7 @@ deskbrid a11y find --role button --name "Close" --app code
 Protocol:
 ```json
 {
-  "action": "a11y.find",
+  "type": "a11y.find",
   "role": "button",
   "name": "Close",
   "app": "code"
@@ -68,7 +68,7 @@ deskbrid a11y action --app code --path "/window[0]/button[0]" --action focus
 Protocol:
 ```json
 {
-  "action": "a11y.action",
+  "type": "a11y.action",
   "path": "/window[0]/button[0]",
   "action_name": "click",
   "app": "code"
@@ -84,7 +84,7 @@ deskbrid a11y value --app code --path "/window[0]/text[0]"
 Protocol:
 ```json
 {
-  "action": "a11y.get_value",
+  "type": "a11y.get_value",
   "path": "/window[0]/text[0]",
   "app": "code"
 }

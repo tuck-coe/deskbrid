@@ -22,7 +22,8 @@ Response:
       {"id": 0, "name": "DP-1", "width": 1920, "height": 1080, "scale": 1.0, "primary": true}
     ],
     "workspace_count": 4,
-    "current_workspace": 0
+    "current_workspace": 0,
+    "idle_seconds": 300
   }
 }
 ```
@@ -67,6 +68,7 @@ Protocol:
 deskbrid system power suspend
 deskbrid system power reboot
 deskbrid system power shutdown
+deskbrid system power lock
 ```
 
 Protocol:
@@ -80,31 +82,6 @@ Actions:
 - `reboot` - Reboot system
 - `shutdown` - Power off
 - `lock` - Lock screen
-
-## Battery Status
-
-```bash
-deskbrid system battery
-```
-
-Response:
-```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": {
-    "source": "BAT0",
-    "percentage": 85.0,
-    "state": "charging",
-    "time_remaining_minutes": 120
-  }
-}
-```
-
-Protocol:
-```json
-{"type": "system.battery"}
-```
 
 ## Idle Detection
 

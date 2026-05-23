@@ -13,7 +13,7 @@ deskbrid files search --pattern "*.png" --mime-type image/png
 Protocol:
 ```json
 {
-  "action": "files.search",
+  "type": "files.search",
   "pattern": "*.rs",
   "include_hidden": false,
   "limit": 20
@@ -42,7 +42,7 @@ deskbrid files watch /home/user/project --recursive
 
 Protocol:
 ```json
-{"action": "files.watch", "path": "/home/user/project", "recursive": true}
+{"type": "files.watch", "path": "/home/user/project", "recursive": true}
 ```
 
 ## Python Example

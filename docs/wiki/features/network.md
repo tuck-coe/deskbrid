@@ -25,7 +25,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "network.status"}
+{"type": "network.status"}
 ```
 
 ## WiFi Networks
@@ -48,7 +48,7 @@ Response:
 
 Protocol:
 ```json
-{"action": "network.wifi"}
+{"type": "network.wifi"}
 ```
 
 ## Python Example

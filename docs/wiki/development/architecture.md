@@ -101,7 +101,7 @@ backend/
 All communication is JSON over Unix socket:
 
 ```
-Request:  {"action": "windows.list"}
+Request:  {"type": "windows.list"}
 Response: {"type": "response", "status": "ok", "data": [...]}
 Event:    {"type": "event", "event": "window.focused", ...}
 ```
@@ -124,7 +124,7 @@ deskbrid_screenshot
 
 ```
 1. Client connects to /run/user/$UID/deskbrid.sock
-2. Sends: {"action": "windows.list", "id": "req1"}
+2. Sends: {"type": "windows.list", "id": "req1"}
 3. Protocol parses JSON into Action enum
 4. Dispatch routes to backend handler
 5. Backend executes (e.g., calls wmctrl)
@@ -134,7 +134,7 @@ deskbrid_screenshot
 ### Event Streaming
 
 ```
-1. Client subscribes: {"action": "events.subscribe", "events": ["window.*"]}
+1. Client subscribes: {"type": "events.subscribe", "events": ["window.*"]}
 2. Daemon starts event listener (e.g., GNOME Shell extension)
 3. Events are streamed as they occur
 4. Client handles events in real-time

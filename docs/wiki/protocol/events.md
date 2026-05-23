@@ -5,7 +5,7 @@ Subscribe to real-time events from the desktop.
 ## Subscribe to Events
 
 ```json
-{"action": "events.subscribe", "events": ["window.*", "clipboard.*"]}
+{"type": "events.subscribe", "events": ["window.*", "clipboard.*"]}
 ```
 
 Response:
@@ -22,7 +22,7 @@ Response:
 ## Unsubscribe
 
 ```json
-{"action": "events.unsubscribe", "events": ["window.*"]}
+{"type": "events.unsubscribe", "events": ["window.*"]}
 ```
 
 ## Event Format
@@ -80,13 +80,13 @@ Response:
 Use wildcards to subscribe to multiple events:
 
 ```json
-{"action": "events.subscribe", "events": ["window.*", "monitor.*"]}
+{"type": "events.subscribe", "events": ["window.*", "monitor.*"]}
 ```
 
 Subscribe to all events:
 
 ```json
-{"action": "events.subscribe", "events": ["*"]}
+{"type": "events.subscribe", "events": ["*"]}
 ```
 
 ## Python Example
@@ -99,7 +99,7 @@ sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 sock.connect("/run/user/1000/deskbrid.sock")
 
 # Subscribe to events
-sock.send(b'{"action": "events.subscribe", "events": ["window.*"]}\n')
+sock.send(b'{"type": "events.subscribe", "events": ["window.*"]}\n')
 
 # Read events
 while True:
@@ -118,7 +118,7 @@ import json
 
 async def watch_events(client, patterns):
     """Watch for events matching patterns."""
-    await client.send({"action": "events.subscribe", "events": patterns})
+    await client.send({"type": "events.subscribe", "events": patterns})
     
     while True:
         event = await client.recv()
