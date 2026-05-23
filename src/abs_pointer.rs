@@ -188,17 +188,17 @@ fn detect_screen_dimensions_sync() -> (u32, u32) {
     {
         let text = String::from_utf8_lossy(&output.stdout);
         for line in text.lines() {
-            if line.contains(" connected") {
-                if let Some(res) = line.find(|c: char| c.is_ascii_digit()) {
-                    let rest = &line[res..];
-                    if let Some(space) = rest.find(' ') {
-                        let res_str = &rest[..space];
-                        let parts: Vec<&str> = res_str.split('x').collect();
-                        if parts.len() == 2 {
-                            if let (Ok(w), Ok(h)) = (parts[0].parse(), parts[1].parse()) {
-                                return (w, h);
-                            }
-                        }
+            if line.contains(" connected")
+                && let Some(res) = line.find(|c: char| c.is_ascii_digit())
+            {
+                let rest = &line[res..];
+                if let Some(space) = rest.find(' ') {
+                    let res_str = &rest[..space];
+                    let parts: Vec<&str> = res_str.split('x').collect();
+                    if parts.len() == 2
+                        && let (Ok(w), Ok(h)) = (parts[0].parse(), parts[1].parse())
+                    {
+                        return (w, h);
                     }
                 }
             }

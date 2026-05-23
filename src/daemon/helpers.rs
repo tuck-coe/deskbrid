@@ -59,13 +59,9 @@ pub async fn spawn_detached_process(
         let program_str = program.as_str();
         let is_allowed = allowed.iter().any(|a| {
             // Exact match or glob-style prefix match (e.g., "/usr/bin/*")
-            if *a == program_str { return true; }
-            if let Some(prefix) = a.strip_suffix("/*") {
-                if program_str.starts_with(prefix) && program_str.contains('/') {
-                    return true;
-                }
-            }
-            false
+            *a == program_str
+                || a.strip_suffix("/*")
+                    .is_some_and(|prefix| program_str.starts_with(prefix) && program_str.contains('/'))
         });
         if !is_allowed {
             anyhow::bail!(

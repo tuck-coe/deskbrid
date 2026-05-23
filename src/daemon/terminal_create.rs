@@ -90,7 +90,7 @@ pub(crate) async fn create_terminal(
             "LD_OPEN", "LD_PATH", "LD_RUN_PATH", "SHELL",
             "PATH", "IFS", "BASH_ENV", "ENV",
         ];
-        for (k, _) in env {
+        for k in env.keys() {
             let upper = k.to_uppercase();
             if blocked.contains(&upper.as_str()) {
                 anyhow::bail!(
