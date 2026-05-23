@@ -56,7 +56,9 @@ open https://deskbrid.patchhive.dev
 
 ## Project Structure
 
-- `src/` — Rust source (gnome.rs, hyprland.rs, kde.rs, x11.rs backends)
+- `src/` — Rust source (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, labwc, X11 backends)
+- `src/mcp/` — MCP server: 85 rmcp tools over stdio (`deskbrid mcp`) and TCP (`deskbrid daemon --mcp-port`)
+- `src/protocol/` — 100+ NDJSON action types: windows, input, clipboard, audio, system, files, browser/CDP, MPRIS, process, terminal, monitor, notifications, hotkeys, layouts, bluetooth, network
 - `site/` — landing page + install.sh
 - `extensions/` — GNOME Shell extension
-- `hermes/` — Hermes agent tool config
+- `hermes/` — Hermes agent plugin with bundled skill (85 tools) and direct Unix socket integration
