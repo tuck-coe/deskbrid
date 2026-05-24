@@ -204,6 +204,9 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::MonitorSetRotation { .. }
         | Action::MonitorEnable { .. }
         | Action::MonitorDisable { .. } => audio::serialize_audio(action, &id),
+
+        // Clients
+        Action::ClientsList => system::serialize_system(action, &id),
     };
 
     Ok(serde_json::to_string(&envelope)?)

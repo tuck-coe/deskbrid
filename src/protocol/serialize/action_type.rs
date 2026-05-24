@@ -151,5 +151,6 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::Subscribe { .. } => "subscribe",
         Action::Unsubscribe { .. } => "unsubscribe",
         Action::Disconnect => "disconnect",
+        Action::ClientsList => "clients.list",
     }
 }

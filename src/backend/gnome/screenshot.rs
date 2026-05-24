@@ -13,40 +13,36 @@ impl GnomeBackend {
             .as_nanos();
         let path = format!("/tmp/deskbrid_screenshot_{}.png", ts);
 
-        if let Some(ref wid) = window_id {
+        // Build a grim-compatible region string if we have geometry
+        let capture_region: Option<String> = if let Some(ref wid) = window_id {
             let info = self.resolve_window(wid).await?;
-            if let Some(geo) = info.geometry {
-                let region_str = format!("{}x{}+{}+{}", geo.width, geo.height, geo.x, geo.y);
-                self.sh("grim", &["-g", &region_str, &path]).await?;
-                return Ok(protocol::ScreenshotResult {
-                    path: path.clone(),
-                    width: geo.width,
-                    height: geo.height,
-                    format: "png".into(),
-                });
-            }
-        }
+            info.geometry.map(|geo| format!("{}x{}+{}+{}", geo.width, geo.height, geo.x, geo.y))
+        } else {
+            region.as_ref().map(|r| format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y))
+        };
 
-        if let Some(ref r) = region {
-            let region_str = format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y);
-            self.sh("grim", &["-g", &region_str, &path]).await?;
-            return Ok(protocol::ScreenshotResult {
-                path: path.clone(),
-                width: r.width,
-                height: r.height,
-                format: "png".into(),
-            });
-        }
-
-        if let Some(idx) = monitor {
+        // Try grim first (works on wlroots-based compositors, fast-path)
+        let grim_ok = if let Some(ref cap) = capture_region {
+            self.sh("grim", &["-g", cap, &path]).await.is_ok()
+        } else if let Some(idx) = monitor {
             let monitors = self.get_monitors().await?;
             let name = monitors
                 .get(idx as usize)
                 .map(|m| m.name.clone())
                 .unwrap_or_else(|| idx.to_string());
-            self.sh("grim", &["-o", &name, &path]).await?;
+            self.sh("grim", &["-o", &name, &path]).await.is_ok()
         } else {
-            self.sh("grim", &[&path]).await?;
+            self.sh("grim", &[&path]).await.is_ok()
+        };
+
+        // If grim failed (GNOME Wayland — no wlr-screencopy), use the Shell Screenshot DBus API
+        if !grim_ok {
+            self.sh("busctl", &[
+                "call", "--user",
+                "org.gnome.Shell.Screenshot", "/org/gnome/Shell/Screenshot",
+                "org.gnome.Shell.Screenshot", "Screenshot", "bbs",
+                "false", "false", &path,
+            ]).await?;
         }
 
         let dims = get_png_dimensions(&path)?;

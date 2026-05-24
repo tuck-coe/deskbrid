@@ -41,6 +41,8 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
         | Command::Bluetooth { .. }
         | Command::Files { .. } => apps::into_apps_action(cmd),
 
+        Command::Clients => Ok(protocol::Action::ClientsList),
+
         Command::Terminal { .. } | Command::Wait { .. } => terminal::into_terminal_action(cmd),
 
         _ => bail!(

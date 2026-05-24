@@ -122,6 +122,8 @@ pub async fn execute_action(
             execute_network::execute_network(action, backend, state).await?
         }
 
+        ClientsList => serde_json::json!({"clients": [], "count": 0}),
+
         NotificationSend { .. } | NotificationClose { .. } => {
             execute_notification::execute_notification(action, backend, state).await?
         }

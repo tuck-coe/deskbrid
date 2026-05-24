@@ -1,5 +1,5 @@
 use super::GnomeBackend;
-use zbus::zvariant;
+use std::collections::HashMap;
 
 impl GnomeBackend {
     pub(super) async fn notification_send_inner(
@@ -16,6 +16,9 @@ impl GnomeBackend {
             _ => 1u8,
         };
 
+        let mut hints: HashMap<&str, zbus::zvariant::Value> = HashMap::new();
+        hints.insert("urgency", zbus::zvariant::Value::U8(urgency_byte));
+
         let reply = self
             .conn
             .call_method(
@@ -30,8 +33,7 @@ impl GnomeBackend {
                     title,
                     body,
                     &[] as &[&str],
-                    &[("urgency", zvariant::Value::U8(urgency_byte))]
-                        as &[(&str, zvariant::Value)],
+                    &hints,
                     5000i32,
                 ),
             )

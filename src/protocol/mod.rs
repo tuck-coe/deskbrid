@@ -304,6 +304,9 @@ pub enum Action {
         password: Option<String>,
     },
 
+    // Clients
+    ClientsList,
+
     // Bluetooth
     BluetoothList,
     BluetoothScan {

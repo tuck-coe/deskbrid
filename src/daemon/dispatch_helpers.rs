@@ -42,6 +42,7 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn action_response(
     request_id: &str,
     state: &DaemonState,

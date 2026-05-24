@@ -108,6 +108,7 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
         "timer.stop" => Action::TimerStop {
             name: required_non_empty_string(raw, "name")?,
         },
+        "clients.list" => Action::ClientsList,
         _ => anyhow::bail!("unknown system type: {type_str}"),
     })
 }
