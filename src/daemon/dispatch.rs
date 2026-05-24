@@ -21,7 +21,15 @@ pub async fn dispatch_action(
     peer_uid: u32,
     seq: u64,
 ) -> serde_json::Value {
-    dispatch_action_with_options(request_id, action, state, peer_uid, seq, RequestOptions::default()).await
+    dispatch_action_with_options(
+        request_id,
+        action,
+        state,
+        peer_uid,
+        seq,
+        RequestOptions::default(),
+    )
+    .await
 }
 
 pub async fn dispatch_action_with_options(
@@ -81,7 +89,17 @@ pub async fn dispatch_action_with_options(
             "timeout_ms": action_timeout_ms,
             "permissions": {"allowed": true}
         });
-        return action_response(request_id, state, &action, peer_uid, seq, Ok(data), started, Some(true)).await;
+        return action_response(
+            request_id,
+            state,
+            &action,
+            peer_uid,
+            seq,
+            Ok(data),
+            started,
+            Some(true),
+        )
+        .await;
     }
 
     if is_audit_action(&action) {
@@ -91,7 +109,10 @@ pub async fn dispatch_action_with_options(
             execute_audit_action(action.clone(), state),
         )
         .await;
-        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
     }
     if is_clipboard_history_action(&action) {
         let result = with_action_timeout(
@@ -100,7 +121,10 @@ pub async fn dispatch_action_with_options(
             execute_clipboard_history_action(action.clone(), state),
         )
         .await;
-        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
     }
     if is_app_catalog_action(&action) {
         let result = with_action_timeout(
@@ -109,7 +133,10 @@ pub async fn dispatch_action_with_options(
             execute_app_catalog_action(action.clone(), state),
         )
         .await;
-        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
     }
     if is_mpris_action(&action) {
         let result = with_action_timeout(
@@ -118,7 +145,10 @@ pub async fn dispatch_action_with_options(
             execute_mpris_action(action.clone(), state),
         )
         .await;
-        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
     }
     if is_system_control_action(&action) {
         let result = with_action_timeout(
@@ -127,7 +157,10 @@ pub async fn dispatch_action_with_options(
             execute_system_control_action(action.clone(), state),
         )
         .await;
-        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
     }
     if is_terminal_action(&action) {
         let result = with_action_timeout(
@@ -136,7 +169,10 @@ pub async fn dispatch_action_with_options(
             execute_terminal_action(action.clone(), state),
         )
         .await;
-        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
     }
 
     let backend = state.backend.read().await;
@@ -181,5 +217,8 @@ pub async fn dispatch_action_with_options(
         )
         .await
     };
-    action_response(request_id, state, &action, peer_uid, seq, result, started, None).await
+    action_response(
+        request_id, state, &action, peer_uid, seq, result, started, None,
+    )
+    .await
 }

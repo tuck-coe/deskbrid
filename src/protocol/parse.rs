@@ -106,6 +106,7 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
             || s.starts_with("service.")
             || s.starts_with("journal.")
             || s.starts_with("timer.")
+            || s.starts_with("clients.")
             || s == "wait.for" =>
         {
             system::parse_system(&raw, &id, s)?

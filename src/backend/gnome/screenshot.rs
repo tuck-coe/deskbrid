@@ -16,9 +16,12 @@ impl GnomeBackend {
         // Build a grim-compatible region string if we have geometry
         let capture_region: Option<String> = if let Some(ref wid) = window_id {
             let info = self.resolve_window(wid).await?;
-            info.geometry.map(|geo| format!("{}x{}+{}+{}", geo.width, geo.height, geo.x, geo.y))
+            info.geometry
+                .map(|geo| format!("{}x{}+{}+{}", geo.width, geo.height, geo.x, geo.y))
         } else {
-            region.as_ref().map(|r| format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y))
+            region
+                .as_ref()
+                .map(|r| format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y))
         };
 
         // Try grim first (works on wlroots-based compositors, fast-path)
@@ -37,12 +40,22 @@ impl GnomeBackend {
 
         // If grim failed (GNOME Wayland — no wlr-screencopy), use the Shell Screenshot DBus API
         if !grim_ok {
-            self.sh("busctl", &[
-                "call", "--user",
-                "org.gnome.Shell.Screenshot", "/org/gnome/Shell/Screenshot",
-                "org.gnome.Shell.Screenshot", "Screenshot", "bbs",
-                "false", "false", &path,
-            ]).await?;
+            self.sh(
+                "busctl",
+                &[
+                    "call",
+                    "--user",
+                    "org.gnome.Shell.Screenshot",
+                    "/org/gnome/Shell/Screenshot",
+                    "org.gnome.Shell.Screenshot",
+                    "Screenshot",
+                    "bbs",
+                    "false",
+                    "false",
+                    &path,
+                ],
+            )
+            .await?;
         }
 
         let dims = get_png_dimensions(&path)?;
