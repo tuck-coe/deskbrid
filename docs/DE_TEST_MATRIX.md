@@ -49,7 +49,7 @@ Deskbrid protocol action support across 11 desktop environments.
 |---|---|---|---|---|---|---|---|---|---|
 | `monitor.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
 | `monitor.set_primary` | ✅ | ❌ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ❌ | 🔲 |
-| `monitor.set_resolution` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ❌ | 🔲 |
+| `monitor.set_resolution` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
 | `monitor.set_scale` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
 | `monitor.set_rotation` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
 | `monitor.enable` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
@@ -109,7 +109,7 @@ These actions don't touch the `DesktopBackend` trait. They should work on any DE
 | **GNOME** | No known gaps | Mutter 50.1, Wayland. Full test passed. |
 | **Hyprland** | `windows.minimize` ❌, `monitor.set_primary` ❌, `notification.send/close` ❌ | **Tested May 2026** on Hyprland 0.54.3 (Turtle). 28/33 ✅. `windows.minimize`: compositor limitation. `monitor.set_primary`: compositor limitation. Notifications: no daemon. Keyboard layout parser fixed for 0.54+ `rules:` format. |
 | **Sway** | `notification.send/close` ❌ | **Tested May 2026** on Sway 1.11 (Turtle). 31/33 ✅. Notifications: no daemon. Keyboard layouts implemented via swaymsg. |
-| **Labwc** | `windows.move_resize` ❌, `windows.minimize` ❌, `windows.tile` ❌, `monitor.set_primary` ❌, `monitor.set_resolution` ❌, `notification.send/close` ❌, `workspaces.*` ⚠️ | **Tested May 2026** on Labwc 0.9.7 (Turtle). 22/33 ✅ + 4 ⚠️. `move_resize`/`minimize`: wlrctl doesn't support these, and labwc has no IPC for window geometry. Workspaces return hardcoded stubs (labwc requires user-configured keyboard shortcuts — no CLI/API). `set_primary`: compositor limitation. `set_resolution`: wlr-randr mode string mismatch (1366x768@60Hz vs 1366x768@60.026Hz). Notifications: no daemon. `activate_or_launch`: works generically but requires `process.start` permission. Keyboard layouts implemented via XKB_DEFAULT_LAYOUT env file — changes take effect on labwc restart. |
+| **Labwc** | `windows.move_resize` ❌, `windows.minimize` ❌, `windows.tile` ❌, `monitor.set_primary` ❌, `notification.send/close` ❌, `workspaces.*` ⚠️ | **Tested May 2026** on Labwc 0.9.7 (Turtle). 23/33 ✅ + 4 ⚠️. `move_resize`/`minimize`: wlrctl doesn't support these, and labwc has no IPC for window geometry. Workspaces return hardcoded stubs (labwc requires user-configured keyboard shortcuts — no CLI/API). `set_primary`: compositor limitation. `set_resolution`: fixed with wlr-randr fallback (retries without refresh rate on mode mismatch). Notifications: no daemon. `activate_or_launch`: works generically but requires `process.start` permission. Keyboard layouts implemented via XKB_DEFAULT_LAYOUT env file — changes take effect on labwc restart. |
 | **Niri** | 🔲 Untested | Backend exists — scroll-based tiling WM. |
 | **Wayfire** | 🔲 Untested | Backend exists with workspace/window stubs. |
 | **X11** | 🔲 Untested | Full backend in `src/backend/x11/` — needs live session verification. |
