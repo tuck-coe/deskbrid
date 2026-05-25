@@ -41,8 +41,14 @@ fn parse_cosmic_randr(raw: &str) -> Vec<protocol::MonitorInfo> {
 
         if let Some(val) = trimmed.strip_prefix("Position: ") {
             let mut parts = val.split(',');
-            mon.x = parts.next().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
-            mon.y = parts.next().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
+            mon.x = parts
+                .next()
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
+            mon.y = parts
+                .next()
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
         } else if let Some(val) = trimmed.strip_prefix("Scale: ") {
             mon.scale = val
                 .trim_end_matches('%')
@@ -107,10 +113,7 @@ pub(super) async fn system_info(backend: &CosmicBackend) -> anyhow::Result<proto
         .helper_json(&["workspace-list"])
         .await
         .unwrap_or_default();
-    let ws_count = ws_json
-        .as_array()
-        .map(|a| a.len() as u32)
-        .unwrap_or(1);
+    let ws_count = ws_json.as_array().map(|a| a.len() as u32).unwrap_or(1);
 
     Ok(protocol::SystemInfo {
         desktop: "COSMIC".to_string(),

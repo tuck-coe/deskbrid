@@ -1,8 +1,9 @@
-use super::GnomeBackend;
 use crate::protocol::KeyboardLayout;
 
-impl GnomeBackend {
-    /// Run gsettings and return stdout
+use super::CosmicBackend;
+
+impl CosmicBackend {
+    /// Run gsettings get
     async fn gsettings_get(&self, schema: &str, key: &str) -> anyhow::Result<String> {
         self.sh("gsettings", &["get", schema, key]).await
     }
@@ -13,16 +14,14 @@ impl GnomeBackend {
         Ok(())
     }
 
-    /// Parse GNOME input sources GVariant: [('xkb', 'us'), ('xkb', 'ru')]
+    /// Parse GNOME/COSMIC input sources GVariant: [('xkb', 'us'), ('xkb', 'ru')]
     fn parse_sources(raw: &str) -> Vec<KeyboardLayout> {
         let mut layouts = Vec::new();
         let mut i = 0u32;
         let trimmed = raw.trim();
-        // Walk through GVariant tuple pairs: ('xkb', 'us')
-        let mut pos = 0;
         let chars: Vec<char> = trimmed.chars().collect();
+        let mut pos = 0;
         while pos < chars.len() {
-            // Skip until '('
             while pos < chars.len() && chars[pos] != '(' {
                 pos += 1;
             }
@@ -30,12 +29,9 @@ impl GnomeBackend {
                 break;
             }
             pos += 1; // skip '('
-            // Read type string inside first quote
             let name = Self::read_gvariant_string(&chars, &mut pos);
             pos += 1; // skip ','
-            // Read layout string inside second quote
             let layout_str = Self::read_gvariant_string(&chars, &mut pos);
-            // Skip past ')'
             while pos < chars.len() && chars[pos] != ')' {
                 pos += 1;
             }
@@ -62,13 +58,13 @@ impl GnomeBackend {
             return String::new();
         }
         let quote = chars[*pos];
-        *pos += 1; // skip opening quote
+        *pos += 1;
         let mut result = String::new();
         while *pos < chars.len() && chars[*pos] != quote {
             result.push(chars[*pos]);
             *pos += 1;
         }
-        *pos += 1; // skip closing quote
+        *pos += 1;
         result
     }
 
@@ -110,7 +106,7 @@ impl GnomeBackend {
             )
             .await
         } else {
-            anyhow::bail!("GNOME layout switching requires an index")
+            anyhow::bail!("COSMIC layout switching requires an index")
         }
     }
 
@@ -120,16 +116,14 @@ impl GnomeBackend {
         variant: Option<&str>,
     ) -> anyhow::Result<()> {
         let layouts = self.keyboard_layout_list_inner().await?;
-        // Build new GVariant source string
         let source = match variant {
-            Some(v) => format!("('xkb', '{}'+'{}')", name, v),
+            Some(v) => format!("('xkb', '{}+{}')", name, v),
             None => format!("('xkb', '{}')", name),
         };
-        // Rebuild GVariant array from existing layouts
-        let mut parts: Vec<String> = Vec::new();
-        for l in &layouts {
-            parts.push(format!("('xkb', '{}')", l.name));
-        }
+        let mut parts: Vec<String> = layouts
+            .iter()
+            .map(|l| format!("('xkb', '{}')", l.name))
+            .collect();
         parts.push(source);
         let value = format!("[{}]", parts.join(", "));
         self.gsettings_set("org.gnome.desktop.input-sources", "sources", &value)

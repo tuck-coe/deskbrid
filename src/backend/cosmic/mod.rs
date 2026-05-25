@@ -159,6 +159,7 @@ impl CosmicBackend {
 mod audio;
 mod bluetooth;
 mod files;
+mod keyboard_layout;
 mod monitor;
 mod networking;
 mod notifications;

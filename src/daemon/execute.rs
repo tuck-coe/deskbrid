@@ -108,7 +108,12 @@ pub async fn execute_action(
         | InputKeyboardKey { .. }
         | InputKeyboardCombo { .. }
         | InputMouse { .. }
-        | InputMouseDrag { .. } => execute_input::execute_input(action, backend, state).await?,
+        | InputMouseDrag { .. }
+        | InputListLayouts
+        | InputGetLayout
+        | InputSetLayout { .. }
+        | InputAddLayout { .. }
+        | InputRemoveLayout { .. } => execute_input::execute_input(action, backend, state).await?,
 
         MonitorList
         | MonitorSetPrimary { .. }
