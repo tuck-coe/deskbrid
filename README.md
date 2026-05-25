@@ -58,10 +58,10 @@ Deskbrid fills that gap. It auto-detects your compositor and loads the right bac
 | **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
 | **KDE Plasma** | Wayland | ✅ Supported (v0.4.0) | KWin D-Bus + ydotool + spectacle |
 | **COSMIC** | Wayland | ⚠️ Partial | cosmic-helper + cosmic-randr + ydotool + grim |
-| **Sway** | Wayland | ✅ Supported (v0.7.0) | swaymsg + ydotool + grim |
+| **Sway** | Wayland | ✅ Supported | swaymsg + ydotool + grim |
 | **Niri** | Wayland | ✅ Partial | niri msg + ydotool + grim + wlr-randr |
-| **Wayfire** | Wayland | ✅ Supported (v0.7.0, no move/resize) | wf-ipc + ydotool + grim + wlr-randr |
-| **Labwc** | Wayland | ✅ Supported (v0.7.0, no move/resize) | wlrctl + ydotool + grim + wlr-randr |
+| **Wayfire** | Wayland | ✅ Supported (no move/resize) | wf-ipc + ydotool + grim + wlr-randr |
+| **Labwc** | Wayland | ✅ Supported (no move/resize) | wlrctl + ydotool + grim + wlr-randr |
 | Cinnamon | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
 | MATE | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
 | X11 (generic) | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |

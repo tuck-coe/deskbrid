@@ -106,7 +106,7 @@ let mut conn = ConnectionState::default();
 
 let connected = serde_json::json!({
     "type": "connected", "id": "server", "seq": 0,
-    "data": { "version": "0.6.0", "protocol": "deskbrid-v2", "uid": peer_uid }
+    "data": { "version": "0.10.0", "protocol": "deskbrid-v2", "uid": peer_uid }
 });
 writer.write_all(...).await?;
 ```

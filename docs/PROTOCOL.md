@@ -52,7 +52,7 @@ Events are pushed asynchronously to subscribed clients:
 
 ```json
 {"type": "connected", "id": "server", "seq": 0,
- "data": {"version": "0.6.0", "protocol": "deskbrid-v2", "uid": 1000}}
+ "data": {"version": "0.10.0", "protocol": "deskbrid-v2", "uid": 1000}}
 ```
 
 `uid` is the peer credential (`SO_PEERCRED`) of the connecting process, used for permission evaluation.

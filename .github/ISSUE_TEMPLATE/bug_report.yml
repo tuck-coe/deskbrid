@@ -12,7 +12,7 @@ body:
     attributes:
       label: Deskbrid Version
       description: What version of Deskbrid are you running? (`deskbrid --version`)
-      placeholder: "v0.8.0"
+      placeholder: "v0.10.0"
     validations:
       required: true
 
