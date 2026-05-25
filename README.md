@@ -9,7 +9,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-2024%20edition-orange.svg" alt="Rust 2024"></a>
   <a href="https://github.com/coe0718/deskbrid/releases"><img src="https://img.shields.io/github/v/release/coe0718/deskbrid?color=06b6d4" alt="Release"></a>
-  <a href="https://discord.gg/Hs4ryPwEs"><img src="https://img.shields.io/badge/discord-join%20server-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://discord.gg/Hs4ryPwEs"><img src="https://img.shields.io/discord/1508593461060833411?color=5865F2&label=discord&logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://nicklaunches.com/products/deskbrid/"><img src="https://img.shields.io/badge/Nick%20Launches-featured-8b5cf6" alt="Nick Launches"></a>
 </p>
 
