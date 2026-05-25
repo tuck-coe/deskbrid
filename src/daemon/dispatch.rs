@@ -51,13 +51,14 @@ pub async fn dispatch_action_with_options(
 
     // Check permissions first
     if !state.permissions.check(peer_uid, &action) {
-        let response = permission_denied_response(request_id, seq);
+        let response = permission_denied_response(request_id, action.action_type(), seq);
         audit_response(state, &action, peer_uid, seq, &response, started, None).await;
         return response;
     }
     for implied_action in implied_permission_actions(&action) {
         if !state.permissions.check(peer_uid, &implied_action) {
-            let response = permission_denied_response(request_id, seq);
+            let response =
+                permission_denied_response(request_id, implied_action.action_type(), seq);
             audit_response(state, &action, peer_uid, seq, &response, started, None).await;
             return response;
         }
@@ -75,7 +76,7 @@ pub async fn dispatch_action_with_options(
             env: env.clone(),
         };
         if !state.permissions.check(peer_uid, &process_start) {
-            let response = permission_denied_response(request_id, seq);
+            let response = permission_denied_response(request_id, process_start.action_type(), seq);
             audit_response(state, &action, peer_uid, seq, &response, started, None).await;
             return response;
         }

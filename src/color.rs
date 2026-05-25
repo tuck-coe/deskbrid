@@ -1,39 +1,19 @@
-use crate::backend::DesktopBackend;
-use crate::protocol::Region;
-
-pub async fn pick_color(
-    backend: &dyn DesktopBackend,
+/// Sample a pixel from an image file at relative coordinates (x, y).
+pub async fn pick_color_from_image(
+    path: &str,
     x: u32,
     y: u32,
-    path: Option<&str>,
 ) -> anyhow::Result<serde_json::Value> {
-    let (source_path, sample_x, sample_y) = if let Some(path) = path {
-        (path.to_string(), x, y)
-    } else {
-        let screenshot = backend
-            .screenshot(
-                None,
-                Some(Region {
-                    x,
-                    y,
-                    width: 1,
-                    height: 1,
-                }),
-                None,
-            )
-            .await?;
-        (screenshot.path, 0, 0)
-    };
     let pixel = tokio::task::spawn_blocking({
-        let source_path = source_path.clone();
-        move || sample_pixel(&source_path, sample_x, sample_y)
+        let path = path.to_string();
+        move || sample_pixel(&path, x, y)
     })
     .await??;
 
     Ok(serde_json::json!({
         "x": x,
         "y": y,
-        "source_path": source_path,
+        "source_path": path,
         "red": pixel[0],
         "green": pixel[1],
         "blue": pixel[2],
@@ -42,7 +22,7 @@ pub async fn pick_color(
     }))
 }
 
-fn sample_pixel(path: &str, x: u32, y: u32) -> anyhow::Result<[u8; 4]> {
+pub(crate) fn sample_pixel(path: &str, x: u32, y: u32) -> anyhow::Result<[u8; 4]> {
     let image = image::open(path)?.to_rgba8();
     if x >= image.width() || y >= image.height() {
         anyhow::bail!(
@@ -56,7 +36,7 @@ fn sample_pixel(path: &str, x: u32, y: u32) -> anyhow::Result<[u8; 4]> {
     Ok(image.get_pixel(x, y).0)
 }
 
-fn rgba_to_hex(pixel: [u8; 4]) -> String {
+pub(crate) fn rgba_to_hex(pixel: [u8; 4]) -> String {
     if pixel[3] == 255 {
         format!("#{:02x}{:02x}{:02x}", pixel[0], pixel[1], pixel[2])
     } else {

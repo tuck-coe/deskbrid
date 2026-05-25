@@ -110,6 +110,41 @@ impl DesktopBackend for HyprBackend {
     ) -> anyhow::Result<protocol::ScreenshotResult> {
         screenshot::screenshot(self, monitor, region, window_id).await
     }
+    async fn pick_color(&self, x: u32, y: u32) -> anyhow::Result<serde_json::Value> {
+        // grim rejects 1x1 regions as "invalid geometry", so use 3x3 and sample center
+        let sx = x.saturating_sub(1);
+        let sy = y.saturating_sub(1);
+        let screenshot = self
+            .screenshot(
+                None,
+                Some(protocol::Region {
+                    x: sx,
+                    y: sy,
+                    width: 3,
+                    height: 3,
+                }),
+                None,
+            )
+            .await?;
+        let pixel = tokio::task::spawn_blocking({
+            let path = screenshot.path.clone();
+            let sample_x = (x - sx).min(2);
+            let sample_y = (y - sy).min(2);
+            move || crate::color::sample_pixel(&path, sample_x, sample_y)
+        })
+        .await??;
+        Ok(serde_json::json!({
+            "x": x,
+            "y": y,
+            "source_path": screenshot.path,
+            "red": pixel[0],
+            "green": pixel[1],
+            "blue": pixel[2],
+            "alpha": pixel[3],
+            "hex": crate::color::rgba_to_hex(pixel)
+        }))
+    }
+
     async fn notification_send(
         &self,
         app_name: &str,

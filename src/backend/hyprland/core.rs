@@ -107,6 +107,11 @@ impl HyprBackend {
         if let Some(sock) = &self.wl_socket {
             command.env("WAYLAND_DISPLAY", sock);
         }
+        if let Some(sig) = &self.instance_sig
+            && !sig.is_empty()
+        {
+            command.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
+        }
         let output = command.output().await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);

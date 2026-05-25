@@ -11,7 +11,11 @@ pub(crate) async fn execute_color(
     use Action::*;
     Ok(match action {
         ColorPick { x, y, ref path } => {
-            crate::color::pick_color(backend, x, y, path.as_deref()).await?
+            if let Some(image_path) = path {
+                crate::color::pick_color_from_image(image_path, x, y).await?
+            } else {
+                backend.pick_color(x, y).await?
+            }
         }
 
         _ => unreachable!("not a color action"),

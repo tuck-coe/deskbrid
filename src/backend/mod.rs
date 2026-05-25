@@ -9,6 +9,7 @@ pub mod wayfire;
 pub(crate) mod wlr_randr;
 pub mod x11;
 
+use crate::color::{rgba_to_hex, sample_pixel};
 use crate::protocol;
 use async_trait::async_trait;
 
@@ -139,6 +140,40 @@ enum DesktopEnv {
 /// environment. Supported backends: GNOME (Mutter DBus), Hyprland (hyprctl).
 #[async_trait]
 pub trait DesktopBackend: Send + Sync {
+    // ─── Color ───────────────────────────────────────────
+    /// Pick a pixel color at screen coordinates (x, y).
+    /// Default: screenshot a 1x1 region and sample the pixel.
+    /// Backends with native color pickers (e.g. hyprpicker) should override this.
+    async fn pick_color(&self, x: u32, y: u32) -> anyhow::Result<serde_json::Value> {
+        let screenshot = self
+            .screenshot(
+                None,
+                Some(protocol::Region {
+                    x,
+                    y,
+                    width: 1,
+                    height: 1,
+                }),
+                None,
+            )
+            .await?;
+        let pixel = tokio::task::spawn_blocking({
+            let path = screenshot.path.clone();
+            move || sample_pixel(&path, 0, 0)
+        })
+        .await??;
+        Ok(serde_json::json!({
+            "x": x,
+            "y": y,
+            "source_path": screenshot.path,
+            "red": pixel[0],
+            "green": pixel[1],
+            "blue": pixel[2],
+            "alpha": pixel[3],
+            "hex": rgba_to_hex(pixel)
+        }))
+    }
+
     // ─── Windows ────────────────────────────────────────
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>>;
     async fn window_focus(&self, id: &str) -> anyhow::Result<()>;

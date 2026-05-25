@@ -121,8 +121,10 @@ pub fn expand_path(path: &str) -> anyhow::Result<PathBuf> {
     };
 
     // Sandbox check: verify path is within allowed directories
-    let allowed_dirs = std::env::var("DESKBRID_ALLOWED_DIRS")
-        .unwrap_or_else(|_| std::env::var("HOME").unwrap_or_else(|_| "/root".into()));
+    let allowed_dirs = std::env::var("DESKBRID_ALLOWED_DIRS").unwrap_or_else(|_| {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        format!("{}:/tmp", home)
+    });
     let allowed: Vec<PathBuf> = allowed_dirs
         .split(':')
         .map(|d| {
@@ -193,9 +195,13 @@ pub fn not_supported_response(request_id: &str, msg: &str, seq: u64) -> serde_js
     })
 }
 
-pub fn permission_denied_response(request_id: &str, seq: u64) -> serde_json::Value {
+pub fn permission_denied_response(
+    request_id: &str,
+    action_type: &str,
+    seq: u64,
+) -> serde_json::Value {
     serde_json::json!({
         "type": "response", "id": request_id, "seq": seq, "status": "error",
-        "error": { "code": "PERMISSION_DENIED", "message": "action not permitted" }
+        "error": { "code": "PERMISSION_DENIED", "message": format!("action not permitted: {action_type} requires explicit permission — add '{action_type}' to your permissions.toml") }
     })
 }

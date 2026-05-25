@@ -14,7 +14,7 @@ pub(super) async fn screenshot(
     if let Some(ref wid) = window_id {
         let info = windows::window_get(backend, wid).await?;
         if let Some(geo) = info.geometry {
-            let region_str = format!("{}x{}+{}+{}", geo.width, geo.height, geo.x, geo.y);
+            let region_str = format!("{},{} {}x{}", geo.x, geo.y, geo.width, geo.height);
             backend.sh("grim", &["-g", &region_str, &path]).await?;
             return Ok(protocol::ScreenshotResult {
                 path: path.clone(),
@@ -25,7 +25,7 @@ pub(super) async fn screenshot(
         }
     }
     if let Some(ref r) = region {
-        let region_str = format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y);
+        let region_str = format!("{},{} {}x{}", r.x, r.y, r.width, r.height);
         backend.sh("grim", &["-g", &region_str, &path]).await?;
         return Ok(protocol::ScreenshotResult {
             path: path.clone(),
