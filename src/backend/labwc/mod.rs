@@ -73,6 +73,7 @@ impl LabwcBackend {
 mod audio;
 mod bluetooth;
 mod files;
+mod input;
 mod keyboard;
 mod monitor;
 mod networking;

@@ -64,22 +64,22 @@ impl DesktopBackend for LabwcBackend {
         LabwcBackend::keyboard_layout_remove(self, index).await
     }
     async fn keyboard_type(&self, t: &str) -> anyhow::Result<()> {
-        workspaces::keyboard_type(self, t).await
+        input::keyboard_type(self, t).await
     }
     async fn keyboard_key(&self, k: &str) -> anyhow::Result<()> {
-        workspaces::keyboard_key(self, k).await
+        input::keyboard_key(self, k).await
     }
     async fn keyboard_combo(&self, keys: &[String]) -> anyhow::Result<()> {
-        workspaces::keyboard_combo(self, keys).await
+        input::keyboard_combo(self, keys).await
     }
     async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()> {
-        workspaces::mouse_move(self, x, y).await
+        input::mouse_move(self, x, y).await
     }
     async fn mouse_click(&self, b: &str) -> anyhow::Result<()> {
-        workspaces::mouse_click(self, b).await
+        input::mouse_click(self, b).await
     }
     async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()> {
-        workspaces::mouse_scroll(self, dx, dy).await
+        input::mouse_scroll(self, dx, dy).await
     }
     async fn mouse_drag(
         &self,
@@ -90,13 +90,13 @@ impl DesktopBackend for LabwcBackend {
         button: &str,
         duration_ms: Option<u64>,
     ) -> anyhow::Result<()> {
-        workspaces::mouse_drag(self, from_x, from_y, to_x, to_y, button, duration_ms).await
+        input::mouse_drag(self, from_x, from_y, to_x, to_y, button, duration_ms).await
     }
     async fn clipboard_read(&self) -> anyhow::Result<String> {
-        workspaces::clipboard_read(self).await
+        input::clipboard_read(self).await
     }
     async fn clipboard_write(&self, text: &str) -> anyhow::Result<()> {
-        workspaces::clipboard_write(self, text).await
+        input::clipboard_write(self, text).await
     }
     async fn screenshot(
         &self,
