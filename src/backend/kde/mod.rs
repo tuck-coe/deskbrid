@@ -9,6 +9,7 @@ use tokio::sync::broadcast;
 
 pub(crate) mod helpers;
 mod io;
+mod keyboard_layout;
 mod kwin_scripts;
 mod networking;
 mod screenshot;

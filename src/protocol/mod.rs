@@ -154,6 +154,7 @@ pub enum Action {
         monitor: Option<u32>,
         region: Option<Region>,
         window_id: Option<String>,
+        output: Option<String>,
     },
     ScreenshotOcr {
         path: Option<String>,

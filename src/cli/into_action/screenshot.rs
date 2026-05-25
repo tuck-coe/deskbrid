@@ -9,7 +9,7 @@ pub fn into_screenshot_action(cmd: Command) -> anyhow::Result<Action> {
         },
 
         Command::Screenshot {
-            output: _,
+            output,
             monitor,
             region,
             window,
@@ -22,6 +22,7 @@ pub fn into_screenshot_action(cmd: Command) -> anyhow::Result<Action> {
                 height: v[3],
             }),
             window_id: window,
+            output,
         },
 
         Command::Ocr {

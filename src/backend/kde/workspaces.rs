@@ -140,7 +140,9 @@ pub(super) async fn mouse_scroll(backend: &KdeBackend, dx: f64, dy: f64) -> anyh
             &[
                 "mousemove",
                 "--wheel",
+                "-x",
                 &format!("{}", dx as i32),
+                "-y",
                 &format!("{}", dy as i32),
             ],
         )

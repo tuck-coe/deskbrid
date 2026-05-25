@@ -45,7 +45,8 @@ fn test_permissions_allow_all() {
         &Action::Screenshot {
             monitor: None,
             region: None,
-            window_id: None
+            window_id: None,
+            output: None,
         }
     ));
     assert!(p.check(1000, &Action::ClipboardRead));
@@ -78,7 +79,8 @@ fn test_permissions_deny_screenshot() {
         &Action::Screenshot {
             monitor: None,
             region: None,
-            window_id: None
+            window_id: None,
+            output: None,
         }
     ));
     assert!(p.check(1000, &Action::ClipboardRead));
@@ -119,7 +121,8 @@ fn test_permissions_per_uid() {
         &Action::Screenshot {
             monitor: None,
             region: None,
-            window_id: None
+            window_id: None,
+            output: None,
         }
     ));
 
@@ -130,7 +133,8 @@ fn test_permissions_per_uid() {
         &Action::Screenshot {
             monitor: None,
             region: None,
-            window_id: None
+            window_id: None,
+            output: None,
         }
     ));
     assert!(!p.check(

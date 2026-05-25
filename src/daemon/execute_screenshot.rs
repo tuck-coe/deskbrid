@@ -14,12 +14,15 @@ pub(crate) async fn execute_screenshot(
             monitor,
             ref region,
             ref window_id,
+            ref output,
         } => {
-            serde_json::json!(
-                backend
-                    .screenshot(monitor, region.clone(), window_id.clone())
-                    .await?
-            )
+            let result = backend
+                .screenshot(monitor, region.clone(), window_id.clone())
+                .await?;
+            if let Some(out_path) = output {
+                std::fs::copy(&result.path, out_path)?;
+            }
+            serde_json::json!(result)
         }
         ScreenshotOcr {
             ref path,

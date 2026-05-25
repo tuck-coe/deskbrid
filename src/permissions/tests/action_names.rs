@@ -7,7 +7,8 @@ fn test_action_name_mapping() {
         action_name(&Action::Screenshot {
             monitor: None,
             region: None,
-            window_id: None
+            window_id: None,
+            output: None,
         }),
         "screenshot"
     );

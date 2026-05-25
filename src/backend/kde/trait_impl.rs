@@ -55,6 +55,26 @@ impl DesktopBackend for KdeBackend {
     async fn keyboard_combo(&self, keys: &[String]) -> anyhow::Result<()> {
         workspaces::keyboard_combo(self, keys).await
     }
+    async fn keyboard_layout_list(&self) -> anyhow::Result<Vec<protocol::KeyboardLayout>> {
+        keyboard_layout::keyboard_layout_list(self).await
+    }
+    async fn keyboard_layout_get(&self) -> anyhow::Result<protocol::KeyboardLayout> {
+        keyboard_layout::keyboard_layout_get(self).await
+    }
+    async fn keyboard_layout_set(
+        &self,
+        index: Option<u32>,
+        name: Option<&str>,
+        variant: Option<&str>,
+    ) -> anyhow::Result<()> {
+        keyboard_layout::keyboard_layout_set(self, index, name, variant).await
+    }
+    async fn keyboard_layout_add(&self, name: &str, variant: Option<&str>) -> anyhow::Result<()> {
+        keyboard_layout::keyboard_layout_add(self, name, variant).await
+    }
+    async fn keyboard_layout_remove(&self, index: u32) -> anyhow::Result<()> {
+        keyboard_layout::keyboard_layout_remove(self, index).await
+    }
     async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()> {
         workspaces::mouse_move(self, x, y).await
     }

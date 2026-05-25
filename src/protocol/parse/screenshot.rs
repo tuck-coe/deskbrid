@@ -17,6 +17,7 @@ pub(super) fn parse_screenshot(raw: &Value, _id: &str, type_str: &str) -> anyhow
                 })
             }),
             window_id: raw["window_id"].as_str().map(String::from),
+            output: raw["output"].as_str().map(String::from),
         },
         "screenshot.ocr" => Action::ScreenshotOcr {
             path: optional_non_empty_string(raw, "path")?,

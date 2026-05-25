@@ -8,6 +8,7 @@ pub(super) fn serialize_screenshot(action: &Action, id: &str) -> serde_json::Val
             monitor,
             region,
             window_id,
+            output,
         } => {
             let mut obj = json!({"type": "screenshot", "id": id});
             if let Some(m) = monitor {
@@ -18,6 +19,9 @@ pub(super) fn serialize_screenshot(action: &Action, id: &str) -> serde_json::Val
             }
             if let Some(w) = window_id {
                 obj["window_id"] = json!(w);
+            }
+            if let Some(o) = output {
+                obj["output"] = json!(o);
             }
             obj
         }
