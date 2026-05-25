@@ -49,9 +49,7 @@ pub(super) async fn keyboard_layout_list(
     Ok(parse_setxkbmap(&out))
 }
 
-pub(super) async fn keyboard_layout_get(
-    backend: &KdeBackend,
-) -> anyhow::Result<KeyboardLayout> {
+pub(super) async fn keyboard_layout_get(backend: &KdeBackend) -> anyhow::Result<KeyboardLayout> {
     let layouts = keyboard_layout_list(backend).await?;
     layouts
         .into_iter()
@@ -105,10 +103,7 @@ pub(super) async fn keyboard_layout_add(
     Ok(())
 }
 
-pub(super) async fn keyboard_layout_remove(
-    backend: &KdeBackend,
-    index: u32,
-) -> anyhow::Result<()> {
+pub(super) async fn keyboard_layout_remove(backend: &KdeBackend, index: u32) -> anyhow::Result<()> {
     let layouts: Vec<KeyboardLayout> = keyboard_layout_list(backend)
         .await?
         .into_iter()

@@ -94,12 +94,16 @@ fn find_adapter_path(managed: &serde_json::Value) -> Option<String> {
     let data = managed.get("data")?.as_array()?;
     for entry in data {
         let pair = entry.get("data")?.as_array()?;
-        if pair.len() < 2 { continue; }
+        if pair.len() < 2 {
+            continue;
+        }
         let path = pair[0].get("data")?.as_str()?;
         let ifaces = &pair[1];
         for iface_entry in ifaces.get("data")?.as_array()? {
             let iface_pair = iface_entry.get("data")?.as_array()?;
-            if iface_pair.len() < 2 { continue; }
+            if iface_pair.len() < 2 {
+                continue;
+            }
             if iface_pair[0].get("data")?.as_str() == Some("org.bluez.Adapter1") {
                 return Some(path.to_string());
             }
@@ -129,11 +133,16 @@ fn parse_device_props(props_val: &serde_json::Value) -> (String, String, bool, b
             None => continue,
         };
         let Some(pair) = pair else { continue };
-        if pair.len() < 2 { continue; }
+        if pair.len() < 2 {
+            continue;
+        }
         let prop_name = pair[0].get("data").and_then(|v| v.as_str()).unwrap_or("");
         let variant = &pair[1];
         // variant is {"type":"v","data":[{"type":"s","data":"..."}]}
-        let inner = variant.get("data").and_then(|v| v.as_array()).and_then(|a| a.first());
+        let inner = variant
+            .get("data")
+            .and_then(|v| v.as_array())
+            .and_then(|a| a.first());
 
         match prop_name {
             "Address" => {
@@ -147,13 +156,22 @@ fn parse_device_props(props_val: &serde_json::Value) -> (String, String, bool, b
                 }
             }
             "Paired" => {
-                paired = inner.and_then(|v| v.get("data")).and_then(|v| v.as_bool()).unwrap_or(false);
+                paired = inner
+                    .and_then(|v| v.get("data"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
             }
             "Connected" => {
-                connected = inner.and_then(|v| v.get("data")).and_then(|v| v.as_bool()).unwrap_or(false);
+                connected = inner
+                    .and_then(|v| v.get("data"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
             }
             "RSSI" => {
-                rssi = inner.and_then(|v| v.get("data")).and_then(|v| v.as_i64()).map(|v| v as i32);
+                rssi = inner
+                    .and_then(|v| v.get("data"))
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v as i32);
             }
             _ => {}
         }
@@ -165,11 +183,21 @@ fn parse_device_props(props_val: &serde_json::Value) -> (String, String, bool, b
 pub(super) async fn bluetooth_list(
     backend: &KdeBackend,
 ) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>> {
-    let raw = match backend.sh(
-        "busctl",
-        &["--json=short", "--system", "call", "org.bluez", "/",
-          "org.freedesktop.DBus.ObjectManager", "GetManagedObjects"],
-    ).await {
+    let raw = match backend
+        .sh(
+            "busctl",
+            &[
+                "--json=short",
+                "--system",
+                "call",
+                "org.bluez",
+                "/",
+                "org.freedesktop.DBus.ObjectManager",
+                "GetManagedObjects",
+            ],
+        )
+        .await
+    {
         Ok(out) => out,
         Err(_) => return Ok(Vec::new()), // BlueZ not available
     };
@@ -183,7 +211,9 @@ pub(super) async fn bluetooth_list(
         Some(d) => d.as_array(),
         None => return Ok(devices),
     };
-    let Some(entries) = data else { return Ok(devices) };
+    let Some(entries) = data else {
+        return Ok(devices);
+    };
 
     for entry in entries {
         let pair = match entry.get("data") {
@@ -191,24 +221,35 @@ pub(super) async fn bluetooth_list(
             None => continue,
         };
         let Some(pair) = pair else { continue };
-        if pair.len() < 2 { continue; }
+        if pair.len() < 2 {
+            continue;
+        }
 
         let ifaces = &pair[1];
         let iface_entries = match ifaces.get("data") {
             Some(d) => d.as_array(),
             None => continue,
         };
-        let Some(iface_entries) = iface_entries else { continue };
+        let Some(iface_entries) = iface_entries else {
+            continue;
+        };
 
         for iface_entry in iface_entries {
             let iface_pair = match iface_entry.get("data") {
                 Some(d) => d.as_array(),
                 None => continue,
             };
-            let Some(iface_pair) = iface_pair else { continue };
-            if iface_pair.len() < 2 { continue; }
+            let Some(iface_pair) = iface_pair else {
+                continue;
+            };
+            if iface_pair.len() < 2 {
+                continue;
+            }
 
-            let iface_name = iface_pair[0].get("data").and_then(|v| v.as_str()).unwrap_or("");
+            let iface_name = iface_pair[0]
+                .get("data")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             if iface_name != "org.bluez.Device1" {
                 continue;
             }
@@ -243,11 +284,19 @@ pub(super) async fn bluetooth_scan(
         Some(a) => a,
         None => anyhow::bail!("no Bluetooth adapter found"),
     };
-    backend.sh(
-        "busctl",
-        &["--system", "call", "org.bluez", &adapter,
-          "org.bluez.Adapter1", "StartDiscovery"],
-    ).await?;
+    backend
+        .sh(
+            "busctl",
+            &[
+                "--system",
+                "call",
+                "org.bluez",
+                &adapter,
+                "org.bluez.Adapter1",
+                "StartDiscovery",
+            ],
+        )
+        .await?;
     Ok(())
 }
 
@@ -256,21 +305,37 @@ pub(super) async fn bluetooth_stop_scan(backend: &KdeBackend) -> anyhow::Result<
         Some(a) => a,
         None => return Ok(()), // no adapter, nothing to stop
     };
-    let _ = backend.sh(
-        "busctl",
-        &["--system", "call", "org.bluez", &adapter,
-          "org.bluez.Adapter1", "StopDiscovery"],
-    ).await;
+    let _ = backend
+        .sh(
+            "busctl",
+            &[
+                "--system",
+                "call",
+                "org.bluez",
+                &adapter,
+                "org.bluez.Adapter1",
+                "StopDiscovery",
+            ],
+        )
+        .await;
     Ok(())
 }
 
 pub(super) async fn bluetooth_connect(backend: &KdeBackend, address: &str) -> anyhow::Result<()> {
     let path = device_path(address);
-    backend.sh(
-        "busctl",
-        &["--system", "call", "org.bluez", &path,
-          "org.bluez.Device1", "Connect"],
-    ).await?;
+    backend
+        .sh(
+            "busctl",
+            &[
+                "--system",
+                "call",
+                "org.bluez",
+                &path,
+                "org.bluez.Device1",
+                "Connect",
+            ],
+        )
+        .await?;
     Ok(())
 }
 
@@ -279,20 +344,38 @@ pub(super) async fn bluetooth_disconnect(
     address: &str,
 ) -> anyhow::Result<()> {
     let path = device_path(address);
-    backend.sh(
-        "busctl",
-        &["--system", "call", "org.bluez", &path,
-          "org.bluez.Device1", "Disconnect"],
-    ).await?;
+    backend
+        .sh(
+            "busctl",
+            &[
+                "--system",
+                "call",
+                "org.bluez",
+                &path,
+                "org.bluez.Device1",
+                "Disconnect",
+            ],
+        )
+        .await?;
     Ok(())
 }
 
 async fn find_adapter(backend: &KdeBackend) -> Option<String> {
-    let raw = backend.sh(
-        "busctl",
-        &["--json=short", "--system", "call", "org.bluez", "/",
-          "org.freedesktop.DBus.ObjectManager", "GetManagedObjects"],
-    ).await.ok()?;
+    let raw = backend
+        .sh(
+            "busctl",
+            &[
+                "--json=short",
+                "--system",
+                "call",
+                "org.bluez",
+                "/",
+                "org.freedesktop.DBus.ObjectManager",
+                "GetManagedObjects",
+            ],
+        )
+        .await
+        .ok()?;
     let managed: serde_json::Value = serde_json::from_str(&raw).ok()?;
     find_adapter_path(&managed)
 }
