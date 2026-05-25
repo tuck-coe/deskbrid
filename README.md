@@ -68,6 +68,8 @@ Deskbrid fills that gap. It auto-detects your compositor and loads the right bac
 
 Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → process scan → GNOME fallback). No config files, no flags.
 
+See **[DE Test Matrix](docs/DE_TEST_MATRIX.md)** for per-action compatibility across all desktops — every action, every compositor, tested on real hardware.
+
 ## Installation
 
 **One-liner install (recommended):**
