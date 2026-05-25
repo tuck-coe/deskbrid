@@ -78,9 +78,10 @@ pub(super) async fn notification_send(
     urgency: &str,
 ) -> anyhow::Result<u32> {
     let urgency_map = match urgency {
-        "critical" => "2",
-        "high" => "1",
-        _ => "0",
+        "critical" => "critical",
+        "high" => "critical",
+        "low" => "low",
+        _ => "normal",
     };
     backend
         .sh(
