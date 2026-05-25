@@ -485,7 +485,7 @@ async fn handle_request(
 
 /// Start the dashboard HTTP server on port 20129.
 pub async fn start(state: Arc<DaemonState>) {
-    let addr = format!("127.0.0.1:{}", DASHBOARD_PORT);
+    let addr = format!("0.0.0.0:{}", DASHBOARD_PORT);
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(l) => l,
         Err(e) => {
