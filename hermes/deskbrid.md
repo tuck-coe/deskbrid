@@ -141,7 +141,7 @@ Deskbrid v0.3.0 auto-detects the running desktop environment and loads the appro
 | **Sway** | Wayland | ✅ Supported (v0.7.0) | `swaymsg` JSON IPC for windows/workspaces/outputs; `ydotool` for input; `grim` for screenshots; `wl-clipboard`; shares wlroots infra with Hyprland |
 | **Niri** | Wayland | ✅ Supported (v0.7.0) | `niri msg --json` CLI for windows/workspaces/outputs; scrollable-tiling compositor; shares wlroots infra |
 | **Wayfire** | Wayland | ✅ Supported (v0.7.0) | `wf-ipc -j` CLI for views/workspaces/outputs; 3D wlroots compositor; shares wlroots infra |
-| **Labwc** | Wayland | ✅ Supported (v0.7.1) | `wlrctl` for window ops (standard wlroots CLI); `labwc-helper` optional for full minimize support; shares wlroots infra |
+| **Labwc** | Wayland | ✅ Supported (26/33) | `wlrctl` + `wlr-randr` + real ext_workspace_v1 protocol; `labwc-helper` for toplevel list; notifications via mako; shares wlroots infra |
 | **Cinnamon** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing via wmctrl + xdotool; full JS extension track remains |
 | **MATE** | X11 | ✅ Covered (v0.7.0) | X11 backend + wmctrl covers all MATE operations |
 | **Generic X11** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing + xrandr geometry |
