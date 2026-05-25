@@ -20,6 +20,7 @@ impl GnomeBackend {
             sc_stream_path: String::new(),
             sc_pw_node: 0,
             last_mouse: std::sync::Mutex::new((960.0, 540.0)),
+            sc_child: Arc::new(tokio::sync::Mutex::new(None)),
         };
         backend.init_remote_desktop().await?;
         if let Err(e) = backend.init_screen_cast().await {

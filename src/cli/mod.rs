@@ -35,6 +35,17 @@ use terminal::TerminalCmd;
 use windows::WindowCmd;
 use workspace::{ProfileCmd, WorkspaceCmd};
 
+#[derive(Subcommand)]
+pub enum ScreencastCmd {
+    /// Start recording the desktop to an MP4 file (GNOME only)
+    Start {
+        /// Output file path for the MP4 recording
+        output_path: String,
+    },
+    /// Stop the running screencast recording
+    Stop,
+}
+
 #[derive(Parser)]
 #[command(
     name = "deskbrid",
@@ -63,6 +74,10 @@ pub enum Command {
 
         #[arg(long)]
         mcp_port: Option<u16>,
+
+        /// Disable the built-in web dashboard (port 20129)
+        #[arg(long)]
+        no_dashboard: bool,
     },
 
     /// Check if daemon is running
@@ -161,6 +176,13 @@ pub enum Command {
         /// Capture specific window
         #[arg(long)]
         window: Option<String>,
+    },
+
+    // ─── Screencast ─────────────────────────────────────
+    #[command(name = "screencast")]
+    Screencast {
+        #[command(subcommand)]
+        cmd: ScreencastCmd,
     },
 
     // ─── OCR ───────────────────────────────────────────

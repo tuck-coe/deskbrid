@@ -87,6 +87,12 @@ pub(super) fn serialize_screenshot(action: &Action, id: &str) -> serde_json::Val
             }
             obj
         }
+        Action::ScreencastStart { output_path } => {
+            json!({"type": "screencast.start", "id": id, "output_path": output_path})
+        }
+        Action::ScreencastStop => {
+            json!({"type": "screencast.stop", "id": id})
+        }
         _ => unreachable!("not a screenshot action"),
     }
 }

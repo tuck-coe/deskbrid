@@ -176,6 +176,12 @@ pub enum Action {
         window_id: Option<String>,
     },
 
+    // Screencast (video recording)
+    ScreencastStart {
+        output_path: String,
+    },
+    ScreencastStop,
+
     // Audit
     AuditLog {
         limit: Option<usize>,
@@ -598,6 +604,8 @@ impl Action {
             "screenshot",
             "screenshot.ocr",
             "screenshot.diff",
+            "screencast.start",
+            "screencast.stop",
             "audit.log",
             "audit.clear",
             "notification.send",

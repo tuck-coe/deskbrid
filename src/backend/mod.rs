@@ -314,4 +314,15 @@ pub trait DesktopBackend: Send + Sync {
     async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()>;
     async fn monitor_set_rotation(&self, output: &str, rotation: &str) -> anyhow::Result<()>;
     async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()>;
+
+    // ─── Screencast ─────────────────────────────────────
+    /// Start recording the desktop to an MP4 file (GNOME only).
+    async fn start_screencast(&self, output_path: &str) -> anyhow::Result<()> {
+        let _ = output_path;
+        anyhow::bail!("screencast is not supported by this backend")
+    }
+    /// Stop the running screencast recording (GNOME only).
+    async fn stop_screencast(&self) -> anyhow::Result<()> {
+        anyhow::bail!("screencast is not supported by this backend")
+    }
 }

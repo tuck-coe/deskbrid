@@ -44,6 +44,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::Screenshot { .. } => "screenshot",
         Action::ScreenshotOcr { .. } => "screenshot.ocr",
         Action::ScreenshotDiff { .. } => "screenshot.diff",
+        Action::ScreencastStart { .. } => "screencast.start",
+        Action::ScreencastStop => "screencast.stop",
         Action::AuditLog { .. } => "audit.log",
         Action::AuditClear => "audit.clear",
         Action::NotificationSend { .. } => "notification.send",

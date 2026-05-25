@@ -76,3 +76,21 @@ pub(crate) async fn execute_screenshot(
         _ => unreachable!("not a screenshot action"),
     })
 }
+
+pub(crate) async fn execute_screencast(
+    action: Action,
+    backend: &dyn DesktopBackend,
+) -> anyhow::Result<Value> {
+    use Action::*;
+    Ok(match action {
+        ScreencastStart { output_path } => {
+            backend.start_screencast(&output_path).await?;
+            serde_json::json!({ "ok": true, "output_path": output_path })
+        }
+        ScreencastStop => {
+            backend.stop_screencast().await?;
+            serde_json::json!({ "ok": true })
+        }
+        _ => unreachable!("not a screencast action"),
+    })
+}

@@ -32,4 +32,5 @@ pub struct GnomeBackend {
     pub(super) sc_stream_path: String,
     pub(super) sc_pw_node: u32,
     pub(super) last_mouse: std::sync::Mutex<(f64, f64)>,
+    pub(super) sc_child: Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>,
 }

@@ -95,6 +95,19 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
             screenshot::parse_screenshot(&raw, &id, s)?
         }
 
+        // Screencast
+        s if s.starts_with("screencast.") => match s {
+            "screencast.start" => {
+                let output_path = raw["output_path"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("screencast.start requires output_path"))?
+                    .to_string();
+                Action::ScreencastStart { output_path }
+            }
+            "screencast.stop" => Action::ScreencastStop,
+            _ => anyhow::bail!("unknown screencast action: {}", s),
+        },
+
         // Audit
         s if s.starts_with("audit.") => audit::parse_audit(&raw, &id, s)?,
 

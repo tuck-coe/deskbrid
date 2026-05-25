@@ -73,6 +73,11 @@ pub fn into_screenshot_action(cmd: Command) -> anyhow::Result<Action> {
             window_id: window,
         },
 
+        Command::Screencast { cmd } => match cmd {
+            ScreencastCmd::Start { output_path } => Action::ScreencastStart { output_path },
+            ScreencastCmd::Stop => Action::ScreencastStop,
+        },
+
         _ => bail!(
             "unexpected command in client mode: {:?}",
             std::mem::discriminant(&cmd)

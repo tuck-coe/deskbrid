@@ -11,6 +11,7 @@ mod audit;
 mod capabilities;
 mod client;
 mod clipboard;
+mod dashboard;
 mod dispatch;
 mod dispatch_helpers;
 pub(crate) mod execute;
@@ -103,7 +104,7 @@ pub(crate) fn socket_path() -> String {
 }
 
 /// Start the Unix socket daemon and accept connections.
-pub async fn run() -> anyhow::Result<()> {
+pub async fn run(no_dashboard: bool) -> anyhow::Result<()> {
     let sock = socket_path();
     let _ = tokio::fs::remove_file(&sock).await;
 
@@ -120,6 +121,14 @@ pub async fn run() -> anyhow::Result<()> {
     info!("Deskbrid daemon listening on {}", sock);
 
     let state = Arc::new(DaemonState::new());
+
+    // Start the web dashboard (runs regardless of backend status)
+    if !no_dashboard {
+        let dash_state = Arc::clone(&state);
+        tokio::spawn(async move {
+            dashboard::start(dash_state).await;
+        });
+    }
 
     // Load the desktop backend
     let backend_tx = state.event_tx.clone();

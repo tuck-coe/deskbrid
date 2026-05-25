@@ -77,7 +77,9 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         // Screenshot
         Action::Screenshot { .. }
         | Action::ScreenshotOcr { .. }
-        | Action::ScreenshotDiff { .. } => screenshot::serialize_screenshot(action, &id),
+        | Action::ScreenshotDiff { .. }
+        | Action::ScreencastStart { .. }
+        | Action::ScreencastStop => screenshot::serialize_screenshot(action, &id),
 
         // Audit / Notifications
         Action::AuditLog { .. }

@@ -216,4 +216,12 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     async fn monitor_set_enabled(&self, o: &str, e: bool) -> anyhow::Result<()> {
         self.monitor_set_enabled_inner(o, e).await
     }
+
+    async fn start_screencast(&self, output_path: &str) -> anyhow::Result<()> {
+        self.start_screencast(output_path).await
+    }
+
+    async fn stop_screencast(&self) -> anyhow::Result<()> {
+        self.stop_screencast().await
+    }
 }

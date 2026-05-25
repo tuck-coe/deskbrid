@@ -144,6 +144,10 @@ pub async fn execute_action(
             execute_screenshot::execute_screenshot(action, backend, state).await?
         }
 
+        ScreencastStart { .. } | ScreencastStop => {
+            execute_screenshot::execute_screencast(action, backend).await?
+        }
+
         SystemInfo
         | SystemCapabilities
         | SystemConfinement
