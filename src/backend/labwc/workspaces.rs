@@ -118,7 +118,8 @@ impl Dispatch<ExtWorkspaceHandleV1, ()> for WsState {
                     ws.active = active;
                 }
             }
-            Event::Removed => {
+            Event::Removed =>
+            {
                 #[allow(clippy::collapsible_match)]
                 if idx < state.workspaces.len() {
                     state.workspaces.remove(idx);
