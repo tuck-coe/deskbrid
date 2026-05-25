@@ -253,8 +253,7 @@ fn crop_png(path: &str, rect: CropRect) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Crop helpers and tests omitted for brevity — see above.
-///
+// Crop helpers and tests omitted for brevity — see above.
 // ─── Screencast (video recording) ────────────────────
 
 impl GnomeBackend {

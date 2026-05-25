@@ -420,7 +420,7 @@ async fn handle_request(
     let mut request_line = String::new();
     reader.read_line(&mut request_line).await?;
 
-    let (method, path) = parse_request_line(&request_line.trim()).unwrap_or(("GET", "/"));
+    let (method, path) = parse_request_line(request_line.trim()).unwrap_or(("GET", "/"));
 
     // Drain headers
     loop {
