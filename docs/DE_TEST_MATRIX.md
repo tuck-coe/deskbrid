@@ -121,3 +121,22 @@ These actions don't touch the `DesktopBackend` trait. They should work on any DE
 - `windows.tile` composites `system_info()` + `window_move_resize()` — move_resize gaps cascade to tile
 - `windows.activate_or_launch` composites `windows_list()` + `window_focus()` + daemon spawn
 - `layout_profiles.save/restore` are daemon-level orchestrations
+
+## Test Rig ("Turtle")
+
+All verified scores are tested on real hardware — no headless false negatives.
+
+| Spec | Detail |
+|------|--------|
+| **Machine** | Haswell laptop (2014) |
+| **CPU** | Intel Core i3-4010U @ 1.70GHz (2C/4T) |
+| **RAM** | 3.7 GB |
+| **GPU** | Intel HD 4400 (Haswell-ULT) |
+| **Disk** | 465 GB HDD |
+| **Network** | Realtek RTL810xE 100Mbps Ethernet |
+| **OS** | EndeavourOS (Arch) |
+| **DEs** | GNOME 46, KDE Plasma 6.6.4, Hyprland 0.54.3, COSMIC, Sway 1.11, Labwc 0.9.7 |
+| **SDDM** | Auto-login, session switched remotely via SSH |
+| **Battery** | Dead (must be plugged in) |
+
+If this laptop can run it, your desktop can too.
