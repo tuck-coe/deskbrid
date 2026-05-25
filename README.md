@@ -17,10 +17,6 @@
   <a href="https://deskbrid.patchhive.dev"><strong>deskbrid.patchhive.dev</strong></a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/coe0718/deskbrid"><img src="https://github-readme-stats.vercel.app/api/pin/?username=coe0718&repo=deskbrid&theme=tokyonight&show_owner=true" alt="Repo card"></a>
-</p>
-
 **[📖 Documentation](docs/wiki/INDEX.md) | [API Reference](docs/API.md) | [Architecture](docs/ARCHITECTURE.md)**
 
 ---
