@@ -68,8 +68,8 @@ Deskbrid protocol action support across 11 desktop environments.
 
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
-| `notification.send` | ✅ | ❌ | ✅ | ✅ | ❌ | 🔲 | 🔲 | ✅ | 🔲 |
-| `notification.close` | ✅ | ❌ | ✅ | ✅ | ❌ | 🔲 | 🔲 | ✅ | 🔲 |
+| `notification.send` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| `notification.close` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
 
 ---
 
@@ -107,8 +107,8 @@ These actions don't touch the `DesktopBackend` trait. They should work on any DE
 | **COSMIC** | `windows.move_resize` ⛔, `windows.tile` ⛔ | `zcosmic_toplevel_manager_v1` (v4) has no geometry control. `set_rectangle` is a visual hint only, not a move/resize command. |
 | **KDE** | No known gaps | All 7 bugs from initial test matrix fixed. |
 | **GNOME** | No known gaps | Mutter 50.1, Wayland. Full test passed. |
-| **Hyprland** | `windows.minimize` ❌, `monitor.set_primary` ❌, `notification.send/close` ❌ | **Tested May 2026** on Hyprland 0.54.3 (Turtle). 30/33 ✅. `windows.minimize`: compositor limitation. `monitor.set_primary`: compositor limitation. Notifications: no daemon. Keyboard layouts all ✅ (parser fixed for 0.54+ `rules:` format). |
-| **Sway** | `notification.send/close` ❌ | **Tested May 2026** on Sway 1.11 (Turtle). 31/33 ✅. Notifications: no daemon. Keyboard layouts implemented via swaymsg. |
+| **Hyprland** | `windows.minimize` ❌, `monitor.set_primary` ❌ | **Tested May 2026** on Hyprland 0.54.3 (Turtle). 31/33 ✅. `windows.minimize`: compositor limitation. `monitor.set_primary`: compositor limitation. Notifications ✅ via mako. Keyboard layouts all ✅. |
+| **Sway** | No known gaps | **Tested May 2026** on Sway 1.11 (Turtle). 33/33 ✅. Notifications via mako, keyboard layouts via swaymsg. |
 | **Labwc** | `windows.move_resize` ⛔, `windows.minimize` ⛔, `windows.tile` ⛔, `monitor.set_primary` ⛔, `workspaces.move_window` ⛔ | **Tested May 2026** on Labwc 0.9.7 (Turtle). 26/33 ✅. `move_resize`/`minimize`/`tile`: NO_PROTOCOL_SURFACE — wlrctl doesn't expose these, and labwc has no IPC for window geometry or minimize. `set_primary`: NO_PROTOCOL_SURFACE — wlr-randr has no --primary flag, no protocol. `workspace.move_window`: NO_PROTOCOL_SURFACE — no Wayland protocol exists, no Labwc IPC. Notifications: mako daemon installed, working. Workspaces list/switch via ext_workspace_v1 protocol client. Keyboard layouts via XKB_DEFAULT_LAYOUT env file. `set_resolution`: fixed with wlr-randr fallback. `activate_or_launch`: works via daemon-level spawn. |
 | **Niri** | 🔲 Untested | Backend exists — scroll-based tiling WM. |
 | **Wayfire** | 🔲 Untested | Backend exists with workspace/window stubs. |
