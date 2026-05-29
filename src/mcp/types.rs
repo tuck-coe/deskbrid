@@ -551,3 +551,11 @@ pub struct HotkeyUnregister {
     #[schemars(description = "Hotkey ID to unregister")]
     pub hotkey_id: String,
 }
+
+// ── Screencast ────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct ScreencastStartParams {
+    #[schemars(description = "Output file path for the recording (e.g. /tmp/recording.mp4)")]
+    pub output_path: String,
+}

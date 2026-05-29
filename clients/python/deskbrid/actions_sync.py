@@ -433,3 +433,9 @@ class SyncActionsMixin:
         signal: str | None = None,
     ) -> dict[str, Any]:
         return self._loop.submit(self._client.terminal_kill(terminal_id, signal)).result()
+
+    def screencast_start(self, output_path: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.screencast_start(output_path)).result()
+
+    def screencast_stop(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.screencast_stop()).result()

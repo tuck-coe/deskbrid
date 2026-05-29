@@ -520,3 +520,9 @@ class AsyncActionsMixin:
         if signal is not None:
             params["signal"] = signal
         return await self._request("terminal.kill", params)
+
+    async def screencast_start(self, output_path: str) -> dict[str, Any]:
+        return await self._request("screencast.start", {"output_path": output_path})
+
+    async def screencast_stop(self) -> dict[str, Any]:
+        return await self._request("screencast.stop")

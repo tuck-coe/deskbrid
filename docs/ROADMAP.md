@@ -45,6 +45,7 @@ it to the completed table below.
 | [34. Audit Log](#34-audit-log) | In-memory action ring buffer with query/clear actions, duration, status, UID, and error metadata | `src/daemon/audit.rs`, `src/daemon/dispatch.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [35. Rate Limiting](#35-rate-limiting-per-client) | Per-UID token bucket with configurable rate/burst and audited `RATE_LIMITED` responses | `src/daemon/rate_limit.rs`, `src/daemon/dispatch.rs` |
 | [71. Action Timeouts](#71-action-timeouts-with-kill-guarantees) | Request-level/default timeout wrapper around dispatched actions, with `wait.for` preserving its own deadline | `src/daemon/dispatch.rs`, `src/protocol/parse.rs`, `src/client.rs`, `src/cli/` |
+| [17. Screen Recording](#17-screen-recording-finish-half-built-implementation) | PipeWire screencast start/stop via GNOME backend, Python client, MCP tools, ScreencastFrame/ScreencastStopped events | `src/backend/gnome/`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -1280,6 +1281,10 @@ AppWinMenuActivate { window_id: String, menu_path: Vec<String> },
 ---
 
 ## 17. Screen Recording (Finish Half-Built Implementation)
+
+**Status:** ✅ Done. GNOME backend start_screencast/stop_screencast with PipeWire
+recording, Python client methods, MCP tools, and ScreencastFrame/ScreencastStopped
+events are all wired through the protocol, dispatch, CLI, and MCP layers.
 
 ### Current Status
 

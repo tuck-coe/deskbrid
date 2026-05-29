@@ -448,6 +448,17 @@ pub fn list_tools() -> Vec<Value> {
             "Unregister a previously registered hotkey.",
             json!({"type":"object","properties":{"hotkey_id":{"type":"string","description":"Hotkey ID"}},"required":["hotkey_id"]}),
         ),
+        // ══════ Screencast ══════
+        t(
+            "screencast_start",
+            "Start recording the desktop to a video file.",
+            json!({"type":"object","properties":{"output_path":{"type":"string","description":"Output file path for the recording"}},"required":["output_path"]}),
+        ),
+        t(
+            "screencast_stop",
+            "Stop the running screencast recording.",
+            json!({"type":"object","properties":{},"required":[]}),
+        ),
     ]
 }
 

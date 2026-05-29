@@ -26,6 +26,7 @@ mod tools_misc;
 mod tools_monitors;
 mod tools_network;
 mod tools_notifications;
+mod tools_screencast;
 mod tools_screenshot;
 mod tools_services;
 mod tools_system;

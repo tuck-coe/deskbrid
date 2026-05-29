@@ -86,4 +86,16 @@ pub enum DeskbridEvent {
         elapsed_ms: u128,
         timestamp: u64,
     },
+    #[serde(rename = "screencast.frame")]
+    ScreencastFrame {
+        path: String,
+        timestamp: u64,
+        frame_number: u32,
+    },
+    #[serde(rename = "screencast.stopped")]
+    ScreencastStopped {
+        frames: u32,
+        duration_secs: u64,
+        output_path: Option<String>,
+    },
 }

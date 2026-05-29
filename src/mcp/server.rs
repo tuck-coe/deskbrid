@@ -15,7 +15,8 @@ use crate::DaemonState;
 use crate::{
     tools_a11y, tools_audio, tools_bluetooth, tools_browser, tools_clipboard, tools_files,
     tools_input, tools_media, tools_misc, tools_monitors, tools_network, tools_notifications,
-    tools_screenshot, tools_services, tools_system, tools_terminal, tools_windows,
+    tools_screencast, tools_screenshot, tools_services, tools_system, tools_terminal,
+    tools_windows,
 };
 use anyhow::Context;
 use rmcp::{
@@ -64,6 +65,7 @@ fn execute(state: Arc<DaemonState>, rt: &Handle, action: &str, args: Value) -> J
 impl McpServer {
     tools_windows!();
     tools_screenshot!();
+    tools_screencast!();
     tools_input!();
     tools_clipboard!();
     tools_a11y!();
