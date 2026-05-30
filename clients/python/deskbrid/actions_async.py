@@ -592,3 +592,43 @@ class AsyncActionsMixin:
         if args is not None:
             req["args"] = args
         return await self._request("dbus.call", req)
+
+    # ─── Macro Recording & Replay ──────────────────────
+
+    async def macro_record_start(self, name: str, description: str | None = None) -> dict[str, Any]:
+        req: dict[str, Any] = {"name": name}
+        if description is not None:
+            req["description"] = description
+        return await self._request("macro.record.start", req)
+
+    async def macro_record_stop(self) -> dict[str, Any]:
+        return await self._request("macro.record.stop")
+
+    async def macro_replay(
+        self,
+        name: str,
+        mode: str = "fast",
+        loop_count: int = 1,
+        stop_on_error: bool = True,
+    ) -> dict[str, Any]:
+        return await self._request("macro.replay", {
+            "name": name,
+            "mode": mode,
+            "loop_count": loop_count,
+            "stop_on_error": stop_on_error,
+        })
+
+    async def macro_list(self) -> dict[str, Any]:
+        return await self._request("macro.list")
+
+    async def macro_get(self, name: str) -> dict[str, Any]:
+        return await self._request("macro.get", {"name": name})
+
+    async def macro_delete(self, name: str) -> dict[str, Any]:
+        return await self._request("macro.delete", {"name": name})
+
+    async def macro_export(self, name: str) -> dict[str, Any]:
+        return await self._request("macro.export", {"name": name})
+
+    async def macro_import(self, name: str, data: str) -> dict[str, Any]:
+        return await self._request("macro.import", {"name": name, "data": data})

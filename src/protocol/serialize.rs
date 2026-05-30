@@ -13,6 +13,7 @@ mod color_pick;
 mod connection;
 mod files;
 mod input;
+mod macro_cmd;
 mod process;
 mod screenshot;
 mod system;
@@ -222,6 +223,16 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
 
         // Clients
         Action::ClientsList => system::serialize_system(action, &id),
+
+        // Macro
+        Action::MacroRecordStart { .. }
+        | Action::MacroRecordStop
+        | Action::MacroReplay { .. }
+        | Action::MacroList
+        | Action::MacroGet { .. }
+        | Action::MacroDelete { .. }
+        | Action::MacroExport { .. }
+        | Action::MacroImport { .. } => macro_cmd::serialize_macro(action, &id),
     };
 
     Ok(serde_json::to_string(&envelope)?)

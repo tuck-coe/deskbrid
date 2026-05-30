@@ -614,6 +614,33 @@ pub enum Action {
         events: Vec<String>,
     },
     Disconnect,
+
+    // ─── Macro Recording & Replay ───────────────────────
+    MacroRecordStart {
+        name: String,
+        description: Option<String>,
+    },
+    MacroRecordStop,
+    MacroReplay {
+        name: String,
+        mode: Option<String>,
+        loop_count: Option<u32>,
+        stop_on_error: Option<bool>,
+    },
+    MacroList,
+    MacroGet {
+        name: String,
+    },
+    MacroDelete {
+        name: String,
+    },
+    MacroExport {
+        name: String,
+    },
+    MacroImport {
+        name: String,
+        data: String,
+    },
 }
 
 impl Action {
@@ -777,6 +804,14 @@ impl Action {
             "ui.element.click",
             "ui.element.set_text",
             "capabilities.list",
+            "macro.record.start",
+            "macro.record.stop",
+            "macro.replay",
+            "macro.list",
+            "macro.get",
+            "macro.delete",
+            "macro.export",
+            "macro.import",
         ]
     }
 

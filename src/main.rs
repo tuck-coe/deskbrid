@@ -92,6 +92,10 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
             };
             client::send_one_shot(action).await
         }
+        cli::Command::Macro { cmd } => {
+            let action = into_macro_action(&cmd);
+            client::send_one_shot(action).await
+        }
         cli::Command::Mcp => {
             let event_tx = tokio::sync::broadcast::channel(256).0;
             let state = std::sync::Arc::new(deskbrid::DaemonState::new());
@@ -103,5 +107,40 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
             let action = cli::into_action(args.command)?;
             client::send_one_shot_with_options(action, request_options).await
         }
+    }
+}
+
+fn into_macro_action(cmd: &cli::MacroCmd) -> deskbrid::protocol::Action {
+    match cmd {
+        cli::MacroCmd::Record { name, description } => {
+            deskbrid::protocol::Action::MacroRecordStart {
+                name: name.clone(),
+                description: description.clone(),
+            }
+        }
+        cli::MacroCmd::Stop => deskbrid::protocol::Action::MacroRecordStop,
+        cli::MacroCmd::Replay {
+            name,
+            mode,
+            loop_count,
+            stop_on_error,
+        } => deskbrid::protocol::Action::MacroReplay {
+            name: name.clone(),
+            mode: Some(mode.clone()),
+            loop_count: Some(*loop_count),
+            stop_on_error: Some(*stop_on_error),
+        },
+        cli::MacroCmd::List => deskbrid::protocol::Action::MacroList,
+        cli::MacroCmd::Get { name } => deskbrid::protocol::Action::MacroGet { name: name.clone() },
+        cli::MacroCmd::Delete { name } => {
+            deskbrid::protocol::Action::MacroDelete { name: name.clone() }
+        }
+        cli::MacroCmd::Export { name } => {
+            deskbrid::protocol::Action::MacroExport { name: name.clone() }
+        }
+        cli::MacroCmd::Import { name, data } => deskbrid::protocol::Action::MacroImport {
+            name: name.clone(),
+            data: data.clone(),
+        },
     }
 }

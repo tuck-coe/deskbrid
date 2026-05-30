@@ -52,6 +52,7 @@ it to the completed table below.
 || [28. D-Bus Raw Access](#28-dbus-raw-access) | Raw D-Bus method calls via `dbus-send` subprocess, CLI `deskbrid dbus-call`, MCP `dbus_call` tool, Python client wrapper, high-risk action gate | `src/daemon/execute_system.rs`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
 || [27. Cron / Scheduled Actions](#27-cron--scheduled-actions) | Schedule engine reading `~/.config/deskbrid/schedule.json`, 60s-poll daemon task, CLI `deskbrid schedule list|add|remove`, protocol actions | `src/daemon/schedule.rs`, `src/protocol/`, `src/cli/` |
 || [30. TCP Mode](#30-tcp-mode-network-control) | TCP listener with bearer token auth, synthetic UID for permissions, Rust/Python client TCP transport via env vars, CLI `--tcp-port`/`--tcp-token` | `src/daemon/tcp.rs`, `src/daemon/client.rs`, `src/client.rs`, `src/cli/`, `clients/python/` |
+|| [25. Action Recording & Replay](#25-action-recording--replay-macros) | Macro recording engine, dispatch hook, JSON file storage, replay with fast/timed modes, CLI, Python client | `src/daemon/macro_engine.rs`, `src/daemon/execute_macro.rs`, `src/protocol/parse/macro_cmd.rs`, `src/protocol/serialize/macro_cmd.rs` |
 
 ### Already Built (not covered here)
 
@@ -1927,6 +1928,8 @@ DeskbridEvent::ScreenChanged { diff_percent, screenshot_id, timestamp }
 ---
 
 ## 25. Action Recording & Replay (Macros)
+
+**Status:** ✅ Done
 
 ### What's Missing
 

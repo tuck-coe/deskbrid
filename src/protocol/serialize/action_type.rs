@@ -167,5 +167,13 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::Unsubscribe { .. } => "unsubscribe",
         Action::Disconnect => "disconnect",
         Action::ClientsList => "clients.list",
+        Action::MacroRecordStart { .. } => "macro.record.start",
+        Action::MacroRecordStop => "macro.record.stop",
+        Action::MacroReplay { .. } => "macro.replay",
+        Action::MacroList => "macro.list",
+        Action::MacroGet { .. } => "macro.get",
+        Action::MacroDelete { .. } => "macro.delete",
+        Action::MacroExport { .. } => "macro.export",
+        Action::MacroImport { .. } => "macro.import",
     }
 }

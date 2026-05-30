@@ -14,6 +14,7 @@ mod helpers;
 mod hotkeys;
 mod input;
 mod location;
+mod macro_cmd;
 mod monitor;
 mod mpris;
 mod network;
@@ -177,6 +178,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
 
         // Connection (subscribe / unsubscribe / disconnect handled above)
         "capabilities.list" => Action::CapabilitiesList,
+
+        // Macro
+        s if s.starts_with("macro.") => macro_cmd::parse_macro(&raw, &id, s)?,
 
         _ => anyhow::bail!("unknown action type: {}", msg_type),
     };

@@ -403,10 +403,69 @@ pub enum Command {
         #[arg(long)]
         args: Option<String>,
     },
+
+    /// Manage action macros: record, replay, list, get, delete, export, import
+    #[command(name = "macro")]
+    Macro {
+        #[command(subcommand)]
+        cmd: MacroCmd,
+    },
 }
 
 pub fn parse() -> Args {
     Args::parse()
+}
+
+#[derive(Subcommand)]
+pub enum MacroCmd {
+    /// Start recording a new macro
+    Record {
+        /// Name of the macro
+        name: String,
+        /// Optional description
+        #[arg(long)]
+        description: Option<String>,
+    },
+    /// Stop recording and save the macro
+    Stop,
+    /// Replay a saved macro
+    Replay {
+        /// Name of the macro
+        name: String,
+        /// Replay mode: fast (no delays), timed (preserve timing), stepped (await approval)
+        #[arg(long, default_value = "fast")]
+        mode: String,
+        /// Number of times to loop (default: 1)
+        #[arg(long, default_value = "1")]
+        loop_count: u32,
+        /// Stop on first error
+        #[arg(long)]
+        stop_on_error: bool,
+    },
+    /// List all saved macros
+    List,
+    /// Get a macro's full definition
+    Get {
+        /// Name of the macro
+        name: String,
+    },
+    /// Delete a saved macro
+    Delete {
+        /// Name of the macro
+        name: String,
+    },
+    /// Export a macro as JSON
+    Export {
+        /// Name of the macro
+        name: String,
+    },
+    /// Import a macro from JSON
+    Import {
+        /// Name to save as
+        name: String,
+        /// JSON macro data
+        data: String,
+    },
 }
 
 /// Translate CLI commands into protocol actions

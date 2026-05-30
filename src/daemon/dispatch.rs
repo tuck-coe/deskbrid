@@ -3,6 +3,7 @@ use crate::protocol::{Action, RequestOptions};
 
 use super::dispatch_helpers::*;
 use super::execute::execute_action;
+use super::execute_macro::{execute_macro_action, is_macro_action};
 use super::helpers::{not_supported_response, permission_denied_response};
 use super::rate_limited_response;
 use super::system::{execute_system_control_action, is_system_control_action};
@@ -82,6 +83,17 @@ pub async fn dispatch_action_with_options(
         }
     }
 
+    // Record action if macro recording is active (skip recording control commands)
+    {
+        let at = action.action_type();
+        if !at.starts_with("macro.") {
+            let params = action.to_json().unwrap_or_default();
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&params) {
+                crate::daemon::macro_engine::record_action(state, at, parsed);
+            }
+        }
+    }
+
     if options.dry_run {
         let data = serde_json::json!({
             "dry_run": true,
@@ -101,6 +113,26 @@ pub async fn dispatch_action_with_options(
             Some(true),
         )
         .await;
+    }
+
+    // Macro actions handled by their own executor
+    if is_macro_action(&action) {
+        return match execute_macro_action(&action, state, request_id, seq, peer_uid).await {
+            Ok(Some(response)) => response,
+            Ok(None) => {
+                let response = not_supported_response(request_id, "unknown macro action", seq);
+                audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+                response
+            }
+            Err(e) => {
+                let response = serde_json::json!({
+                    "type": "response", "id": request_id, "seq": seq, "status": "error",
+                    "error": { "code": "MACRO_ERROR", "message": e.to_string() }
+                });
+                audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+                response
+            }
+        };
     }
 
     if is_audit_action(&action) {
