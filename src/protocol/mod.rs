@@ -286,6 +286,18 @@ pub enum Action {
         args: Option<serde_json::Value>,
     },
 
+    // Schedule
+    ScheduleList,
+    ScheduleAdd {
+        name: String,
+        interval_secs: u64,
+        action_type: String,
+        action_params: Option<serde_json::Value>,
+    },
+    ScheduleRemove {
+        name: String,
+    },
+
     // systemd units, journal, and timers
     ServiceStatus {
         name: String,
@@ -680,6 +692,9 @@ impl Action {
             "system.elevate",
             "system.update",
             "dbus.call",
+            "schedule.list",
+            "schedule.add",
+            "schedule.remove",
             "service.status",
             "service.start",
             "service.stop",

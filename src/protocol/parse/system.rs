@@ -83,6 +83,16 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             method: required_non_empty_string(raw, "method")?,
             args: raw.get("args").cloned(),
         },
+        "schedule.list" => Action::ScheduleList,
+        "schedule.add" => Action::ScheduleAdd {
+            name: required_non_empty_string(raw, "name")?,
+            interval_secs: raw["interval_secs"].as_u64().unwrap_or(3600),
+            action_type: required_non_empty_string(raw, "action_type")?,
+            action_params: raw.get("action_params").cloned(),
+        },
+        "schedule.remove" => Action::ScheduleRemove {
+            name: required_non_empty_string(raw, "name")?,
+        },
         "service.status" => Action::ServiceStatus {
             name: required_non_empty_string(raw, "name")?,
         },

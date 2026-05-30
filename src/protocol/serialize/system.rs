@@ -114,6 +114,22 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::ScheduleList => json!({"type": "schedule.list", "id": id}),
+        Action::ScheduleAdd {
+            name,
+            interval_secs,
+            action_type,
+            action_params,
+        } => {
+            let mut obj = json!({"type": "schedule.add", "id": id, "name": name, "interval_secs": interval_secs, "action_type": action_type});
+            if let Some(p) = action_params {
+                obj["action_params"] = p.clone();
+            }
+            obj
+        }
+        Action::ScheduleRemove { name } => {
+            json!({"type": "schedule.remove", "id": id, "name": name})
+        }
         Action::ServiceStatus { name } => {
             json!({"type": "service.status", "id": id, "name": name})
         }

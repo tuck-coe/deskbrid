@@ -42,6 +42,7 @@ mod mpris;
 pub(crate) mod mpris_convert;
 mod portal;
 mod rate_limit;
+pub(crate) mod schedule;
 mod sysfs;
 mod system;
 pub mod terminal;
@@ -155,6 +156,9 @@ pub async fn run(no_dashboard: bool) -> anyhow::Result<()> {
 
     // Start periodic update checker — polls GitHub for new releases
     update_check::spawn_update_checker(Arc::clone(&state));
+
+    // Start schedule engine — runs configured actions on a timer
+    schedule::spawn_schedule_engine(Arc::clone(&state.schedule), Arc::clone(&state));
 
     loop {
         match listener.accept().await {

@@ -1,3 +1,4 @@
+use crate::DaemonState;
 use crate::protocol::Action;
 
 use super::execute_a11y;
@@ -182,6 +183,10 @@ pub async fn execute_action(
         | SystemUpdate { .. } => execute_system::execute_system(action, backend, state).await?,
         DbusCall { .. } => execute_system::execute_system(action, backend, state).await?,
 
+        ScheduleList | ScheduleAdd { .. } | ScheduleRemove { .. } => {
+            execute_schedule(action, state).await?
+        }
+
         WindowsList
         | WindowsFocus(..)
         | WindowsGet(..)
@@ -219,4 +224,45 @@ async fn execute_portal(action: Action) -> anyhow::Result<serde_json::Value> {
         PortalScreencastStop => super::portal::portal_screencast_stop().await?,
         _ => unreachable!("not a portal action"),
     })
+}
+
+async fn execute_schedule(
+    action: Action,
+    state: &DaemonState,
+) -> anyhow::Result<serde_json::Value> {
+    let mut sched = state.schedule.schedule.lock().await;
+    match action {
+        Action::ScheduleList => Ok(serde_json::json!({ "entries": *sched.entries })),
+        Action::ScheduleAdd {
+            name,
+            interval_secs,
+            action_type,
+            action_params,
+        } => {
+            // Don't allow duplicates
+            if sched.entries.iter().any(|e| e.name == name) {
+                anyhow::bail!("schedule entry '{}' already exists", name);
+            }
+            let entry = crate::daemon::schedule::ScheduleEntry {
+                name: name.clone(),
+                interval_secs,
+                action_type: action_type.clone(),
+                action_params: action_params.unwrap_or(serde_json::json!({})),
+                last_run: 0,
+            };
+            sched.entries.push(entry);
+            sched.save()?;
+            Ok(serde_json::json!({ "added": name }))
+        }
+        Action::ScheduleRemove { name } => {
+            let len_before = sched.entries.len();
+            sched.entries.retain(|e| e.name != name);
+            if sched.entries.len() == len_before {
+                anyhow::bail!("schedule entry '{}' not found", name);
+            }
+            sched.save()?;
+            Ok(serde_json::json!({ "removed": name }))
+        }
+        _ => unreachable!(),
+    }
 }
