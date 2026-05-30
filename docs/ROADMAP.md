@@ -2019,6 +2019,8 @@ DeskbridEvent::WaitMatched { wait_id, condition, value, elapsed_ms }
 
 ## 27. Cron / Scheduled Actions
 
+**Status:** ✅ Done
+
 ### What's Missing
 
 No built-in scheduling. Agents can't run health checks every 5 minutes, take daily
@@ -2061,6 +2063,8 @@ DeskbridEvent::CronJobCompleted { job_id, name, total_runs }
 ---
 
 ## 28. D-Bus Raw Access (Escape Hatch)
+
+**Status:** ✅ Done
 
 ### What's Missing
 
