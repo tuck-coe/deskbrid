@@ -93,8 +93,8 @@ pub(crate) async fn execute_session_action(
         Action::SessionVarSet { name, value } => {
             let mut sessions = state.sessions.lock().await;
             let session = sessions
-                .get_mut(&name.to_string())
-                .ok_or_else(|| anyhow::anyhow!("session '{}' not found", name))?;
+                .get_mut(session_id)
+                .ok_or_else(|| anyhow::anyhow!("session '{}' not found", session_id))?;
 
             session.vars.insert(name.clone(), value.clone());
             session.touch();
