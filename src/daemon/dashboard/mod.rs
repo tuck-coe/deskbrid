@@ -142,7 +142,7 @@ pub(super) async fn render_audio() -> String {
     {
         let txt = String::from_utf8_lossy(&o.stdout);
         if let Some(vol) = txt.split('/').nth(1) {
-            let pct: i32 = vol.trim().parse().unwrap_or(0);
+            let pct: i32 = vol.trim().trim_end_matches('%').parse().unwrap_or(0);
             rows.push_str(&kv(
                 "Volume",
                 &format!("{} {}%", volume_bar(pct as u8), pct),

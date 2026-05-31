@@ -5,21 +5,61 @@ pub(super) async fn audio_list_sinks(
     backend: &HyprBackend,
 ) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
     let output = backend
-        .sh("pactl", &["list", "short", "sinks"])
+        .sh("pactl", &["list", "sinks"])
         .await
         .unwrap_or_default();
     let mut sinks = Vec::new();
+    let mut current_id = 0u32;
+    let mut current_name = String::new();
+    let mut current_desc = String::new();
+    let mut current_volume = 1.0_f64;
+    let mut current_muted = false;
+
     for line in output.lines() {
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.len() >= 2 {
-            sinks.push(protocol::AudioSinkInfo {
-                id: parts[0].parse().unwrap_or(0),
-                name: parts[1].to_string(),
-                description: String::new(),
-                volume: 1.0,
-                muted: false,
-            });
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("Sink #") {
+            if current_id > 0 {
+                sinks.push(protocol::AudioSinkInfo {
+                    id: current_id,
+                    name: std::mem::take(&mut current_name),
+                    description: std::mem::take(&mut current_desc),
+                    volume: current_volume,
+                    muted: current_muted,
+                });
+            }
+            current_id = rest.parse().unwrap_or(0);
+            current_name.clear();
+            current_desc.clear();
+            current_volume = 1.0;
+            current_muted = false;
+        } else if let Some(v) = t.strip_prefix("Description: ") {
+            current_desc = v.to_string();
+            if current_name.is_empty() {
+                current_name = v.to_string();
+            }
+        } else if let Some(v) = t.strip_prefix("Name: ") {
+            current_name = v.to_string();
+        } else if let Some(v) = t.strip_prefix("Volume: ") {
+            // Format: "front-left: 62271 /  95% / -1.33 dB,   front-right: ..."
+            current_volume = v
+                .split('%')
+                .next()
+                .and_then(|s| s.rsplit('/').next())
+                .and_then(|s| s.trim().parse::<u32>().ok())
+                .map(|pct| pct as f64 / 100.0)
+                .unwrap_or(1.0);
+        } else if let Some(v) = t.strip_prefix("Mute: ") {
+            current_muted = v.trim() == "yes";
         }
+    }
+    if current_id > 0 {
+        sinks.push(protocol::AudioSinkInfo {
+            id: current_id,
+            name: current_name,
+            description: current_desc,
+            volume: current_volume,
+            muted: current_muted,
+        });
     }
     Ok(sinks)
 }
