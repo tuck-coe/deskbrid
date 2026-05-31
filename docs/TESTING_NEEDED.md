@@ -161,6 +161,6 @@ echo '{"type":"notification.history","id":"1","limit":5}' | nc -U $XDG_RUNTIME_D
 - Native zbus: hotspot, WiFi/WWAN toggle, DNS, VPN, connection profiles
 - **Test on:** System with NetworkManager
 ```bash
-echo '{"type":"network.connection.list","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
-echo '{"type":"network.connection.profiles","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+echo '{"type":"network.connections.list","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+echo '{"type":"network.connections.profiles","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
 ```

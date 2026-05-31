@@ -110,8 +110,7 @@ async fn nm_connection_list() -> anyhow::Result<Value> {
         )
         .await?;
     let body = reply.body();
-    let val: zvariant::Value = body.deserialize()?;
-    let paths: Vec<zvariant::OwnedObjectPath> = val.try_into()?;
+    let paths: Vec<zvariant::OwnedObjectPath> = body.deserialize()?;
 
     let mut connections = Vec::new();
     for path in &paths {
@@ -157,8 +156,7 @@ async fn nm_connection_profiles() -> anyhow::Result<Value> {
         )
         .await?;
     let body = reply.body();
-    let val: zvariant::Value = body.deserialize()?;
-    let paths: Vec<zvariant::OwnedObjectPath> = val.try_into()?;
+    let paths: Vec<zvariant::OwnedObjectPath> = body.deserialize()?;
 
     let mut profiles = Vec::new();
     for path in &paths {
@@ -266,8 +264,7 @@ async fn nm_stop_hotspot() -> anyhow::Result<Value> {
         )
         .await?;
     let body = reply.body();
-    let val: zvariant::Value = body.deserialize()?;
-    let paths: Vec<zvariant::OwnedObjectPath> = val.try_into()?;
+    let paths: Vec<zvariant::OwnedObjectPath> = body.deserialize()?;
 
     let mut stopped = Vec::new();
     for path in &paths {
@@ -436,8 +433,7 @@ async fn nm_vpn_disconnect() -> anyhow::Result<Value> {
         )
         .await?;
     let body = reply.body();
-    let val: zvariant::Value = body.deserialize()?;
-    let paths: Vec<zvariant::OwnedObjectPath> = val.try_into()?;
+    let paths: Vec<zvariant::OwnedObjectPath> = body.deserialize()?;
 
     let mut disconnected = Vec::new();
     for path in &paths {
@@ -493,8 +489,7 @@ async fn get_active_connection_names() -> anyhow::Result<Vec<String>> {
         )
         .await?;
     let body = reply.body();
-    let val: zvariant::Value = body.deserialize()?;
-    let paths: Vec<zvariant::OwnedObjectPath> = val.try_into()?;
+    let paths: Vec<zvariant::OwnedObjectPath> = body.deserialize()?;
 
     let mut names = Vec::new();
     for path in &paths {
@@ -517,8 +512,7 @@ async fn find_wifi_device(conn: &zbus::Connection) -> anyhow::Result<String> {
         .await?;
 
     let body = reply.body();
-    let val: zvariant::Value = body.deserialize()?;
-    let paths: Vec<zvariant::OwnedObjectPath> = val.try_into()?;
+    let paths: Vec<zvariant::OwnedObjectPath> = body.deserialize()?;
 
     for path in &paths {
         let dev_type: u32 = conn
