@@ -5,7 +5,6 @@ use tracing::{debug, error, info, warn};
 use crate::DaemonState;
 use crate::protocol::{Action, DeskbridEvent, EventTrigger, Rule};
 
-
 /// Check whether a given EventTrigger matches a DeskbridEvent.
 pub(super) fn trigger_matches_event(trigger: &EventTrigger, event: &DeskbridEvent) -> bool {
     match trigger {
