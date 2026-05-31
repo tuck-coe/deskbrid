@@ -20,6 +20,7 @@ use super::execute_process;
 use super::execute_screenshot;
 use super::execute_stubs;
 use super::execute_system;
+use super::execute_system::execute_dbus_call;
 use super::execute_windows;
 use super::execute_workspace;
 
@@ -141,7 +142,7 @@ pub async fn execute_action(
         | NetworkDnsSet { .. }
         | NetworkDnsReset
         | NetworkVpnConnect { .. }
-        | NetworkVpnDisconnect => execute_network::execute_network(action, backend, state).await?,
+        | NetworkVpnDisconnect => execute_network::execute_network(action).await?,
 
         ClientsList => serde_json::json!({"clients": [], "count": 0}),
 
@@ -197,7 +198,7 @@ pub async fn execute_action(
         | SystemCpuGovernor
         | SystemCpuSetGovernor { .. }
         | SystemUpdate { .. } => execute_system::execute_system(action, backend, state).await?,
-        DbusCall { .. } => execute_system::execute_system(action, backend, state).await?,
+        DbusCall { .. } => execute_dbus_call(&action).await?,
 
         ScheduleList | ScheduleAdd { .. } | ScheduleRemove { .. } => {
             execute_schedule(action, state).await?

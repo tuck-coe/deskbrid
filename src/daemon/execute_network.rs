@@ -5,11 +5,7 @@ use crate::protocol::Action;
 use anyhow::Context;
 use serde_json::Value;
 
-pub(crate) async fn execute_network(
-    action: Action,
-    _backend: &dyn crate::backend::DesktopBackend,
-    _state: &crate::DaemonState,
-) -> anyhow::Result<Value> {
+pub(crate) async fn execute_network(action: Action) -> anyhow::Result<Value> {
     use Action::*;
     Ok(match action {
         NetworkStatus => nm_status().await?,

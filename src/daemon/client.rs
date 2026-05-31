@@ -45,7 +45,7 @@ where
         "type": "connected",
         "id": "server",
         "seq": 0,
-        "data": { "version": "0.10.0", "protocol": "deskbrid-v2", "uid": peer_uid, "session": conn.session_id }
+        "data": { "version": env!("CARGO_PKG_VERSION"), "protocol": "deskbrid-v2", "uid": peer_uid, "session": conn.session_id }
     });
     writer
         .write_all(format!("{}\n", serde_json::to_string(&connected)?).as_bytes())
@@ -196,6 +196,16 @@ where
                     }
 
                     // Files — track watched paths locally
+                    // Session switch updates the connection's active session so var
+                    // ops resolve against the correct session after switching.
+                    Action::SessionSwitch { ref name } => {
+                        conn.session_id = name.clone();
+                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &conn.session_id).await;
+                        writer
+                            .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
+                            .await?;
+                    }
+
                     Action::FilesWatch { ref path, .. } => {
                         conn.watched_paths.insert(path.clone());
                         let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &conn.session_id).await;

@@ -106,6 +106,13 @@ pub fn spawn_schedule_engine(schedule_state: Arc<ScheduleState>, daemon_state: A
         );
 
         loop {
+            // Reload schedule from disk on every tick so changes take effect
+            // without requiring a daemon restart.
+            {
+                let mut sched = schedule_state.schedule.lock().await;
+                *sched = Schedule::load();
+            }
+
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()

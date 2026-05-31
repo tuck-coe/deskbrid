@@ -35,63 +35,67 @@ pub(crate) async fn execute_system(
         SystemCpuGovernor => cpu_governor().await?,
         SystemCpuSetGovernor { ref governor } => cpu_set_governor(governor).await?,
         SystemUpdate { check, force } => crate::cmd::update::run_json(check, force).await?,
+        DbusCall { .. } => execute_dbus_call(&action).await?,
+        _ => unreachable!("not a system action"),
+    })
+}
 
-        DbusCall {
+/// Execute a raw D-Bus method call without requiring a desktop backend.
+/// Uses dbus-send subprocess — works anywhere D-Bus is available.
+pub(crate) async fn execute_dbus_call(action: &Action) -> anyhow::Result<Value> {
+    let (bus, service, path, interface, method, args) = match action {
+        Action::DbusCall {
             bus,
             service,
             path,
             interface,
             method,
             args,
-        } => {
-            // Raw D-Bus call via dbus-send subprocess.
-            // This is the escape hatch — dbus-send handles all type marshalling.
-            let bus_flag = match bus.as_deref() {
-                Some("system") => "--system",
-                _ => "--session",
-            };
+        } => (bus, service, path, interface, method, args),
+        _ => anyhow::bail!("not a dbus.call action"),
+    };
 
-            let mut cmd = tokio::process::Command::new("dbus-send");
-            cmd.arg(bus_flag)
-                .arg("--print-reply")
-                .arg("--dest=".to_string() + &service)
-                .arg(&path)
-                .arg(format!("{}.{}", interface, method));
+    let bus_flag = match bus.as_deref() {
+        Some("system") => "--system",
+        _ => "--session",
+    };
 
-            // Append args as dbus-send typed parameters
-            if let Some(ref args) = args {
-                match args {
-                    serde_json::Value::Array(arr) => {
-                        for val in arr {
-                            cmd.arg(dbus_send_arg(val));
-                        }
-                    }
-                    other => {
-                        cmd.arg(dbus_send_arg(other));
-                    }
+    let mut cmd = tokio::process::Command::new("dbus-send");
+    cmd.arg(bus_flag)
+        .arg("--print-reply")
+        .arg("--dest=".to_string() + service)
+        .arg(path)
+        .arg(format!("{}.{}", interface, method));
+
+    if let Some(args) = args {
+        match args {
+            serde_json::Value::Array(arr) => {
+                for val in arr {
+                    cmd.arg(dbus_send_arg(val));
                 }
             }
-
-            let output = cmd.output().await?;
-            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-            if !output.status.success() {
-                anyhow::bail!("dbus-send failed: {}", stderr.trim());
+            other => {
+                cmd.arg(dbus_send_arg(other));
             }
-
-            serde_json::json!({
-                "service": service,
-                "path": path,
-                "interface": interface,
-                "method": method,
-                "bus": bus.as_deref().unwrap_or("session"),
-                "reply": stdout.trim(),
-            })
         }
+    }
 
-        _ => unreachable!("not a system action"),
-    })
+    let output = cmd.output().await?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if !output.status.success() {
+        anyhow::bail!("dbus-send failed: {}", stderr.trim());
+    }
+
+    Ok(serde_json::json!({
+        "service": service,
+        "path": path,
+        "interface": interface,
+        "method": method,
+        "bus": bus.as_deref().unwrap_or("session"),
+        "reply": stdout.trim(),
+    }))
 }
 
 /// Convert a serde_json::Value to a dbus-send argument string.
@@ -110,8 +114,6 @@ fn dbus_send_arg(value: &serde_json::Value) -> String {
         }
         serde_json::Value::Bool(b) => format!("boolean:{}", *b),
         serde_json::Value::Array(arr) => {
-            // Recursively format array elements — dbus-send doesn't handle nested arrays well
-            // so we just join the first layer
             arr.iter().map(dbus_send_arg).collect::<Vec<_>>().join(" ")
         }
         _ => format!("string:{}", value),

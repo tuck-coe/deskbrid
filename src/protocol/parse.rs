@@ -194,6 +194,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         // Blackboard
         s if s.starts_with("blackboard.") => blackboard::parse_blackboard(&raw, &id, s)?,
 
+        // D-Bus raw call — escape hatch, doesn't fit a prefix group
+        "dbus.call" => system::parse_system(&raw, &id, msg_type.as_str())?,
+
         _ => anyhow::bail!("unknown action type: {}", msg_type),
     };
 

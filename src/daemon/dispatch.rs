@@ -250,6 +250,34 @@ pub async fn dispatch_action_with_options(
         .await;
     }
 
+    // Backend-free system actions — no desktop session required.
+    // D-Bus calls talk to the message bus directly; network actions use nmcli.
+    if matches!(&action, Action::DbusCall { .. }) {
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            super::execute_system::execute_dbus_call(&action),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+
+    if is_network_action_backend_free(&action) {
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            super::execute_network::execute_network(action.clone()),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+
     let backend = state.backend.read().await;
     let backend = match backend.as_ref() {
         Some(b) => b,
@@ -296,4 +324,26 @@ pub async fn dispatch_action_with_options(
         request_id, state, &action, peer_uid, seq, result, started, None,
     )
     .await
+}
+
+/// Check if an action is a network action that doesn't require a desktop backend.
+/// Network actions use nmcli/zbus directly — no GUI needed.
+fn is_network_action_backend_free(action: &Action) -> bool {
+    matches!(
+        action,
+        Action::NetworkStatus
+            | Action::NetworkInterfaces
+            | Action::NetworkWifiScan
+            | Action::NetworkWifiConnect { .. }
+            | Action::NetworkConnectionList
+            | Action::NetworkConnectionProfiles
+            | Action::NetworkCreateHotspot { .. }
+            | Action::NetworkStopHotspot
+            | Action::NetworkWifiEnable { .. }
+            | Action::NetworkWwanEnable { .. }
+            | Action::NetworkDnsSet { .. }
+            | Action::NetworkDnsReset
+            | Action::NetworkVpnConnect { .. }
+            | Action::NetworkVpnDisconnect
+    )
 }
