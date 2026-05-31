@@ -124,3 +124,43 @@ async def main():
 asyncio.run(main())
 "
 ```
+
+
+### Persistence Layer (#84) — `src/daemon/persistence.rs`
+- SQLite database at `~/.local/share/deskbrid/deskbrid.db`
+- WAL mode, 7 tables survive daemon restart
+- **Test:** `sqlite3 ~/.local/share/deskbrid/deskbrid.db ".tables"`
+
+### Named Sessions (#31) — `src/daemon/execute_sessions.rs`
+- Per-agent session isolation with variables
+- **Test on:** Running daemon
+```bash
+echo '{"type":"connect","id":"1","session":"agent-1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+echo '{"type":"session.var.set","id":"2","name":"greeting","value":"hello"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+echo '{"type":"session.var.get","id":"3","name":"greeting"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+echo '{"type":"session.list","id":"4"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+```
+
+### Rules Engine (#83) — `src/daemon/rules.rs`
+- Event-driven triggers on subscription bus, persisted to SQLite
+- **Test on:** Running daemon
+```bash
+echo '{"type":"rule.create","id":"1","name":"test-rule","trigger":{"type":"clipboard.changed"},"action_type":"notification.send","action_params":{"app_name":"Deskbrid","title":"Fired!","body":"Clipboard changed","urgency":"normal"},"enabled":false}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+echo '{"type":"rule.list","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+```
+
+### Notification History (#61) — `src/daemon/execute_notification.rs`
+- D-Bus notification interception, SQLite storage, query with filters
+- **Test on:** Running daemon with D-Bus
+```bash
+./target/release/deskbrid notify send "TestApp" "Hello" "Test body"
+echo '{"type":"notification.history","id":"1","limit":5}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+```
+
+### NetworkManager D-Bus (#62) — `src/daemon/execute_network.rs`
+- Native zbus: hotspot, WiFi/WWAN toggle, DNS, VPN, connection profiles
+- **Test on:** System with NetworkManager
+```bash
+echo '{"type":"network.connection.list","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+echo '{"type":"network.connection.profiles","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock
+```

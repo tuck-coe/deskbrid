@@ -47,8 +47,10 @@ const NM_SERVICE: &str = "org.freedesktop.NetworkManager";
 const NM_PATH: &str = "/org/freedesktop/NetworkManager";
 const NM_IFACE: &str = "org.freedesktop.NetworkManager";
 const NM_SETTINGS_IFACE: &str = "org.freedesktop.NetworkManager.Settings";
+#[allow(dead_code)]
 const NM_DEVICE_WIRELESS_IFACE: &str = "org.freedesktop.NetworkManager.Device.Wireless";
 const NM_CONNECTION_ACTIVE_IFACE: &str = "org.freedesktop.NetworkManager.Connection.Active";
+#[allow(dead_code)]
 const NM_ACCESSPOINT_IFACE: &str = "org.freedesktop.NetworkManager.AccessPoint";
 const DBUS_PROPERTIES_IFACE: &str = "org.freedesktop.DBus.Properties";
 
