@@ -218,6 +218,12 @@ at 9: GNOME, KDE, Hyprland, COSMIC, Sway, Labwc, XFCE, Budgie, Enlightenment.
 - **`6c3f446`** — CHANGELOG.md with full release notes
 - **`29c1c1f`** — ROADMAP updated: #45, #84 marked done; #62 description fixed
 
+### 🤝 Community
+
+- **@brauliobo** — PR #24: Fixed MCP stdio startup under Codex CLI. MCP server
+  now correctly initializes when launched via `copilot --acp --stdio`. Merged
+  May 26, 2026. First external MCP contribution.
+
 ---
 
 ### 📦 Breaking Changes
