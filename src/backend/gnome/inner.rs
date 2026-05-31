@@ -4,15 +4,19 @@ use zbus::zvariant;
 
 /// Probe DRM connectors for connected monitors.
 /// Returns monitor info with real connector names and resolutions.
-fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
+async fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
     let mut monitors = Vec::new();
     let drm_path = std::path::Path::new("/sys/class/drm");
-    let dir = match std::fs::read_dir(drm_path) {
+    let mut dir = match tokio::fs::read_dir(drm_path).await {
         Ok(d) => d,
         Err(_) => return monitors,
     };
     let mut id: u32 = 0;
-    for entry in dir.flatten() {
+    loop {
+        let entry = match dir.next_entry().await {
+            Ok(Some(e)) => e,
+            _ => break,
+        };
         let name = entry.file_name().to_string_lossy().to_string();
         if !name.contains('-') {
             continue;
@@ -90,7 +94,7 @@ impl GnomeBackend {
             }
         }
         // Fallback: probe DRM connectors (works on any Linux)
-        let drm_monitors = probe_drm_monitors();
+        let drm_monitors = probe_drm_monitors().await;
         if !drm_monitors.is_empty() {
             return Ok(drm_monitors);
         }
