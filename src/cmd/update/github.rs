@@ -75,26 +75,42 @@ pub(crate) async fn verify_checksum_if_available(
     asset: &GitHubAsset,
     archive_path: &std::path::Path,
 ) -> anyhow::Result<String> {
+    use sha2::{Digest, Sha256};
+
     let checksum_name = format!("{}.sha256", asset.name);
     let Some(checksum_asset) = release.assets.iter().find(|a| a.name == checksum_name) else {
         return Ok("no checksum asset published; skipped".to_string());
     };
 
+    // Download the checksum file
     let checksum_path = archive_path.with_extension("tar.gz.sha256");
     download(client, &checksum_asset.browser_download_url, &checksum_path).await?;
-    let status = tokio::process::Command::new("sha256sum")
-        .arg("-c")
-        .arg(&checksum_path)
-        .current_dir(
-            archive_path
-                .parent()
-                .unwrap_or_else(|| std::path::Path::new(".")),
-        )
-        .status()
+
+    // Parse expected hash from the checksum file (format: "<hex>  <filename>")
+    let checksum_content = tokio::fs::read_to_string(&checksum_path)
         .await
-        .context("failed to run sha256sum")?;
-    if !status.success() {
-        bail!("checksum verification failed for {}", asset.name);
+        .context("failed to read checksum file")?;
+    let expected_hex = checksum_content
+        .split_whitespace()
+        .next()
+        .context("malformed checksum file — no hex hash found")?;
+
+    // Compute SHA256 of the downloaded archive
+    let archive_bytes = tokio::fs::read(archive_path)
+        .await
+        .context("failed to read archive for checksum verification")?;
+    let mut hasher = Sha256::new();
+    hasher.update(&archive_bytes);
+    let actual_hex = format!("{:x}", hasher.finalize());
+
+    if actual_hex != expected_hex {
+        bail!(
+            "checksum verification failed for {}\n  expected: {}\n  got:      {}",
+            asset.name,
+            expected_hex,
+            actual_hex,
+        );
     }
+
     Ok("verified".to_string())
 }
