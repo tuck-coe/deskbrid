@@ -128,7 +128,7 @@ pub(super) async fn render_notifications(state: &DaemonState) -> String {
 }
 
 pub(super) async fn render_macros() -> String {
-    match crate::daemon::macro_engine::list_macros() {
+    match crate::daemon::macro_engine::list_macros().await {
         Ok(list) => {
             if list.is_empty() {
                 return r#"<div class="empty">No macros recorded</div>"#.into();

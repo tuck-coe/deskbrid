@@ -80,7 +80,7 @@ pub async fn execute_macro_action(
             )))
         }
         Action::MacroList => {
-            let summaries = macro_engine::list_macros()?;
+            let summaries = macro_engine::list_macros().await?;
             Ok(Some(ok_data(
                 request_id,
                 seq,

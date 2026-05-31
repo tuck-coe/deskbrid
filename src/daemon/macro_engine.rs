@@ -216,15 +216,15 @@ pub async fn replay_macro(
 
 // ─── CRUD ─────────────────────────────────────────────
 
-pub fn list_macros() -> anyhow::Result<Vec<MacroSummary>> {
+pub async fn list_macros() -> anyhow::Result<Vec<MacroSummary>> {
     let dir = macro_dir();
     if !dir.exists() {
         return Ok(Vec::new());
     }
 
     let mut summaries = Vec::new();
-    for entry in std::fs::read_dir(&dir)? {
-        let entry = entry?;
+    let mut entries = tokio::fs::read_dir(&dir).await?;
+    while let Some(entry) = entries.next_entry().await? {
         let path = entry.path();
         if path.extension().is_none_or(|e| e != "json") {
             continue;
