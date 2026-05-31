@@ -158,3 +158,55 @@ pub(crate) fn is_session_action(action: &Action) -> bool {
             | Action::SessionVarList
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::SessionData;
+
+    #[test]
+    fn session_data_new_has_empty_vars() {
+        let s = SessionData::new("test".into());
+        assert_eq!(s.name, "test");
+        assert!(s.vars.is_empty());
+    }
+
+    #[test]
+    fn session_data_vars_set_and_get() {
+        let mut s = SessionData::new("agent".into());
+        s.vars.insert("key1".into(), "val1".into());
+        s.vars.insert("key2".into(), "val2".into());
+        assert_eq!(s.vars.get("key1").unwrap(), "val1");
+        assert_eq!(s.vars.len(), 2);
+    }
+
+    #[test]
+    fn is_session_action_recognizes_all_variants() {
+        assert!(is_session_action(&Action::SessionList));
+        assert!(is_session_action(&Action::SessionCreate {
+            name: "x".into(),
+            clone_from: None
+        }));
+        assert!(is_session_action(&Action::SessionDestroy {
+            name: "x".into()
+        }));
+        assert!(is_session_action(&Action::SessionSwitch {
+            name: "x".into()
+        }));
+        assert!(is_session_action(&Action::SessionVarSet {
+            name: "k".into(),
+            value: "v".into()
+        }));
+        assert!(is_session_action(&Action::SessionVarGet {
+            name: "k".into()
+        }));
+        assert!(is_session_action(&Action::SessionVarList));
+    }
+
+    #[test]
+    fn is_session_action_rejects_other_actions() {
+        assert!(!is_session_action(&Action::Ping));
+        assert!(!is_session_action(&Action::WindowsList));
+        assert!(!is_session_action(&Action::ClipboardRead));
+    }
+}

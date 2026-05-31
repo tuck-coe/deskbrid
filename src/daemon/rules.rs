@@ -313,3 +313,89 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::{EventTrigger, Rule};
+
+    fn make_rule(id: &str, name: &str, trigger: EventTrigger) -> Rule {
+        Rule {
+            id: id.into(),
+            name: name.into(),
+            trigger,
+            condition: None,
+            action_type: "notification.send".into(),
+            action_params: serde_json::json!({"title": "fired"}),
+            enabled: true,
+            cooldown_ms: None,
+            max_fires: None,
+        }
+    }
+
+    #[test]
+    fn rule_engine_register_and_list() {
+        let mut engine = RuleEngine::new();
+        engine.register(make_rule("r1", "Rule 1", EventTrigger::ClipboardChanged));
+        engine.register(make_rule("r2", "Rule 2", EventTrigger::SessionLocked));
+        assert_eq!(engine.list().len(), 2);
+    }
+
+    #[test]
+    fn rule_engine_register_duplicate_id_overwrites() {
+        let mut engine = RuleEngine::new();
+        engine.register(make_rule("r1", "Original", EventTrigger::ClipboardChanged));
+        engine.register(make_rule("r1", "Replacement", EventTrigger::IdleStarted));
+        let list = engine.list();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].name, "Replacement");
+    }
+
+    #[test]
+    fn rule_engine_remove() {
+        let mut engine = RuleEngine::new();
+        engine.register(make_rule("r1", "Rule", EventTrigger::ClipboardChanged));
+        assert!(engine.remove("r1").is_some());
+        assert!(engine.list().is_empty());
+        assert!(engine.remove("nonexistent").is_none());
+    }
+
+    #[test]
+    fn rule_engine_set_enabled() {
+        let mut engine = RuleEngine::new();
+        engine.register(make_rule("r1", "Rule", EventTrigger::ClipboardChanged));
+
+        assert!(engine.set_enabled("r1", false));
+        assert!(!engine.list()[0].enabled);
+
+        assert!(engine.set_enabled("r1", true));
+        assert!(engine.list()[0].enabled);
+    }
+
+    #[test]
+    fn rule_engine_get() {
+        let mut engine = RuleEngine::new();
+        engine.register(make_rule("r1", "My Rule", EventTrigger::ClipboardChanged));
+
+        let r = engine.get("r1").unwrap();
+        assert_eq!(r.name, "My Rule");
+        assert!(engine.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn rule_disabled_does_not_evaluate() {
+        let mut engine = RuleEngine::new();
+        let mut rule = make_rule("r1", "Off", EventTrigger::ClipboardChanged);
+        rule.enabled = false;
+        engine.register(rule);
+
+        let results = engine.evaluate(
+            &crate::protocol::DeskbridEvent::WindowFocused {
+                window_id: "x".into(),
+                timestamp: 0,
+            },
+            1000,
+        );
+        assert!(results.is_empty());
+    }
+}
