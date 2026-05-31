@@ -25,6 +25,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock, broadcast};
+use tracing::{info, warn};
+
+use crate::daemon::persistence::Database;
 
 /// Global daemon state shared across all client connections
 pub struct DaemonState {
@@ -47,6 +50,7 @@ pub struct DaemonState {
     pub clipboard_history_capacity: usize,
     pub schedule: Arc<daemon::schedule::ScheduleState>,
     pub recording: Arc<Mutex<Option<daemon::macro_engine::ActiveRecording>>>,
+    pub database: Arc<Mutex<Database>>,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
     next_audit_id: AtomicU64,
@@ -56,6 +60,20 @@ pub struct DaemonState {
 impl DaemonState {
     pub fn new() -> Self {
         let (event_tx, _) = broadcast::channel(256);
+
+        // Attempt to open the persistent SQLite database.
+        // If it fails, fall back to an in-memory DB so the daemon can still start.
+        let database = match Database::open() {
+            Ok(db) => {
+                info!("SQLite persistence layer initialized");
+                db
+            }
+            Err(e) => {
+                warn!("Failed to open on-disk SQLite database (falling back to in-memory): {e}");
+                Database::memory().expect("in-memory SQLite fallback must succeed")
+            }
+        };
+
         Self {
             backend: Arc::new(RwLock::new(None)),
             event_tx,
@@ -71,6 +89,7 @@ impl DaemonState {
             clipboard_history_capacity: daemon::clipboard_history_capacity_from_env(),
             schedule: Arc::new(daemon::schedule::ScheduleState::new()),
             recording: Arc::new(Mutex::new(None)),
+            database: Arc::new(Mutex::new(database)),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),
             next_audit_id: AtomicU64::new(1),

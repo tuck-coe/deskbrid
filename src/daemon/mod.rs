@@ -42,6 +42,7 @@ mod layout;
 pub(crate) mod macro_engine;
 mod mpris;
 pub(crate) mod mpris_convert;
+pub mod persistence;
 mod portal;
 mod rate_limit;
 pub(crate) mod schedule;
