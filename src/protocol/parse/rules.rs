@@ -1,5 +1,4 @@
 use crate::protocol::Action;
-use crate::protocol::rules_types::RuleCondition;
 use serde_json::Value;
 
 pub(super) fn parse_rules(raw: &Value, _id: &str, type_str: &str) -> anyhow::Result<Action> {

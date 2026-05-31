@@ -164,11 +164,11 @@ fn trigger_matches_event(trigger: &EventTrigger, event: &DeskbridEvent) -> bool 
             // No dedicated clipboard event yet — reserved for future use
             false
         }
-        EventTrigger::WindowOpened { app_id } => {
+        EventTrigger::WindowOpened { app_id: _ } => {
             // No dedicated window-opened event yet — reserved for future
             false
         }
-        EventTrigger::WindowClosed { app_id } => {
+        EventTrigger::WindowClosed { app_id: _ } => {
             // No dedicated window-closed event yet — reserved for future
             false
         }
@@ -180,7 +180,7 @@ fn trigger_matches_event(trigger: &EventTrigger, event: &DeskbridEvent) -> bool 
             {
                 // If app_id filter is set, we'd need to look up the app_id
                 // from the window. For now, match any WindowFocused event.
-                if let Some(filter) = app_id {
+                if let Some(_filter) = app_id {
                     // TODO: resolve app_id from window_id via backend
                     // For now, skip filtered window matches
                     return false;
@@ -218,8 +218,8 @@ fn trigger_matches_event(trigger: &EventTrigger, event: &DeskbridEvent) -> bool 
             }
         }
         EventTrigger::TimeRange {
-            start_hour,
-            end_hour,
+            start_hour: _,
+            end_hour: _,
             days: _,
         } => {
             // TimeRange triggers are evaluated on a timer, not per-event

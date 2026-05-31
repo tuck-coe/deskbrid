@@ -53,6 +53,11 @@ it to the completed table below.
 || [27. Cron / Scheduled Actions](#27-cron--scheduled-actions) | Schedule engine reading `~/.config/deskbrid/schedule.json`, 60s-poll daemon task, CLI `deskbrid schedule list|add|remove`, protocol actions | `src/daemon/schedule.rs`, `src/protocol/`, `src/cli/` |
 || [30. TCP Mode](#30-tcp-mode-network-control) | TCP listener with bearer token auth, synthetic UID for permissions, Rust/Python client TCP transport via env vars, CLI `--tcp-port`/`--tcp-token` | `src/daemon/tcp.rs`, `src/daemon/client.rs`, `src/client.rs`, `src/cli/`, `clients/python/` |
 || [25. Action Recording & Replay](#25-action-recording--replay-macros) | Macro recording engine, dispatch hook, JSON file storage, replay with fast/timed modes, CLI, Python client | `src/daemon/macro_engine.rs`, `src/daemon/execute_macro.rs`, `src/protocol/parse/macro_cmd.rs`, `src/protocol/serialize/macro_cmd.rs` |
+|| [84. Persistence Layer (SQLite)](#84-persistence-layer-sqlite) | SQLite database with WAL mode, 7 tables (clipboard_history, audit_log, notifications, macros, cron_jobs, blackboard, sessions), CRUD methods for all data types | `src/daemon/persistence.rs` |
+|| [31. Named Sessions](#31-named-sessions-multi-agent-isolation) | Per-agent session isolation with variables, create/destroy/list/switch, persisted to SQLite, CLI and protocol support | `src/daemon/execute_sessions.rs`, `src/protocol/parse/sessions.rs`, `src/cli/sessions.rs` |
+|| [83. Rules Engine](#83-event-driven-triggers-rules-engine) | Event-driven triggers tied to subscription bus, rule CRUD, cooldown/max_fires, persists to SQLite, background evaluation task | `src/daemon/rules.rs`, `src/daemon/execute_rules.rs`, `src/protocol/rules_types.rs` |
+|| [61. Notification History](#61-notification-history--action-buttons) | D-Bus notification interception, SQLite history storage, query with filters, notification watch subscription, action invocation | `src/daemon/execute_notification.rs` (extended) |
+|| [62. NetworkManager D-Bus](#62-networkmanager-d-bus) | Native zbus integration: connection profiles, hotspot create/stop, WiFi/WWAN toggle, DNS set/reset, VPN connect/disconnect | `src/daemon/execute_network.rs` (extended) |
 
 ### Already Built (not covered here)
 
