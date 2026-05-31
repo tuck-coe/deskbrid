@@ -1,48 +1,42 @@
-# Changelog
-
 ## v0.11.0 — The Durable Desktop HAL
 
-> 42 commits · May 31, 2026 · [Full diff](https://github.com/coe0718/deskbrid/compare/v0.10.0...v0.11.0)
+**94 files changed · 7,832 insertions · 259 deletions · 42 commits since v0.10.0**
 
-Deskbrid v0.11.0 makes the daemon durable: clipboard history, audit logs, and agent
-state survive restarts. It adds the foundation for multi-agent coordination — named
-sessions, event-driven rules, and a shared blackboard — plus full NetworkManager
-control, macro recording, scheduled actions, TCP mode, and five new desktop features.
+Deskbrid stops being ephemeral. Clipboard history, audit trails, and agent state
+survive daemon restarts via SQLite. Multi-agent coordination arrives: named
+sessions, event-driven rules, and a shared blackboard. NetworkManager goes
+nmcli-native. Plus macros, cron, TCP mode, audio, screencast, self-update, and
+a system tray.
 
 ---
 
-### 🗄️ Persistence Layer (#84)
+### 🗄️ Persistence Layer (#84) — 694 lines
 
-The headline feature. Deskbrid now ships a SQLite database at
-`~/.local/share/deskbrid/deskbrid.db` with WAL mode for concurrent reads.
+SQLite database at `~/.local/share/deskbrid/deskbrid.db` with WAL mode.
+`src/daemon/persistence.rs` — 694 lines, 26 public methods, 6 active tables.
 
-**Six active tables, all wired:**
+| Table | Status | Wired via |
+|---|---|---|
+| `clipboard_history` | ✅ | `record_clipboard_text()` — fire-and-forget on every read/write |
+| `audit_log` | ✅ | `record_audit_entry()` — every action, success or failure |
+| `blackboard` | ✅ | `blackboard.set/get/delete/list` — 62-line executor |
+| `notifications` | ✅ | D-Bus interception → SQLite (from #61) |
+| `rules` | ✅ | `rule.create/delete` persistence (from #83) |
+| `sessions` | ✅ | `session.create/destroy` persistence (from #31) |
+| `macros` | — | Table exists, engine uses file-based storage by design |
+| `cron_jobs` | ☠️ | Removed — scheduler uses `schedule.json` |
 
-| Table | Wired via |
-|---|---|
-| `clipboard_history` | `record_clipboard_text()` — every read/write logged |
-| `audit_log` | `record_audit_entry()` — every action execution persisted |
-| `blackboard` | `blackboard.set/get/delete/list` — shared agent KV store |
-| `notifications` | D-Bus interception → SQLite (from #61) |
-| `rules` | `rule.create/delete` persistence (from #83) |
-| `sessions` | `session.create/destroy` persistence (from #31) |
-
-The `macros` table exists but the macro engine uses file-based storage by design.
-An orphaned `cron_jobs` table was removed — the scheduler uses `schedule.json`.
-
-**Impact:** Clipboard history, audit trail, and blackboard state are no longer
-lost on daemon restart. Agents can leave sticky state that survives crashes.
+**`4516639`** — 12 files, 205 additions. The big wiring commit. Clipboard,
+audit, and blackboard were all schema-only before this. Now they're live.
 
 ---
 
 ### 🤝 Multi-Agent Infrastructure
 
-Three new subsystems for agent coordination:
-
-**Named Sessions (#31)** — Each connected agent gets an isolated session with
-scoped variables. Create, destroy, list, and switch between sessions. Variables
-persist to SQLite. Use case: one agent per workspace, or per task, with clean
-state separation.
+**Named Sessions (#31) — 160 lines** (`a28a601`)
+Per-agent isolation with scoped variables. Each connection gets a session;
+sessions have independent variable namespaces. Variables survive restarts
+via SQLite.
 
 ```
 session.create { name, clone_from? }   session.var.set { name, value }
@@ -51,56 +45,87 @@ session.list                           session.var.list
 session.switch { name }
 ```
 
-**Rules Engine (#83)** — Event-driven triggers on the subscription bus. Define
-rules that fire when a window focuses, clipboard changes, or workspace switches.
-Configurable cooldown and max_fires prevent runaway loops. Rules persist to SQLite.
+**Bug fix** (`85d9c34`): `SessionVarSet` was using variable name as the session
+lookup key. Now correctly looks up by `session_id`.
+
+**Rules Engine (#83) — 315 lines** (`d1d23c0`)
+Event-driven triggers on the subscription bus. Define rules that fire on
+window focus, clipboard change, or workspace switch events. Configurable
+cooldown and max_fires prevent runaway loops.
 
 ```
-rule.create { name, trigger, action_type, action_params, cooldown_ms?, max_fires? }
+rule.create { name, trigger, action_type, action_params, enabled, cooldown_ms?, max_fires? }
 rule.list | rule.get { rule_id } | rule.delete { rule_id }
 rule.pause { rule_id } | rule.resume { rule_id }
 ```
 
-**Shared Blackboard (#45)** — Namespace-scoped key-value store for agents to
-publish and consume shared state. SQLite-backed, survives restarts. No TTL or
-subscription events yet — those ship in v0.12.0.
+`src/daemon/rules.rs` — 315 lines: rule engine with event matching, cooldown
+tracking, fire counting, and background evaluation task. `src/daemon/execute_rules.rs`
+— 164 lines: socket command handler with full CRUD + pause/resume.
+
+**Shared Blackboard (#45) — 62 lines** (`4516639`)
+Namespace-scoped KV store. SQLite-backed via `upsert_blackboard()` /
+`get_blackboard()` / `delete_blackboard()` / `blackboard_keys()` from the
+persistence layer.
 
 ```
 blackboard.set { key, value, namespace? }   blackboard.delete { key, namespace? }
 blackboard.get { key, namespace? }          blackboard.list { namespace? }
 ```
 
+No TTL, exclusive locks, or subscription events yet — those are v0.12.0.
+
 ---
 
 ### 📡 Network & Connectivity
 
-**NetworkManager D-Bus (#62)** — Full rewrite from fragile zbus D-Bus calls to
-reliable nmcli subprocess. Every command tested on real hardware (Turtle, EndeavourOS).
-WiFi toggle requires polkit authorization; connections and profiles work without
-elevation.
+**NetworkManager (#62) — refactored to 286 lines** (`a2ed848`)
+Complete rewrite: replaced fragile zbus D-Bus signature matching with nmcli
+subprocess calls. 471 lines deleted, 239 added. The zbus implementation had
+signature mismatches on `Properties.Get` variant wrapping and `ObjectPath`
+deserialization — nmcli sidesteps all of it. Tested on Turtle (EndeavourOS).
 
 ```
-network.connections.list     network.wifi.enable { enabled }
-network.connections.profiles network.wwan.enable { enabled }
-network.hotspot.start { ssid, password? }  network.dns.set { dns: [...] }
-network.hotspot.stop                       network.dns.reset
-network.vpn.connect { profile_name }       network.vpn.disconnect
+network.connections.list     network.hotspot.start { ssid, password? }
+network.connections.profiles network.hotspot.stop
+network.wifi.enable { enabled }           network.dns.set { dns: [...] }
+network.wwan.enable { enabled }           network.dns.reset
+network.vpn.connect { profile_name }      network.vpn.disconnect
 ```
 
-**TCP Mode (#30)** — TCP listener with bearer token auth. Agents on remote machines
-or Docker containers can connect via TCP instead of Unix socket. Synthetic UID
-for permissions, CLI flags `--tcp-port`/`--tcp-token`.
+WiFi toggle requires polkit authorization — returns permission denied on Turtle.
+Connections and profiles work without elevation.
 
-**D-Bus Raw Access (#28)** — Escape hatch for direct D-Bus calls. When the
-structured protocol doesn't cover a service, fall back to raw `dbus.call`.
+**SessionVarSet fix** (`85d9c34`): Key lookup was broken — using variable name
+instead of session ID. Found and fixed during Turtle testing.
+
+**Dead code cleanup** (`a41ceaa`): `is_network_action()` — 26 lines, zero
+callers, had `#[allow(dead_code)]`. Removed. Stale "hybrid zbus + nmcli"
+header comment fixed to reflect 100% nmcli implementation.
+
+**TCP Mode (#30) — 143 lines** (`7e0c8bd`)
+TCP listener with bearer token auth. Agents on remote machines or Docker
+containers connect via TCP instead of Unix socket. CLI flags `--tcp-port`
+and `--tcp-token`. Synthetic UID for permissions. 349 lines total including
+Python client updates.
+
+**D-Bus Raw Access (#28) — 78 lines** (`a9a97b1`)
+Escape hatch for direct D-Bus calls when the structured protocol doesn't
+cover a service. `dbus.call { bus, service, path, interface, method, args? }`.
+Added to high-risk permission gate.
 
 ---
 
 ### ⚡ Automation
 
-**Macro Recording & Replay (#25)** — Record action sequences and replay them.
-Two replay modes: fast (no delays) and timed (preserves original timing).
-Stored as JSON files at `~/.local/share/deskbrid/macros/`.
+**Macro Recording & Replay (#25) — 319 + 123 lines** (`f89273a`)
+Record action sequences as JSON and replay them. Two modes: fast (no delays)
+and timed (preserves original timing). Stored at `~/.local/share/deskbrid/macros/`.
+
+`src/daemon/macro_engine.rs` — 319 lines: recording state machine, file I/O,
+replay engine with mode selection. `src/daemon/execute_macro.rs` — 123 lines:
+socket command handler. Protocol parser at `src/protocol/parse/macro_cmd.rs`
+— 79 lines.
 
 ```
 macro.record.start { name }   macro.list
@@ -109,64 +134,97 @@ macro.replay { name, mode? }  macro.delete { name }
 macro.export { name }         macro.import { name, data }
 ```
 
-**Cron Engine (#27)** — Schedule actions at intervals. Reads
-`~/.config/deskbrid/schedule.json`, polls every 60 seconds. CLI:
-`deskbrid schedule list|add|remove`.
+**Cron Engine (#27) — 174 lines** (`a5a4c14`)
+Schedule actions at intervals. Reads `~/.config/deskbrid/schedule.json`.
+Polls every 60 seconds. Actions dispatched through the same pipeline as
+socket requests.
+
+```
+schedule.list
+schedule.add { name, interval_secs, action_type, action_params? }
+schedule.remove { name }
+```
 
 ---
 
 ### 🖥️ Desktop Features
 
-**Audio Control** — Full PipeWire/PulseAudio integration. List sinks/sources, get/set
-volume (per-sink), mute/unmute, set default sink. `audio.list_sinks`,
-`audio.set_volume`, `audio.mute`, etc.
+**Screen Recording + Web Dashboard — 514 lines** (`c78bf6f`, `c00c0d2`)
+`screencast.start { output_path }` / `screencast.stop`. PipeWire-based capture
+via GNOME ScreenCast portal. Real-time events broadcast on subscription bus.
+Web dashboard at `http://localhost:4199` — 514 lines of Rust. Bound to
+`0.0.0.0` for LAN access (`62a1ecb`). MCP tools for screencast control
+(`c00c0d2`).
 
-**Screen Recording** — `screencast.start { output_path }` and `screencast.stop`.
-PipeWire-based capture with real-time events. Companion web dashboard at
-`http://localhost:4199` for live preview. Dashboard bound to `0.0.0.0` for LAN access.
+**XDG Desktop Portal — 178 lines** (`3ab61cc`)
+`portal.screenshot` and `portal.screencast_start/stop`. Portal-based capture
+for sandboxed environments (Flatpak, Snap). Full Rust implementation — no
+shelling out to `gdbus`.
 
-**XDG Desktop Portal** — Portal-based screenshots (`portal.screenshot`) and
-screencast (`portal.screencast_start/stop`) for sandboxed environments.
+**Audio Control — 178 lines** (`75359d0`)
+Full PipeWire/PulseAudio integration. List sinks/sources, get/set volume
+per-sink, mute/unmute, set default sink. MCP tools included. 13 new Action
+variants, 7 protocol events.
 
-**System Tray** — Tray icon with update notifications. Daemon polls GitHub
-releases and broadcasts `update.available` events.
+```
+audio.list_sinks          audio.list_sources
+audio.get_volume          audio.set_volume { level, sink? }
+audio.mute { mute, sink? }  audio.set_default { sink }
+```
 
-**Self-Update (#125)** — `deskbrid self-update` downloads the latest binary from
-GitHub releases, replaces the running binary, and restarts the daemon.
+**Self-Update (#125) — 326 lines** (`89589bc`)
+`deskbrid self-update` downloads the latest binary from GitHub releases,
+replaces the running binary, and restarts the daemon. `src/cmd/update.rs`
+(131 lines), `src/cmd/update/github.rs` (100 lines), `src/cmd/update/install.rs`
+(95 lines). No external updater needed.
 
-**Enlightenment DE** — Detection and basic window management support added.
-Desktop environment count now at 9: GNOME, KDE, Hyprland, COSMIC, Sway, Labwc,
-XFCE, Budgie, Enlightenment.
+**Update Check — 60 lines** (`83e1401`)
+Background daemon task polls GitHub releases API. Broadcasts `update.available`
+events to all subscribers when a newer version is detected.
+
+**System Tray — 417 lines** (`116d14a`)
+Tray icon with update notifications. Uses `tray-icon` crate. Shows version
+info, update alerts, and quick actions. 417 lines in `src/tray.rs`.
+
+**Enlightenment DE** (`0a207e8`)
+Detection and basic window management support. Desktop environment count now
+at 9: GNOME, KDE, Hyprland, COSMIC, Sway, Labwc, XFCE, Budgie, Enlightenment.
 
 ---
 
 ### 🧹 Code Quality
 
-- **Dead code eliminated:** Orphaned `is_network_action()` function removed,
-  stale zbus constants purged, unused `cron_jobs` table dropped from schema
-- **Clippy clean:** All warnings fixed, CI enforces `-D warnings`
-- **fmt clean:** No formatting violations
-- **67 tests pass:** Zero failures, zero ignored, zero filtered out
-- **NM refactor:** Replaced fragile zbus D-Bus signature matching with proven
-  nmcli subprocess calls — fewer moving parts, easier to debug
+- **`f611542`** — Clippy fixes: `collapsible_if`, `redundant_closure`. CI
+  enforces `-D warnings` — any warning is fatal.
+- **`96f0d8e`** — `collapsible_if` in X11 backend (Rust 1.95 edition 2024 lint)
+- **`76a7cbf`** — Doc comment empty line + needless borrow clippy lints
+- **`a41ceaa`** — Dead code removal: `is_network_action()` + stale header
+- **`3e30a71`** — Dead NM zbus constants suppressed (later removed entirely)
+- **`dcdc9ac`** — NM ObjectPath deserialization fix (intermediate step)
+- **67 tests pass** — zero failures, zero ignored
+- **fmt clean** — no formatting violations
+- **clippy clean** — zero warnings with `-D warnings`
 
 ---
 
 ### 🌐 Website & Docs
 
-- Landing page updated with v0.11.0 feature highlights
-- Install script defaults to v0.11.0 with GitHub API fallback
-- `CHANGELOG.md` created (you're reading it)
-- `ROADMAP.md` updated: #45, #84 marked complete; #62 description fixed
-- Nick Launches badge added to footer
+- **`07b93ac`** — Site refresh: real hardware badges, Turtle test rig specs,
+  Sway 33/33 matrix
+- **`75554e5`** — Nick Launches featured badge
+- **`216a917`**, **`9fe5baf`**, **`7326730`**, **`9f8795e`** — README badges:
+  release, Discord, Nick Launches, repo stats. Vercel 503 workaround.
+- **`8963b95`** — Site bumped to v0.11.0
+- **`6c3f446`** — CHANGELOG.md with full release notes
+- **`29c1c1f`** — ROADMAP updated: #45, #84 marked done; #62 description fixed
 
 ---
 
 ### 📦 Breaking Changes
 
-None. All 42 commits are additive. Wire protocol is backward-compatible.
-Config files, schedule.json, and macro format are unchanged from v0.10.0.
+None. All 42 commits are additive. Wire protocol backward-compatible.
+Config files, schedule.json, and macro format unchanged from v0.10.0.
 
 ---
 
-[Full commit list on GitHub](https://github.com/coe0718/deskbrid/compare/v0.10.0...v0.11.0)
+**Full diff:** https://github.com/coe0718/deskbrid/compare/v0.10.0...v0.11.0
