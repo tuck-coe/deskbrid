@@ -62,9 +62,13 @@ impl X11Backend {
             }
             // Fallback: scan /tmp/xauth_* for files owned by current user
             if found.is_none()
-                && let Ok(entries) = std::fs::read_dir("/tmp")
+                && let Ok(mut entries) = tokio::fs::read_dir("/tmp").await
             {
-                for entry in entries.flatten() {
+                loop {
+                    let entry = match entries.next_entry().await {
+                        Ok(Some(e)) => e,
+                        _ => break,
+                    };
                     let path = entry.path();
                     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                     if name.starts_with("xauth_") {
