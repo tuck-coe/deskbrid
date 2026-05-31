@@ -1,33 +1,9 @@
-// reason: 540+ lines — NM D-Bus methods plus nmcli fallbacks
-// NetworkManager D-Bus integration (#62).
-// Uses a hybrid approach: zbus for simple property/method calls,
-// nmcli for complex operations (hotspot, VPN, DNS).
+// NetworkManager integration (#62) — all nmcli-backed.
+// Reliable across distros, no zbus signature fragility.
 
 use crate::protocol::Action;
 use anyhow::Context;
 use serde_json::Value;
-
-/// Check if an action is a network-related action.
-#[allow(dead_code)]
-pub(crate) fn is_network_action(action: &Action) -> bool {
-    matches!(
-        action,
-        Action::NetworkStatus
-            | Action::NetworkInterfaces
-            | Action::NetworkWifiScan
-            | Action::NetworkWifiConnect { .. }
-            | Action::NetworkConnectionList
-            | Action::NetworkConnectionProfiles
-            | Action::NetworkCreateHotspot { .. }
-            | Action::NetworkStopHotspot
-            | Action::NetworkWifiEnable { .. }
-            | Action::NetworkWwanEnable { .. }
-            | Action::NetworkDnsSet { .. }
-            | Action::NetworkDnsReset
-            | Action::NetworkVpnConnect { .. }
-            | Action::NetworkVpnDisconnect
-    )
-}
 
 pub(crate) async fn execute_network(
     action: Action,
