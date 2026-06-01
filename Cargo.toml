@@ -79,7 +79,7 @@ path = "src/bin/cosmic_helper/mod.rs"
 
 [[bin]]
 name = "labwc-helper"
-path = "src/bin/labwc_helper.rs"
+path = "src/bin/labwc_helper/main.rs"
 
 [profile.release]
 strip = "symbols"

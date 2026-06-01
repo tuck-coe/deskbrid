@@ -1,66 +1,22 @@
-//! Labwc desktop helper — bridges ext_foreign_toplevel_list_v1 to JSON-over-stdin/stdout.
-//!
-//! Usage: labwc-helper <command> [options]
-//!
-//! Implements ext_foreign_toplevel_list_v1 for window listing and control
-//! via the labwc Wayland compositor.
-
-use serde::Serialize;
 use std::collections::HashMap;
-use std::process;
-
-// ─── Types ────────────────────────────────────────────
-
-#[derive(Serialize, Clone, Debug)]
-#[allow(dead_code)]
-struct WindowInfo {
-    window_id: u64,
-    title: Option<String>,
-    app_id: Option<String>,
-    focused: bool,
-    minimized: bool,
-    maximized: bool,
-    fullscreen: bool,
-}
-
-// ─── CLI helpers ──────────────────────────────────────
-
-fn parse_u64_arg(args: &[String], name: &str) -> Option<u64> {
-    let pos = args.iter().position(|a| a == name)?;
-    args.get(pos + 1).and_then(|v| v.parse::<u64>().ok())
-}
-
-fn ok_json(msg: Option<&str>) {
-    match msg {
-        Some(m) => println!("{{\"ok\": true, \"note\": \"{}\"}}", m),
-        None => println!("{{\"ok\": true}}"),
-    }
-}
-
-#[allow(dead_code)]
-fn err_json(msg: &str) {
-    println!("{{\"ok\": false, \"error\": \"{}\"}}", msg);
-}
-
-// ─── Wayland window listing via ext_foreign_toplevel_list_v1 ─────
-
-use wayland_client::{
-    Connection, Dispatch, Proxy, QueueHandle,
-    protocol::wl_registry::{self, WlRegistry},
-};
 
 use wayland_client::backend::ObjectId;
+use wayland_client::event_created_child;
+use wayland_client::protocol::wl_registry::{self, WlRegistry};
+use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
 
 use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
     ext_foreign_toplevel_handle_v1::{self as toplevel_handle, ExtForeignToplevelHandleV1},
     ext_foreign_toplevel_list_v1::{self as toplevel_list, ExtForeignToplevelListV1},
 };
 
+use super::types::WindowInfo;
+
 /// State for the Wayland dispatch loop.
-struct WlState {
-    toplevel_list: Option<ExtForeignToplevelListV1>,
+pub(crate) struct WlState {
+    pub toplevel_list: Option<ExtForeignToplevelListV1>,
     /// Windows indexed by their Wayland ObjectId.
-    windows: HashMap<ObjectId, WindowInfo>,
+    pub windows: HashMap<ObjectId, WindowInfo>,
     /// Pending window data being accumulated before done event.
     pending: HashMap<ObjectId, PendingWindow>,
     /// Next numeric ID to assign.
@@ -99,8 +55,6 @@ impl Dispatch<WlRegistry, ()> for WlState {
         }
     }
 }
-
-use wayland_client::event_created_child;
 
 impl Dispatch<ExtForeignToplevelListV1, ()> for WlState {
     event_created_child!(WlState, ExtForeignToplevelListV1, [
@@ -199,7 +153,7 @@ impl Dispatch<ExtForeignToplevelHandleV1, ()> for WlState {
     }
 }
 
-fn list_windows_wayland() -> Vec<WindowInfo> {
+pub(crate) fn list_windows_wayland() -> Vec<WindowInfo> {
     let conn = Connection::connect_to_env().expect("failed to connect to Wayland display");
     let mut event_queue = conn.new_event_queue();
     let qh = event_queue.handle();
@@ -227,104 +181,4 @@ fn list_windows_wayland() -> Vec<WindowInfo> {
     }
 
     state.windows.into_values().collect()
-}
-
-// ─── Commands ─────────────────────────────────────────
-
-fn probe() {
-    match std::env::var("WAYLAND_DISPLAY") {
-        Ok(socket) => {
-            let xdg = std::env::var("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
-            let path = format!("{xdg}/{socket}");
-            if std::path::Path::new(&path).exists() {
-                println!("{{\"ok\": true, \"compositor\": \"labwc\", \"socket\": \"{path}\"}}");
-            } else {
-                println!("{{\"ok\": false, \"error\": \"Wayland socket not found: {path}\"}}");
-            }
-        }
-        Err(_) => {
-            println!("{{\"ok\": false, \"error\": \"WAYLAND_DISPLAY not set\"}}");
-        }
-    }
-}
-
-fn list_windows() {
-    let windows = list_windows_wayland();
-    println!("{}", serde_json::to_string(&windows).unwrap());
-}
-
-fn activate(_window_id: u64) {
-    ok_json(Some("activate stubbed"));
-}
-
-fn close(_window_id: u64) {
-    ok_json(Some("close stubbed"));
-}
-
-fn set_maximized(window_id: u64, on: bool) {
-    let action = if on { "maximize" } else { "unmaximize" };
-    ok_json(Some(&format!("{action} window_id={window_id} stubbed")));
-}
-
-fn set_minimized(window_id: u64, on: bool) {
-    let action = if on { "minimize" } else { "unminimize" };
-    ok_json(Some(&format!("{action} window_id={window_id} stubbed")));
-}
-
-fn set_fullscreen(window_id: u64, on: bool) {
-    let action = if on { "fullscreen" } else { "unfullscreen" };
-    ok_json(Some(&format!("{action} window_id={window_id} stubbed")));
-}
-
-// ─── Main ─────────────────────────────────────────────
-
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: labwc-helper <command> [options]");
-        eprintln!("Commands: probe, list-windows, activate, close,");
-        eprintln!("          maximize, unmaximize, minimize, unminimize, fullscreen, unfullscreen");
-        process::exit(1);
-    }
-
-    match args[1].as_str() {
-        "probe" => probe(),
-        "list-windows" => list_windows(),
-        "activate" => {
-            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            activate(wid);
-        }
-        "close" => {
-            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            close(wid);
-        }
-        "maximize" => {
-            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_maximized(wid, true);
-        }
-        "unmaximize" => {
-            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_maximized(wid, false);
-        }
-        "minimize" => {
-            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_minimized(wid, true);
-        }
-        "unminimize" => {
-            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_minimized(wid, false);
-        }
-        "fullscreen" => {
-            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_fullscreen(wid, true);
-        }
-        "unfullscreen" => {
-            let wid = parse_u64_arg(&args, "--window-id").unwrap_or(0);
-            set_fullscreen(wid, false);
-        }
-        _ => {
-            eprintln!("Unknown command: {}", args[1]);
-            process::exit(1);
-        }
-    }
 }
