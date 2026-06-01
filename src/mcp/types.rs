@@ -609,6 +609,14 @@ pub struct PrintJobAction {
     pub job_id: String,
 }
 
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct PrintFileArgs {
+    #[schemars(description = "Printer name (e.g. 'Canon_TS3500')")]
+    pub printer: String,
+    #[schemars(description = "Absolute path to the file to print")]
+    pub path: String,
+}
+
 // ── Desktop Settings ───────────────────────────────────────
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]

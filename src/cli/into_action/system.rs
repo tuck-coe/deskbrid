@@ -40,6 +40,7 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
             }
             SystemCmd::PrintList => Action::SystemPrintList,
             SystemCmd::PrintDefault { printer } => Action::SystemPrintDefault { printer },
+            SystemCmd::PrintFile { printer, path } => Action::SystemPrintFile { printer, path },
             SystemCmd::PrintJobs => Action::SystemPrintJobList,
             SystemCmd::PrintJobCancel { job_id } => Action::SystemPrintJobCancel { job_id },
             SystemCmd::PrintJobPause { job_id } => Action::SystemPrintJobPause { job_id },

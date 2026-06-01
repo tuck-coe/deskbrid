@@ -47,6 +47,10 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
         "system.print_default" => Action::SystemPrintDefault {
             printer: raw["printer"].as_str().map(String::from),
         },
+        "system.print_file" => Action::SystemPrintFile {
+            printer: required_non_empty_string(raw, "printer")?,
+            path: required_non_empty_string(raw, "path")?,
+        },
         "system.print_jobs" => Action::SystemPrintJobList,
         "system.print_job_cancel" => Action::SystemPrintJobCancel {
             job_id: required_non_empty_string(raw, "job_id")?,

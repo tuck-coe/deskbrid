@@ -115,6 +115,7 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemBacklightSet { .. }
         | Action::SystemPrintList
         | Action::SystemPrintDefault { .. }
+        | Action::SystemPrintFile { .. }
         | Action::SystemPrintJobList
         | Action::SystemPrintJobCancel { .. }
         | Action::SystemPrintJobPause { .. }

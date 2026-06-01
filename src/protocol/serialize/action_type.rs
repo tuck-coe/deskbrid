@@ -72,6 +72,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemBacklightSet { .. } => "system.backlight_set",
         Action::SystemPrintList => "system.print_list",
         Action::SystemPrintDefault { .. } => "system.print_default",
+        Action::SystemPrintFile { .. } => "system.print_file",
         Action::SystemPrintJobList => "system.print_jobs",
         Action::SystemPrintJobCancel { .. } => "system.print_job_cancel",
         Action::SystemPrintJobPause { .. } => "system.print_job_pause",

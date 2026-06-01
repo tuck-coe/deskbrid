@@ -37,6 +37,12 @@ pub(crate) async fn execute_system(
         SystemPrintDefault { ref printer } => {
             serde_json::json!(backend.print_default(printer.as_deref()).await?)
         }
+        SystemPrintFile {
+            ref printer,
+            ref path,
+        } => {
+            serde_json::json!(backend.print_file(printer, path).await?)
+        }
         SystemPrintJobList => serde_json::json!(backend.print_jobs().await?),
         SystemPrintJobCancel { ref job_id } => {
             backend.print_job_cancel(job_id).await?;

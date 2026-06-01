@@ -331,6 +331,24 @@ macro_rules! tools_system {
     }
 
     #[tool(
+        name = "print_file",
+        description = "Send a file to a printer. printer: printer name, path: absolute path to file.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn print_file(
+        &self,
+        Parameters(PrintFileArgs { printer, path }): Parameters<PrintFileArgs>,
+    ) -> Json<Value> {
+        let args = json!({"printer": printer, "path": path});
+        execute(self.state.clone(), &self.rt, "system.print_file", args)
+    }
+
+    #[tool(
         name = "print_jobs",
         description = "List active print jobs in the queue.",
         annotations(

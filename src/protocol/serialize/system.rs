@@ -58,6 +58,9 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::SystemPrintFile { printer, path } => {
+            json!({"type": "system.print_file", "id": id, "printer": printer, "path": path})
+        }
         Action::SystemPrintJobList => json!({"type": "system.print_jobs", "id": id}),
         Action::SystemPrintJobCancel { job_id } => {
             json!({"type": "system.print_job_cancel", "id": id, "job_id": job_id})

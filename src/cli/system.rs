@@ -27,6 +27,8 @@ pub enum SystemCmd {
         #[arg(long)]
         printer: Option<String>,
     },
+    /// Send a file to a printer
+    PrintFile { printer: String, path: String },
     /// List print jobs
     PrintJobs,
     /// Cancel a print job

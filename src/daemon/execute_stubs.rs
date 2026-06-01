@@ -72,6 +72,7 @@ pub(crate) async fn execute_stubs(
         | TerminalKill { .. }
         | Subscribe { .. }
         | Unsubscribe { .. }
+        | SystemPrintFile { .. }
         | Disconnect => {
             unreachable!("action reached execute_stubs but should have been handled earlier")
         }

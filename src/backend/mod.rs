@@ -393,4 +393,8 @@ pub trait DesktopBackend: Send + Sync {
     async fn print_job_resume(&self, job_id: &str) -> anyhow::Result<()> {
         print::print_job_resume(job_id)
     }
+    /// Send a file to a printer.
+    async fn print_file(&self, printer: &str, path: &str) -> anyhow::Result<protocol::PrintJob> {
+        print::print_file(printer, path)
+    }
 }

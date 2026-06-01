@@ -260,6 +260,10 @@ pub enum Action {
     SystemPrintDefault {
         printer: Option<String>,
     },
+    SystemPrintFile {
+        printer: String,
+        path: String,
+    },
     SystemPrintJobList,
     SystemPrintJobCancel {
         job_id: String,
@@ -838,6 +842,7 @@ impl Action {
             "system.backlight_set",
             "system.print_list",
             "system.print_default",
+            "system.print_file",
             "system.print_jobs",
             "system.print_job_cancel",
             "system.print_job_pause",

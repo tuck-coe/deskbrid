@@ -183,3 +183,31 @@ pub fn print_job_resume(job_id: &str) -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+/// Send a file to a printer (lp -d <printer> <path>).
+pub fn print_file(printer: &str, path: &str) -> anyhow::Result<PrintJob> {
+    let output = std::process::Command::new("lp")
+        .args(["-d", printer, path])
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("lp -d {printer} {path} failed: {stderr}");
+    }
+    // lp outputs "request id is PrinterName-JobID (1 file(s))"
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let job_id = stdout
+        .strip_prefix("request id is ")
+        .and_then(|s| s.split_whitespace().next())
+        .and_then(|s| s.rsplit_once('-').map(|(_, id)| id.to_string()))
+        .unwrap_or_else(|| "unknown".to_string());
+
+    Ok(PrintJob {
+        id: job_id,
+        printer: printer.to_string(),
+        user: std::env::var("USER").unwrap_or_else(|_| "unknown".into()),
+        name: path.to_string(),
+        size: None,
+        status: "submitted".to_string(),
+        submitted: None,
+    })
+}
