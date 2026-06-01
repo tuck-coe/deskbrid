@@ -7,6 +7,7 @@ mod audit;
 mod bluetooth;
 mod clipboard;
 mod color;
+mod desktop;
 mod files;
 mod input;
 mod monitor;
@@ -26,6 +27,7 @@ use audit::AuditCmd;
 use bluetooth::BluetoothCmd;
 use clipboard::ClipboardCmd;
 use color::ColorCmd;
+use desktop::DesktopCmd;
 use files::FilesCmd;
 use input::{InputCmd, MouseCmd};
 use monitor::MonitorCmd;
@@ -202,6 +204,13 @@ pub enum Command {
     Portal {
         #[command(subcommand)]
         cmd: PortalCmd,
+    },
+
+    // ─── Desktop Settings ───────────────────────────────
+    #[command(name = "desktop")]
+    Desktop {
+        #[command(subcommand)]
+        cmd: DesktopCmd,
     },
 
     // ─── OCR ───────────────────────────────────────────

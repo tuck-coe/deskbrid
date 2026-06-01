@@ -86,6 +86,14 @@ pub fn into_desktop_action(cmd: Command) -> anyhow::Result<Action> {
             MonitorCmd::Disable { output } => Action::MonitorDisable { output },
         },
 
+        Command::Desktop { cmd } => match cmd {
+            DesktopCmd::ListSchemas => Action::DesktopListSchemas,
+            DesktopCmd::GetSetting { schema, key } => Action::DesktopGetSetting { schema, key },
+            DesktopCmd::SetSetting { schema, key, value } => {
+                Action::DesktopSetSetting { schema, key, value }
+            }
+        },
+
         _ => bail!(
             "unexpected command in client mode: {:?}",
             std::mem::discriminant(&cmd)

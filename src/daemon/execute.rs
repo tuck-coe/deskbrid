@@ -183,6 +183,12 @@ pub async fn execute_action(
         | SystemBacklightList
         | SystemBacklightGet { .. }
         | SystemBacklightSet { .. }
+        | SystemPrintList
+        | SystemPrintDefault { .. }
+        | SystemPrintJobList
+        | SystemPrintJobCancel { .. }
+        | SystemPrintJobPause { .. }
+        | SystemPrintJobResume { .. }
         | SystemThermalGet
         | SystemCpuFrequency
         | SystemCpuGovernor

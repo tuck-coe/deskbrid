@@ -20,6 +20,21 @@ pub enum SystemCmd {
         #[arg(long)]
         device: Option<String>,
     },
+    /// List printers
+    PrintList,
+    /// Get or set default printer
+    PrintDefault {
+        #[arg(long)]
+        printer: Option<String>,
+    },
+    /// List print jobs
+    PrintJobs,
+    /// Cancel a print job
+    PrintJobCancel { job_id: String },
+    /// Pause a print job
+    PrintJobPause { job_id: String },
+    /// Resume a paused print job
+    PrintJobResume { job_id: String },
     /// Read thermal zones from /sys/class/thermal
     Thermal,
     /// Read CPU frequency details

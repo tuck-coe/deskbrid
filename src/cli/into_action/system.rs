@@ -38,6 +38,12 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
             SystemCmd::BacklightSet { value, device } => {
                 Action::SystemBacklightSet { device, value }
             }
+            SystemCmd::PrintList => Action::SystemPrintList,
+            SystemCmd::PrintDefault { printer } => Action::SystemPrintDefault { printer },
+            SystemCmd::PrintJobs => Action::SystemPrintJobList,
+            SystemCmd::PrintJobCancel { job_id } => Action::SystemPrintJobCancel { job_id },
+            SystemCmd::PrintJobPause { job_id } => Action::SystemPrintJobPause { job_id },
+            SystemCmd::PrintJobResume { job_id } => Action::SystemPrintJobResume { job_id },
             SystemCmd::Thermal => Action::SystemThermalGet,
             SystemCmd::CpuFrequency => Action::SystemCpuFrequency,
             SystemCmd::CpuGovernor => Action::SystemCpuGovernor,

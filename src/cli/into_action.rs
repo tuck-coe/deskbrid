@@ -15,7 +15,8 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
         Command::Windows { .. }
         | Command::Workspaces { .. }
         | Command::Profiles { .. }
-        | Command::Monitors { .. } => desktop::into_desktop_action(cmd),
+        | Command::Monitors { .. }
+        | Command::Desktop { .. } => desktop::into_desktop_action(cmd),
 
         Command::Combo { .. }
         | Command::Input { .. }

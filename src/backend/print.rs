@@ -5,11 +5,21 @@ use crate::protocol::{PrintJob, PrintPrinter};
 
 /// List all printers (lpstat -v + lpstat -d).
 pub fn print_list() -> anyhow::Result<Vec<PrintPrinter>> {
-    let output = std::process::Command::new("lpstat").args(["-v"]).output()?;
+    let output = match std::process::Command::new("lpstat").args(["-v"]).output() {
+        Ok(o) => o,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
     let printers_raw = String::from_utf8_lossy(&output.stdout);
 
-    let default_output = std::process::Command::new("lpstat").args(["-d"]).output()?;
-    let default_raw = String::from_utf8_lossy(&default_output.stdout);
+    let default_output = std::process::Command::new("lpstat")
+        .args(["-d"])
+        .output()
+        .ok();
+    let default_raw = default_output
+        .as_ref()
+        .map(|o| String::from_utf8_lossy(&o.stdout))
+        .unwrap_or_default();
     let default_name = default_raw
         .strip_prefix("system default destination: ")
         .map(|s| s.trim().to_string());
