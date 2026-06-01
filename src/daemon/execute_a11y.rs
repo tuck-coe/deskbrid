@@ -2,10 +2,7 @@ use crate::DaemonState;
 use crate::protocol::Action;
 use serde_json::Value;
 
-pub(crate) async fn execute_a11y(
-    action: Action,
-    _state: &DaemonState,
-) -> anyhow::Result<Value> {
+pub(crate) async fn execute_a11y(action: Action, _state: &DaemonState) -> anyhow::Result<Value> {
     use Action::*;
     Ok(match action {
         // --- Legacy (role/name based) ---
@@ -16,9 +13,11 @@ pub(crate) async fn execute_a11y(
         A11yClickElement { role, name, index } => {
             crate::a11y::click_element(role.as_deref(), name.as_deref(), index).await?
         }
-        A11yGetText { role, ref name, index } => {
-            crate::a11y::get_text(role.as_deref(), name.as_deref(), index).await?
-        }
+        A11yGetText {
+            role,
+            ref name,
+            index,
+        } => crate::a11y::get_text(role.as_deref(), name.as_deref(), index).await?,
 
         // --- Expanded (object_ref based) ---
         A11ySnapshotTree {
@@ -26,7 +25,9 @@ pub(crate) async fn execute_a11y(
             pid,
             max_nodes,
             max_depth,
-        } => crate::a11y::tree::snapshot_tree(app_name.as_deref(), pid, max_nodes, max_depth).await?,
+        } => {
+            crate::a11y::tree::snapshot_tree(app_name.as_deref(), pid, max_nodes, max_depth).await?
+        }
 
         A11yPerformAction {
             object_ref,
