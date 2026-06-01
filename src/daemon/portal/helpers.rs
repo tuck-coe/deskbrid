@@ -1,7 +1,6 @@
 //! Portal helpers — session management, response waiting, type conversion.
 
 use serde_json::{Value, json};
-use std::os::unix::io::AsRawFd;
 use zbus::Connection;
 
 const PORTAL_SERVICE: &str = "org.freedesktop.portal.Desktop";
