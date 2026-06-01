@@ -1,3 +1,42 @@
+## v0.11.3 — Async Safety & Code Quality
+
+**17 commits since v0.11.2 · 15 files changed · 646 insertions · 619 deletions**
+
+Patch release fixing blocking I/O calls, adding checksum verification to the
+self-updater, and splitting 6 oversized files into 21 modules. Every source
+file now under 300 lines.
+
+### ⚡ Async Safety
+- **6 commits** — Replace `std::fs::read_dir` with `tokio::fs::read_dir` across
+  macro_engine, cosmic backend, X11 backend, GNOME DRM probe, KDE DRM probe, and
+  the self-update binary scan. Eliminates tokio worker thread stalls on I/O.
+- `abs_pointer.rs:191` intentionally left sync — documented `spawn_blocking` pattern.
+
+### 🔒 Self-Update Security
+- Replace `sha256sum` shell call with `sha2` crate — in-Rust verification that
+  downloads `.sha256` from the release, computes the hash, and compares before
+  any binary replacement.
+- CI release workflow now generates `.sha256` files alongside tarballs.
+
+### 📦 File Splits (Claude Code Review)
+| File | Before | After |
+|------|--------|-------|
+| `cosmic_helper.rs` | 1173 | 6 modules (27–285) |
+| `portal.rs` | 452 | 4 modules (12–207) |
+| `tray.rs` | 417 | 3 modules (7–282) |
+| `kde/networking.rs` | 381 | 3 modules (8–295) |
+| `gnome/screenshot.rs` | 368 | 5 modules (6–134) |
+| `labwc_helper.rs` | 330 | 5 modules (13–184) |
+
+### 🐛 Bug Fixes
+- `ActiveScreencast` visibility — type was `pub(crate)` but `DaemonState` field
+  is `pub`. Fixed all the way through: struct, functions, and re-exports.
+- `clippy::needless_return` in GNOME screenshot fallback path.
+
+### 🔧 CI
+- Add `workflow_dispatch` trigger — GitHub didn't fire on two pushes, now we
+  can manually kick it.
+
 ## v0.11.2 — Repo Cleanup & Live Demo
 
 **12 files changed · 58 insertions · 741 deletions · 5 commits since v0.11.1**
