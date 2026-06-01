@@ -55,8 +55,13 @@ jobs:
             sha256sum "$f" > "${f}.sha256"
           done
 
+      - name: Extract release notes from CHANGELOG
+        run: |
+          awk '/^## v/{if(found) exit; found=1} found' CHANGELOG.md > /tmp/release-notes.md
+          head -c 8000 /tmp/release-notes.md > /tmp/release-notes-trunc.md
+
       - name: Upload tarball to release
         uses: softprops/action-gh-release@v2
         with:
           files: target/${{ matrix.target }}/release/deskbrid-*
-          generate_release_notes: true
+          body_path: /tmp/release-notes-trunc.md
