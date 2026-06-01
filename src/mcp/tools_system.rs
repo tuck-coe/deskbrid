@@ -238,5 +238,176 @@ macro_rules! tools_system {
         }
         execute(self.state.clone(), &self.rt, "process.wait", args)
     }
+
+    #[tool(
+        name = "backlight_list",
+        description = "List all backlight devices with max and current brightness.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn backlight_list(&self) -> Json<Value> {
+        block(&self.rt, do_execute(&self.state, "system.backlight_list", json!({})))
+    }
+
+    #[tool(
+        name = "backlight_get",
+        description = "Get current brightness of a backlight device (or default).",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn backlight_get(
+        &self,
+        Parameters(BacklightDevice { device }): Parameters<BacklightDevice>,
+    ) -> Json<Value> {
+        let mut args = json!({});
+        if let Some(d) = device {
+            args["device"] = json!(d);
+        }
+        execute(self.state.clone(), &self.rt, "system.backlight_get", args)
+    }
+
+    #[tool(
+        name = "backlight_set",
+        description = "Set backlight brightness by percentage ('50%') or raw value ('469').",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn backlight_set(
+        &self,
+        Parameters(BacklightSetArgs { device, value }): Parameters<BacklightSetArgs>,
+    ) -> Json<Value> {
+        let mut args = json!({"value": value});
+        if let Some(d) = device {
+            args["device"] = json!(d);
+        }
+        execute(self.state.clone(), &self.rt, "system.backlight_set", args)
+    }
+
+    #[tool(
+        name = "print_list",
+        description = "List all configured printers with name, status, and default.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn print_list(&self) -> Json<Value> {
+        block(&self.rt, do_execute(&self.state, "system.print_list", json!({})))
+    }
+
+    #[tool(
+        name = "print_default",
+        description = "Get or set the default printer. Omit printer to read; provide printer to set.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn print_default(
+        &self,
+        Parameters(PrintDefaultArgs { printer }): Parameters<PrintDefaultArgs>,
+    ) -> Json<Value> {
+        let mut args = json!({});
+        if let Some(p) = printer {
+            args["printer"] = json!(p);
+        }
+        execute(self.state.clone(), &self.rt, "system.print_default", args)
+    }
+
+    #[tool(
+        name = "print_jobs",
+        description = "List active print jobs in the queue.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn print_jobs(&self) -> Json<Value> {
+        block(&self.rt, do_execute(&self.state, "system.print_jobs", json!({})))
+    }
+
+    #[tool(
+        name = "print_job_cancel",
+        description = "Cancel a print job by ID.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn print_job_cancel(
+        &self,
+        Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "system.print_job_cancel",
+            json!({"job_id": job_id}),
+        )
+    }
+
+    #[tool(
+        name = "print_job_pause",
+        description = "Pause a print job by ID.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn print_job_pause(
+        &self,
+        Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "system.print_job_pause",
+            json!({"job_id": job_id}),
+        )
+    }
+
+    #[tool(
+        name = "print_job_resume",
+        description = "Resume a paused print job by ID.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn print_job_resume(
+        &self,
+        Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "system.print_job_resume",
+            json!({"job_id": job_id}),
+        )
+    }
     };
 }

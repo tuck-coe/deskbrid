@@ -43,6 +43,20 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             device: raw["device"].as_str().map(String::from),
             value: raw["value"].as_str().unwrap_or("").into(),
         },
+        "system.print_list" => Action::SystemPrintList,
+        "system.print_default" => Action::SystemPrintDefault {
+            printer: raw["printer"].as_str().map(String::from),
+        },
+        "system.print_jobs" => Action::SystemPrintJobList,
+        "system.print_job_cancel" => Action::SystemPrintJobCancel {
+            job_id: required_non_empty_string(raw, "job_id")?,
+        },
+        "system.print_job_pause" => Action::SystemPrintJobPause {
+            job_id: required_non_empty_string(raw, "job_id")?,
+        },
+        "system.print_job_resume" => Action::SystemPrintJobResume {
+            job_id: required_non_empty_string(raw, "job_id")?,
+        },
         "system.thermal" => Action::SystemThermalGet,
         "system.cpu.frequency" => Action::SystemCpuFrequency,
         "system.cpu.governor" => Action::SystemCpuGovernor,

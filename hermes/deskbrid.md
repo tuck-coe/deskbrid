@@ -341,6 +341,47 @@ See `references/mutter-remotedesktop-session-api.md` for the full Mutter RemoteD
 See `references/mutter-screencast-api.md` for the ScreenCast API exploration — RecordMonitor, RecordVirtual, and why absolute mouse positioning failed on GNOME 46.
 See `templates/waybar-top-only.jsonc` and `templates/waybar-top-only.css` for a minimal waybar config (single top bar) for Hyprland test rigs — prevents the default two-bar layout.
 
+### Desktop Settings (v0.12.0)
+
+Three actions for cross-desktop settings management:
+
+| Action | Protocol String | Description |
+|--------|----------------|-------------|
+| `DesktopListSchemas` | `desktop.list_schemas` | List all available gsettings schemas |
+| `DesktopGetSetting` | `desktop.get_setting` | Read a setting value (schema + key) |
+| `DesktopSetSetting` | `desktop.set_setting` | Write a setting value (schema + key + value) |
+
+**Backend support:**
+
+| Backend | Mechanism | List | Get | Set |
+|---------|-----------|------|-----|-----|
+| GNOME, COSMIC, Hyprland, Sway, Labwc, Niri, Wayfire | `gsettings` shared module | ✅ | ✅ | ✅ |
+| KDE | `kreadconfig5` / `kwriteconfig5` | ✅ | ✅ | ✅ |
+| X11 | `xfconf-query` → `gsettings` fallback | ✅ | ✅ | ✅ |
+
+**Quick test:**
+```bash
+echo '{"type":"desktop.list_schemas","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+echo '{"type":"desktop.get_setting","id":"2","schema":"org.gnome.desktop.interface","key":"gtk-theme"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+```
+
+### Backlight Control (v0.12.0)
+
+Three actions for display backlight management via sysfs (`/sys/class/backlight/`):
+
+| Action | Protocol String | Description |
+|--------|----------------|-------------|
+| `SystemBacklightList` | `system.backlight_list` | List all backlight devices with max/current brightness |
+| `SystemBacklightGet` | `system.backlight_get` | Get brightness for a device (or default) |
+| `SystemBacklightSet` | `system.backlight_set` | Set brightness by percentage ("50%") or raw value ("469") |
+
+**Works on ALL backends** — pure sysfs, no per-DE code. Requires `video` group access to `/sys/class/backlight/*/brightness` (udev rule included in setup).
+
+```bash
+echo '{"type":"system.backlight_list","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+echo '{"type":"system.backlight_set","id":"2","value":"50%"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+```
+
 ## Quick Test
 
 ### Keyboard Layout Management (v0.10.0)

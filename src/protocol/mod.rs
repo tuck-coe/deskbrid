@@ -256,6 +256,20 @@ pub enum Action {
         device: Option<String>,
         value: String,
     },
+    SystemPrintList,
+    SystemPrintDefault {
+        printer: Option<String>,
+    },
+    SystemPrintJobList,
+    SystemPrintJobCancel {
+        job_id: String,
+    },
+    SystemPrintJobPause {
+        job_id: String,
+    },
+    SystemPrintJobResume {
+        job_id: String,
+    },
     SystemThermalGet,
     SystemCpuFrequency,
     SystemCpuGovernor,
@@ -822,6 +836,12 @@ impl Action {
             "system.backlight_list",
             "system.backlight_get",
             "system.backlight_set",
+            "system.print_list",
+            "system.print_default",
+            "system.print_jobs",
+            "system.print_job_cancel",
+            "system.print_job_pause",
+            "system.print_job_resume",
             "system.thermal",
             "system.cpu.frequency",
             "system.cpu.governor",
@@ -1016,8 +1036,8 @@ mod tests {
         assert!(actions.contains(&"mpris.list"));
         assert!(actions.contains(&"color.pick"));
         assert!(actions.contains(&"input.mouse.drag"));
-        assert!(actions.contains(&"system.backlight.get"));
-        assert!(actions.contains(&"system.backlight.set"));
+        assert!(actions.contains(&"system.backlight_get"));
+        assert!(actions.contains(&"system.backlight_set"));
         assert!(actions.contains(&"system.thermal"));
         assert!(actions.contains(&"system.cpu.frequency"));
         assert!(actions.contains(&"system.cpu.governor"));
@@ -1047,7 +1067,7 @@ mod tests {
     #[test]
     fn parses_backlight_actions() {
         let (_, get) =
-            Action::from_json(r#"{"type":"system.backlight.get","id":"x","device":"intel"}"#)
+            Action::from_json(r#"{"type":"system.backlight_get","id":"x","device":"intel"}"#)
                 .unwrap();
         assert!(matches!(
             get,
@@ -1057,17 +1077,16 @@ mod tests {
         ));
 
         let (_, set) =
-            Action::from_json(r#"{"type":"system.backlight.set","id":"x","percent":42.5}"#)
-                .unwrap();
+            Action::from_json(r#"{"type":"system.backlight_set","id":"x","value":"50%"}"#).unwrap();
         assert!(matches!(
             set,
             Action::SystemBacklightSet {
-                percent,
+                value,
                 device: None,
-            } if percent == 42.5
+            } if value == "50%"
         ));
         assert!(
-            Action::from_json(r#"{"type":"system.backlight.set","id":"x","percent":101}"#).is_err()
+            Action::from_json(r#"{"type":"system.backlight_set","id":"x","value":"50%"}"#).is_ok()
         );
     }
 

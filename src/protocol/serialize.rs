@@ -113,6 +113,12 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemBacklightList
         | Action::SystemBacklightGet { .. }
         | Action::SystemBacklightSet { .. }
+        | Action::SystemPrintList
+        | Action::SystemPrintDefault { .. }
+        | Action::SystemPrintJobList
+        | Action::SystemPrintJobCancel { .. }
+        | Action::SystemPrintJobPause { .. }
+        | Action::SystemPrintJobResume { .. }
         | Action::SystemThermalGet
         | Action::SystemCpuFrequency
         | Action::SystemCpuGovernor

@@ -50,6 +50,24 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::SystemPrintList => json!({"type": "system.print_list", "id": id}),
+        Action::SystemPrintDefault { printer } => {
+            let mut obj = json!({"type": "system.print_default", "id": id});
+            if let Some(printer) = printer {
+                obj["printer"] = json!(printer);
+            }
+            obj
+        }
+        Action::SystemPrintJobList => json!({"type": "system.print_jobs", "id": id}),
+        Action::SystemPrintJobCancel { job_id } => {
+            json!({"type": "system.print_job_cancel", "id": id, "job_id": job_id})
+        }
+        Action::SystemPrintJobPause { job_id } => {
+            json!({"type": "system.print_job_pause", "id": id, "job_id": job_id})
+        }
+        Action::SystemPrintJobResume { job_id } => {
+            json!({"type": "system.print_job_resume", "id": id, "job_id": job_id})
+        }
         Action::SystemThermalGet => json!({"type": "system.thermal", "id": id}),
         Action::SystemCpuFrequency => json!({"type": "system.cpu.frequency", "id": id}),
         Action::SystemCpuGovernor => json!({"type": "system.cpu.governor", "id": id}),

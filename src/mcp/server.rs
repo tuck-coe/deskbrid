@@ -13,10 +13,10 @@ use super::helpers::*;
 use super::types::*;
 use crate::DaemonState;
 use crate::{
-    tools_a11y, tools_audio, tools_bluetooth, tools_browser, tools_clipboard, tools_files,
-    tools_input, tools_media, tools_misc, tools_monitors, tools_network, tools_notifications,
-    tools_portal, tools_screencast, tools_screenshot, tools_services, tools_system, tools_terminal,
-    tools_windows,
+    tools_a11y, tools_audio, tools_bluetooth, tools_browser, tools_clipboard, tools_desktop,
+    tools_files, tools_input, tools_media, tools_misc, tools_monitors, tools_network,
+    tools_notifications, tools_portal, tools_screencast, tools_screenshot, tools_services,
+    tools_system, tools_terminal, tools_windows,
 };
 use anyhow::Context;
 use rmcp::{
@@ -82,6 +82,7 @@ impl McpServer {
     tools_notifications!();
     tools_misc!();
     tools_portal!();
+    tools_desktop!();
 }
 
 /// Run the MCP server over stdio transport (for `deskbrid mcp`).

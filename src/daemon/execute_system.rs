@@ -33,6 +33,23 @@ pub(crate) async fn execute_system(
             ref device,
             ref value,
         } => serde_json::json!(backend.backlight_set(device.as_deref(), value).await?),
+        SystemPrintList => serde_json::json!(backend.print_list().await?),
+        SystemPrintDefault { ref printer } => {
+            serde_json::json!(backend.print_default(printer.as_deref()).await?)
+        }
+        SystemPrintJobList => serde_json::json!(backend.print_jobs().await?),
+        SystemPrintJobCancel { ref job_id } => {
+            backend.print_job_cancel(job_id).await?;
+            serde_json::json!({"cancelled": job_id})
+        }
+        SystemPrintJobPause { ref job_id } => {
+            backend.print_job_pause(job_id).await?;
+            serde_json::json!({"paused": job_id})
+        }
+        SystemPrintJobResume { ref job_id } => {
+            backend.print_job_resume(job_id).await?;
+            serde_json::json!({"resumed": job_id})
+        }
         SystemThermalGet => thermal_get().await?,
         SystemCpuFrequency => cpu_frequency().await?,
         SystemCpuGovernor => cpu_governor().await?,

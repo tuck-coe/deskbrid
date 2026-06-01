@@ -579,6 +579,56 @@ fn default_signal() -> String {
     "SIGTERM".into()
 }
 
+// ── Backlight ──────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct BacklightDevice {
+    #[schemars(description = "Backlight device name (e.g. 'intel_backlight'). Omit for default.")]
+    pub device: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct BacklightSetArgs {
+    #[schemars(description = "Backlight device name (e.g. 'intel_backlight'). Omit for default.")]
+    pub device: Option<String>,
+    #[schemars(description = "Brightness value: percentage ('50%') or raw integer ('469')")]
+    pub value: String,
+}
+
+// ── Print ──────────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct PrintDefaultArgs {
+    #[schemars(description = "Printer name to set as default. Omit to just read current default.")]
+    pub printer: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct PrintJobAction {
+    #[schemars(description = "Print job ID (e.g. '42')")]
+    pub job_id: String,
+}
+
+// ── Desktop Settings ───────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct DesktopSettingKey {
+    #[schemars(description = "GSettings schema (e.g. 'org.gnome.desktop.interface')")]
+    pub schema: String,
+    #[schemars(description = "Schema key (e.g. 'gtk-theme')")]
+    pub key: String,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct DesktopSettingValue {
+    #[schemars(description = "GSettings schema (e.g. 'org.gnome.desktop.interface')")]
+    pub schema: String,
+    #[schemars(description = "Schema key (e.g. 'gtk-theme')")]
+    pub key: String,
+    #[schemars(description = "Value to set (string, boolean, or number)")]
+    pub value: String,
+}
+
 // ── Notifications ──────────────────────────────────────────
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]

@@ -1,7 +1,7 @@
 ---
 name: deskbrid
 description: >
-  Full Linux desktop control for Hermes agents — 85 tools across windows,
+  Full Linux desktop control for Hermes agents — 91 tools across windows,
   keyboard/mouse input, AT-SPI UI inspection, clipboard, screenshots,
   audio, system, files, terminals, browser automation, process management,
   monitor configuration, media playback, notifications, hotkeys, and more.
@@ -32,12 +32,14 @@ tools: [list_windows, focused_window, list_workspaces, list_apps,
   list_processes, start_process, stop_process, signal_process,
   process_exists, wait_for_process,
   send_notification, close_notification,
-  register_hotkey, unregister_hotkey]
+  register_hotkey, unregister_hotkey,
+  list_schemas, get_setting, set_setting,
+  backlight_list, backlight_get, backlight_set]
 ---
 
 # Deskbrid — Linux Desktop Control
 
-You have full control over the Linux desktop through 85 Deskbrid tools.
+You have full control over the Linux desktop through 91 Deskbrid tools.
 
 ## Core Workflow
 
@@ -196,6 +198,23 @@ Urgency: low, normal, critical.
 
 - `register_hotkey` — Bind global key combo to an ID
 - `unregister_hotkey` — Remove binding
+
+## Desktop Settings
+
+- `list_schemas` — List all available gsettings schemas
+- `get_setting` — Read a setting (schema, key) — e.g. `org.gnome.desktop.interface`, `gtk-theme`
+- `set_setting` — Write a setting (schema, key, value)
+
+Works on GNOME, COSMIC, Hyprland, Sway, Labwc, Niri, Wayfire (gsettings shared module),
+KDE (kreadconfig5/kwriteconfig5), and X11 (xfconf-query → gsettings fallback).
+
+## Backlight
+
+- `backlight_list` — List all backlight devices with max/current brightness
+- `backlight_get` — Get brightness for a device (or default)
+- `backlight_set` — Set brightness by percentage ("50%") or raw value ("469")
+
+Works on ALL backends via sysfs (`/sys/class/backlight/`). Requires `video` group access.
 
 ## Patterns
 

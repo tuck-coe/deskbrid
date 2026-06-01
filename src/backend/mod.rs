@@ -6,6 +6,7 @@ pub mod hyprland;
 pub mod kde;
 pub mod labwc;
 pub mod niri;
+pub(crate) mod print;
 pub mod sway;
 pub mod wayfire;
 pub(crate) mod wlr_randr;
@@ -366,5 +367,30 @@ pub trait DesktopBackend: Send + Sync {
         value: &str,
     ) -> anyhow::Result<protocol::BacklightInfo> {
         backlight::backlight_set(device, value)
+    }
+
+    /// List printers via lpstat.
+    async fn print_list(&self) -> anyhow::Result<Vec<protocol::PrintPrinter>> {
+        print::print_list()
+    }
+    /// Get or set default printer.
+    async fn print_default(&self, printer: Option<&str>) -> anyhow::Result<protocol::PrintPrinter> {
+        print::print_default(printer)
+    }
+    /// List print jobs.
+    async fn print_jobs(&self) -> anyhow::Result<Vec<protocol::PrintJob>> {
+        print::print_jobs()
+    }
+    /// Cancel a print job.
+    async fn print_job_cancel(&self, job_id: &str) -> anyhow::Result<()> {
+        print::print_job_cancel(job_id)
+    }
+    /// Pause a print job.
+    async fn print_job_pause(&self, job_id: &str) -> anyhow::Result<()> {
+        print::print_job_pause(job_id)
+    }
+    /// Resume a print job.
+    async fn print_job_resume(&self, job_id: &str) -> anyhow::Result<()> {
+        print::print_job_resume(job_id)
     }
 }

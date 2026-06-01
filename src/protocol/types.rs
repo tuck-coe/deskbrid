@@ -96,6 +96,26 @@ pub struct BacklightInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PrintPrinter {
+    pub name: String,
+    pub location: String,
+    pub status: String,
+    pub is_default: bool,
+    pub uri: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PrintJob {
+    pub id: String,
+    pub printer: String,
+    pub user: String,
+    pub name: String,
+    pub size: Option<String>,
+    pub status: String,
+    pub submitted: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct LayoutProfile {
     pub schema_version: u32,

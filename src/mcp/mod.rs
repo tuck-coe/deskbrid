@@ -18,6 +18,7 @@ mod tools_audio;
 mod tools_bluetooth;
 mod tools_browser;
 mod tools_clipboard;
+mod tools_desktop;
 mod tools_files;
 mod tools_input;
 mod tools_media;
