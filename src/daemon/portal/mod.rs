@@ -8,5 +8,5 @@ mod helpers;
 mod screencast;
 mod screenshot;
 
-pub(crate) use screencast::{ActiveScreencast, portal_screencast_start, portal_screencast_stop};
+pub use screencast::{ActiveScreencast, portal_screencast_start, portal_screencast_stop};
 pub(crate) use screenshot::portal_screenshot;

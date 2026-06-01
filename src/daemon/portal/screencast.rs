@@ -13,7 +13,7 @@ use super::helpers::{
 };
 
 /// Active portal screencast session — holds the GStreamer child process.
-pub(crate) struct ActiveScreencast {
+pub struct ActiveScreencast {
     pub child: tokio::process::Child,
     pub output_path: String,
 }
@@ -29,7 +29,7 @@ pub(crate) struct ActiveScreencast {
 ///
 /// On wlroots compositors (Hyprland, Sway), uses wf-recorder directly.
 /// On other environments, attempts the XDG ScreenCast portal API.
-pub(crate) async fn portal_screencast_start(
+pub async fn portal_screencast_start(
     output_path: &str,
     active: &Arc<Mutex<Option<ActiveScreencast>>>,
 ) -> anyhow::Result<Value> {
@@ -55,7 +55,7 @@ pub(crate) async fn portal_screencast_start(
 }
 
 /// Stop a running portal screencast.
-pub(crate) async fn portal_screencast_stop(
+pub async fn portal_screencast_stop(
     active: &Arc<Mutex<Option<ActiveScreencast>>>,
 ) -> anyhow::Result<Value> {
     let mut guard = active.lock().await;
