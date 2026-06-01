@@ -54,7 +54,7 @@ impl KdeBackend {
     }
 
     pub(super) async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
-        let glob = std::fs::read_dir(&format!(
+        let glob = std::fs::read_dir(format!(
             "{}/.config",
             std::env::var("HOME").unwrap_or_default()
         ))?
