@@ -187,4 +187,25 @@ impl DesktopBackend for NiriBackend {
     async fn monitor_set_enabled(&self, _output: &str, _enabled: bool) -> anyhow::Result<()> {
         monitor::monitor_set_enabled(self, _output, _enabled).await
     }
+
+    async fn keyboard_layout_list(&self) -> anyhow::Result<Vec<protocol::KeyboardLayout>> {
+        NiriBackend::keyboard_layout_list(self).await
+    }
+    async fn keyboard_layout_get(&self) -> anyhow::Result<protocol::KeyboardLayout> {
+        NiriBackend::keyboard_layout_get(self).await
+    }
+    async fn keyboard_layout_set(
+        &self,
+        index: Option<u32>,
+        name: Option<&str>,
+        variant: Option<&str>,
+    ) -> anyhow::Result<()> {
+        NiriBackend::keyboard_layout_set(self, index, name, variant).await
+    }
+    async fn keyboard_layout_add(&self, name: &str, variant: Option<&str>) -> anyhow::Result<()> {
+        NiriBackend::keyboard_layout_add(self, name, variant).await
+    }
+    async fn keyboard_layout_remove(&self, index: u32) -> anyhow::Result<()> {
+        NiriBackend::keyboard_layout_remove(self, index).await
+    }
 }

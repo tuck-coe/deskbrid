@@ -7,6 +7,7 @@ use tokio::process::Command;
 use tokio::sync::broadcast;
 
 pub(crate) mod helpers;
+pub(crate) mod keyboard_layout;
 use helpers::*;
 
 pub struct WayfireBackend {
