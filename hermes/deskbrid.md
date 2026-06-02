@@ -3,11 +3,11 @@ name: deskbrid
 description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, 9 backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server, AT-SPI2 a11y, browser CDP, file ops, MPRIS, systemd, terminal.
 ---
 
-# Deskbrid Desktop Control (v0.11.3)
+# Deskbrid Desktop Control (v0.12.0)
 
 Deskbrid is a Unix socket daemon + MCP server that wraps GNOME Shell, KDE, Hyprland, COSMIC, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON protocol. Any agent or script can control the full desktop.
 
-**v0.11.3 highlights:** Async I/O safety (6 blocking read_dir calls → tokio), SHA256 checksum verification for self-updater, 6 files split into 21 modules (Claude code review), CI workflow_dispatch trigger.
+**v0.12.0 highlights:** Desktop Settings (gsettings read/write across 10 DEs), Backlight control (sysfs, all backends), Print management (CUPS CLI wrappers — 7 actions from list to print-file), Dashboard cards for Desktop Settings, Backlight, and Printers. 92 MCP tools across 19 categories.
 
 **v0.11.2 highlights:** Repo cleanup, live dashboard proxy, AGENTS.md rewrite, audio volume fix.
 
@@ -380,6 +380,27 @@ Three actions for display backlight management via sysfs (`/sys/class/backlight/
 ```bash
 echo '{"type":"system.backlight_list","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
 echo '{"type":"system.backlight_set","id":"2","value":"50%"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+```
+
+### Print Management (v0.12.0)
+
+Seven actions for printer control via CUPS CLI wrappers (`lpstat`, `lpadmin`, `lp`, `cancel`):
+
+| Action | Protocol String | Description |
+|--------|----------------|-------------|
+| `SystemPrintList` | `system.print_list` | List all configured printers |
+| `SystemPrintDefault` | `system.print_default` | Get or set the default printer |
+| `SystemPrintFile` | `system.print_file` | Send a file to a printer (lp -d \<printer\> \<path\>) |
+| `SystemPrintJobList` | `system.print_jobs` | List active print jobs |
+| `SystemPrintJobCancel` | `system.print_job_cancel` | Cancel a print job |
+| `SystemPrintJobPause` | `system.print_job_pause` | Pause a print job |
+| `SystemPrintJobResume` | `system.print_job_resume` | Resume a paused print job |
+
+**Works on ALL backends** — pure CUPS CLI wrappers, no per-DE code. Graceful fallback returns empty results when CUPS is not installed. CLI: `deskbrid system print-list`, `deskbrid system print-file <printer> <path>`, etc. Dashboard: 🖨️ Printers card with status, default marker, and active jobs.
+
+```bash
+echo '{"type":"system.print_list","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+echo '{"type":"system.print_file","id":"2","printer":"Canon_TS3500","path":"/tmp/doc.txt"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
 ```
 
 ## Quick Test

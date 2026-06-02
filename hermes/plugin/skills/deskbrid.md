@@ -1,7 +1,7 @@
 ---
 name: deskbrid
 description: >
-  Full Linux desktop control for Hermes agents — 91 tools across windows,
+  Full Linux desktop control for Hermes agents — 92 tools across windows,
   keyboard/mouse input, AT-SPI UI inspection, clipboard, screenshots,
   audio, system, files, terminals, browser automation, process management,
   monitor configuration, media playback, notifications, hotkeys, and more.
@@ -34,7 +34,8 @@ tools: [list_windows, focused_window, list_workspaces, list_apps,
   send_notification, close_notification,
   register_hotkey, unregister_hotkey,
   list_schemas, get_setting, set_setting,
-  backlight_list, backlight_get, backlight_set]
+  backlight_list, backlight_get, backlight_set,
+  print_list, print_default, print_file, print_jobs, print_job_cancel, print_job_pause, print_job_resume]
 ---
 
 # Deskbrid — Linux Desktop Control
@@ -215,6 +216,18 @@ KDE (kreadconfig5/kwriteconfig5), and X11 (xfconf-query → gsettings fallback).
 - `backlight_set` — Set brightness by percentage ("50%") or raw value ("469")
 
 Works on ALL backends via sysfs (`/sys/class/backlight/`). Requires `video` group access.
+
+## Print
+
+- `print_list` — List all configured printers with status
+- `print_default` — Get or set the default printer (pass `printer` to set)
+- `print_file` — Send a file to a printer (`printer`: name, `path`: absolute path)
+- `print_jobs` — List active print jobs
+- `print_job_cancel` — Cancel a job by `job_id`
+- `print_job_pause` — Pause a job by `job_id`
+- `print_job_resume` — Resume a paused job by `job_id`
+
+Works on ALL backends via CUPS CLI wrappers (`lpstat`, `lpadmin`, `lp`, `cancel`). Graceful fallback returns empty results when CUPS is not installed. Use `print_file` to actually print — the other tools manage the queue.
 
 ## Patterns
 

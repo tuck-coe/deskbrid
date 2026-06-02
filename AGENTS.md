@@ -41,6 +41,7 @@ echo '{"type":"windows.list","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -
 - **Keyboard Layouts** — list, switch, add, remove
 - **Desktop Settings** — gsettings read/write, schema discovery (GNOME, KDE, X11, Hyprland, Sway, COSMIC, Labwc, Niri, Wayfire)
 - **Backlight** — list, get, set brightness via sysfs (all backends)
+- **Print** — list printers, set default, list/cancel/pause/resume jobs, send files to printer (CUPS)
 - **Self-update** — `deskbrid update` pulls latest from GitHub releases
 
 ## Dashboard
@@ -55,7 +56,7 @@ Built-in web dashboard at `localhost:20129` — system info, monitors, windows, 
 deskbrid mcp   # MCP stdio server for AI coding tools
 ```
 
-85+ tools across 18 categories: window management, accessibility tree, keyboard, mouse, clipboard, screenshots, system info, and more. Claude Desktop, Codex, Cursor — any MCP client.
+92+ tools across 19 categories: window management, accessibility tree, keyboard, mouse, clipboard, screenshots, system info, print, and more. Claude Desktop, Codex, Cursor — any MCP client.
 
 ## Python Client
 
