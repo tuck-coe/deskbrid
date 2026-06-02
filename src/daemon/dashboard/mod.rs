@@ -83,6 +83,52 @@ pub(super) async fn render_desktop_settings(
     }
 }
 
+pub(super) async fn render_printers(
+    backend: &Option<Box<dyn crate::backend::DesktopBackend>>,
+) -> String {
+    let Some(backend) = backend else {
+        return r#"<div class="empty">No backend</div>"#.into();
+    };
+    match backend.print_list().await {
+        Ok(printers) => {
+            if printers.is_empty() {
+                return r#"<div class="empty">No printers</div>"#.into();
+            }
+            let mut rows = String::new();
+            for p in &printers {
+                let def = if p.is_default { " ⭐" } else { "" };
+                let status_icon = match p.status.as_str() {
+                    "idle" => "🟢",
+                    "printing" => "🔵",
+                    "disabled" => "🔴",
+                    _ => "⚪",
+                };
+                rows.push_str(&kv(
+                    &p.name,
+                    &format!("{} {}{}", status_icon, p.status, def),
+                ));
+            }
+            match backend.print_jobs().await {
+                Ok(jobs) if !jobs.is_empty() => {
+                    rows.push_str(r#"<div class="section-label">Active Jobs</div>"#);
+                    for j in jobs.iter().take(5) {
+                        rows.push_str(&kv(
+                            &format!("Job #{}", j.id),
+                            &format!("{} — {}", j.printer, j.status),
+                        ));
+                    }
+                }
+                _ => {}
+            }
+            rows
+        }
+        Err(e) => format!(
+            r#"<div class="empty">Error: {}</div>"#,
+            html_escape(&e.to_string())
+        ),
+    }
+}
+
 pub(super) fn render_backlight(info: &Option<crate::protocol::BacklightInfo>) -> String {
     let Some(info) = info else {
         return r#"<div class="empty">No backlight</div>"#.into();

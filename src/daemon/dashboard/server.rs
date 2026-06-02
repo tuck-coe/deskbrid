@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::{
     base64_encode, error_box_html, render_audio, render_audit, render_backlight, render_clipboard,
     render_desktop_settings, render_macros, render_monitors, render_network, render_notifications,
-    render_rules, render_sessions, render_system, render_windows,
+    render_printers, render_rules, render_sessions, render_system, render_windows,
 };
 
 const HTML_PAGE: &str = include_str!("template.html");
@@ -63,6 +63,8 @@ pub(crate) async fn build_page(state: &DaemonState, show_screenshot: bool) -> St
         "__DESKTOP_SETTINGS__",
         &render_desktop_settings(&backend_guard).await,
     );
+
+    page = page.replace("__PRINTERS__", &render_printers(&backend_guard).await);
 
     if show_screenshot && let Some(ref backend) = *backend_guard {
         match backend.screenshot(None, None, None).await {
@@ -159,6 +161,10 @@ async fn sse_card_html(card: &str, state: &DaemonState) -> String {
             };
             render_backlight(&info)
         }
+        "printers" => {
+            let backend = state.backend.read().await;
+            render_printers(&backend).await
+        }
         _ => r#"<div class="empty">Unknown card</div>"#.into(),
     }
 }
@@ -206,6 +212,7 @@ pub(crate) async fn handle_request(
             "macros",
             "desktop-settings",
             "backlight",
+            "printers",
         ];
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
